@@ -1,0 +1,98 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    @apply bg-paper text-ink font-sans;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0.76) 0%, rgba(245,246,241,0.95) 34%, #f5f6f1 100%),
+      repeating-linear-gradient(90deg, rgba(22,33,29,0.025) 0 1px, transparent 1px 96px);
+  }
+  ::selection {
+    @apply bg-brand-200 text-brand-800;
+  }
+  *:focus-visible {
+    outline: 2px solid theme("colors.brand.500");
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-surface/95 border border-line rounded-card shadow-card;
+  }
+
+  .badge {
+    @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium;
+  }
+
+  .eyebrow {
+    @apply text-[11px] font-semibold tracking-[0.08em] uppercase text-ink-muted;
+  }
+
+  /* Signature component: a compact clinical readout for dashboards and patient vitals. */
+  .vitals-strip {
+    @apply flex items-stretch divide-x divide-white/10 rounded-card border border-brand-800 bg-ink text-paper overflow-hidden shadow-lift;
+  }
+  .vitals-cell {
+    @apply flex-1 min-w-[112px] px-4 py-3.5 flex flex-col gap-1.5;
+  }
+  .vitals-label {
+    @apply text-[10px] uppercase tracking-[0.08em] text-brand-100/75 font-medium;
+  }
+  .vitals-value {
+    @apply font-mono text-xl leading-none text-paper;
+  }
+  .vitals-unit {
+    @apply font-mono text-[11px] text-paper/50 ml-1;
+  }
+
+  .status-dot {
+    @apply inline-block w-2 h-2 rounded-full;
+  }
+
+  .nav-link {
+    @apply relative flex items-center gap-2.5 px-3 py-2 rounded-md text-[13px] font-medium text-ink-soft hover:bg-brand-50 hover:text-brand-700 transition-colors;
+  }
+  .nav-link.active {
+    @apply bg-brand-500 text-white shadow-card hover:bg-brand-500 hover:text-white;
+  }
+
+  .nav-link.active::before {
+    content: "";
+    @apply absolute left-1 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-full bg-clay-200;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-md bg-brand-500 text-white text-sm font-semibold px-3.5 py-2 shadow-card hover:bg-brand-600 hover:shadow-lift transition-all disabled:opacity-50 disabled:pointer-events-none;
+  }
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-md bg-white border border-line text-ink text-sm font-semibold px-3.5 py-2 hover:bg-paper hover:border-brand-100 transition-colors;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-md text-ink-muted text-sm font-semibold px-2.5 py-1.5 hover:bg-brand-50 hover:text-brand-700 transition-colors;
+  }
+
+  .input-field {
+    @apply w-full rounded-md border border-line bg-white px-3 py-2 text-sm text-ink placeholder:text-ink-faint shadow-[inset_0_1px_0_rgba(22,33,29,0.03)] focus:border-brand-400 focus:ring-2 focus:ring-brand-100 outline-none transition-colors;
+  }
+
+  .table-clean th {
+    @apply bg-paper/70 text-left text-[11px] uppercase tracking-[0.06em] text-ink-muted font-semibold px-4 py-2.5 border-b border-line;
+  }
+  .table-clean td {
+    @apply px-4 py-3 border-b border-line/70 text-sm text-ink-soft;
+  }
+  .table-clean tr:hover td {
+    @apply bg-brand-50/40;
+  }
+
+  .metric-tile {
+    @apply rounded-card border border-line bg-white/80 px-4 py-3 shadow-card;
+  }
+}

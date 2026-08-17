@@ -1,0 +1,165 @@
+﻿Qlyno — Patient Journey
+End-to-End Patient & Hospital Care Journey
+Source: Qlyno Miro Patient Journey board
+1. Journey Overview
+This document converts the supplied Qlyno patient-journey flowchart into a structured, editable product document. It covers routine doctor discovery and appointment booking, online consultation, emergency handling, hospital admission and surgery, diagnostics, pharmacy, discharge, and automated follow-up.
+2. Primary Journey Areas
+Journey Area
+Flow
+Offline / In-person Care
+Doctor discovery → hospital/clinic booking → reception → registration → OPD.
+Online Consultation
+Doctor search → video/audio consultation → consultation record → prescription/lab → pharmacy/home sample → follow-up.
+Emergency
+Emergency entry → emergency request → determine current treatment/hospital → alert hospital/ambulance/family → direct/transfer care.
+Hospital Admission & Surgery
+Admission → reception/doctor assessment → government-scheme eligibility → bed/ward → nurse coordination → surgeon → operation → recovery → discharge.
+Diagnostics & Medication
+Consultation → lab recommendation → sample/report → medication → pharmacy → patient receives medication.
+Follow-up
+Follow-up date → reminder → patient attends or misses → next action.
+3. Detailed Patient Journey
+1. Patient enters the care journey
+The patient can enter through an offline/in-person route, an online consultation route, or an emergency route.
+2. Search for a doctor
+For a normal condition, the patient looks for doctors or appointments. The search can be based on problem, speciality, doctor name, hospital, or similar criteria.
+3. Choose hospital or clinic
+The system can show doctors from a hospital or doctors from a clinic. The patient can then book an appointment for the selected hospital or clinic.
+4. Offline appointment and reception
+If the patient is coming from an offline journey, the patient reaches the receptionist. The receptionist checks the available slot and whether the patient is already registered.
+5. Patient registration
+If the patient is not registered, the patient is registered before proceeding. For a registered patient, the flow can continue toward the doctor OPD after slot checking.
+Decision / Branch: Registered patient → continue to OPD. New patient → register first.
+6. Online consultation
+The patient can look for a doctor and book/enter a video or audio consultation. The patient may call a specific doctor or be connected to a random doctor who can pick up.
+7. Consultation is recorded
+The consultation is logged in the patient and doctor dashboard so that the clinical interaction is retained as part of the patient record.
+8. Prescription or laboratory recommendation
+After consultation, the doctor can suggest a prescription and/or suggest a laboratory test.
+9. Medication and lab fulfillment
+A prescription can lead to an order from a pharmacy. A lab recommendation can lead to a home sample collection. The patient receives the resulting medication and/or lab report.
+10. Follow-up planning
+The care flow includes a free follow-up period or a doctor-decided follow-up. A follow-up date can be selected and the patient can be reminded before the due date.
+11. Emergency entry
+For an emergency, the patient clicks the emergency option. The flow then determines whether the patient is currently being treated at a hospital or is receiving treatment from home.
+12. Emergency coordination
+The emergency flow sends an SOS alert to the relevant hospital and can notify the nearest ambulance and family. If the patient is already being treated at a hospital, the hospital can be alerted directly. If not, the flow can help direct the patient toward an appropriate hospital/emergency destination.
+13. Hospital admission
+When a patient comes to the hospital for admission, the flow moves through reception and doctor assessment. The doctor assesses the patient and guides the next clinical steps.
+14. Government scheme / Ayushman eligibility
+The doctor assistant or nurse can check whether the patient is eligible for a government scheme such as Ayushman. If the patient wants to avail the benefit, eligibility is checked; if eligible, the process proceeds toward the applicable ward/bed and treatment workflow.
+15. Bed / ward and nursing coordination
+After admission/bed allocation, the nurse receives the patient and records the relevant care information. Nursing coordination continues through treatment and preparation for surgery when required.
+16. Surgery decision
+If surgery is not required, the patient continues through the applicable treatment pathway. If surgery is required, the surgeon-related workflow begins.
+17. Surgeon workflow
+The hospital-side flow includes doctor review, a request for surgeon availability, creation/review of the surgical plan or proposal, and getting the surgeon and patient together before the operation.
+18. Operation and treatment
+The patient proceeds through the operation and associated treatment. Nursing staff manage the required care during the treatment period.
+19. Doctor consultation and recovery
+Following the operation/treatment, the doctor consultation and recovery stage determine whether the patient is ready to leave the hospital or requires continued care.
+20. Discharge / patient goes home
+When the patient is ready, the patient leaves the hospital and receives instructions for medication, reports, and follow-up.
+21. Medication and lab reports
+The patient receives the medication and relevant report. If further investigation is required, the patient can be directed to the lab and the resulting report feeds back into the care cycle.
+22. Follow-up reminder
+The system can send a reminder for the follow-up date. If the patient attends, the follow-up consultation occurs. If the patient does not attend, the flow can trigger another reminder or follow-up action.
+4. System Touchpoints
+Doctor search and discovery
+Hospital/clinic selection
+Appointment booking
+Reception and patient registration
+Doctor OPD
+Video/audio consultation
+Patient and doctor dashboard
+Prescription management
+Pharmacy ordering
+Lab booking and home sample collection
+Lab reports
+Emergency / SOS
+Ambulance and family alerts
+Hospital admission
+Government-scheme eligibility checking
+Bed/ward management
+Nursing workflow
+Surgeon coordination
+Operation/treatment workflow
+Discharge
+Follow-up scheduling and reminders
+5. Actors Identified in the Journey
+Actor
+Role
+Patient
+Searches, books, consults, receives treatment, medication and reports, and attends follow-ups.
+Receptionist
+Handles arrival, registration, slot checking and front-desk coordination.
+Doctor
+Assesses patients, consults, prescribes, recommends tests, decides treatment/surgery and follow-up.
+Doctor Assistant
+Supports assessment, eligibility checks and operational coordination.
+Nurse
+Coordinates patient care, treatment preparation, surgery-related nursing work and discharge/follow-up instructions.
+Surgeon
+Handles surgeon-specific evaluation, surgical planning and operation.
+Pharmacy
+Fulfills prescriptions and supplies medication.
+Lab
+Performs tests and provides reports; may support home sample collection.
+Hospital
+Receives alerts, manages admission, beds, treatment and emergency coordination.
+Ambulance
+Supports emergency transport.
+Family
+Can receive emergency alerts.
+Qlyno System
+Coordinates booking, records, alerts, reminders and cross-stage patient information.
+6. Key Decision Points
+Is the patient seeking normal care, online consultation, or emergency help?
+Does the patient want a doctor from a hospital or a clinic?
+Is the patient already registered?
+Is an appointment slot available?
+Should the patient consult a specific doctor or a random available doctor?
+Does the consultation result in a prescription, lab test, or both?
+Is the patient currently being treated at a hospital during an emergency?
+Is the patient eligible for the applicable government scheme?
+Is surgery required?
+Is a surgeon required/available?
+Is the patient ready for discharge?
+Is another investigation or lab test required?
+Did the patient attend the scheduled follow-up?
+7. Product Opportunities / Requirements Implied by the Journey
+Unified patient profile across online and offline care.
+Doctor, hospital and clinic search with speciality/problem/name filters.
+Appointment and slot availability management.
+Patient registration and duplicate-patient prevention.
+Digital OPD workflow.
+Video/audio consultation with consultation logging.
+Digital prescription and pharmacy fulfillment.
+Lab test recommendation, booking, home collection and report storage.
+Emergency SOS with hospital, ambulance and family notification.
+Hospital admission and bed/ward workflow.
+Government-scheme eligibility workflow.
+Nursing task and patient-care coordination.
+Surgeon request and availability coordination.
+Surgery planning and treatment status.
+Discharge workflow and patient instructions.
+Follow-up scheduling and automated reminders.
+Patient and doctor dashboards with longitudinal records.
+8. Important Product Design Considerations
+Consideration
+Why it matters
+Emergency reliability
+Emergency workflows are high-stakes. Alerts, escalation, delivery status, fallback channels and clear responsibility should be explicitly designed and tested.
+Clinical vs administrative data
+The product should clearly separate clinical decisions from administrative automation. The system should support clinicians rather than silently make clinical decisions.
+Patient identity
+Offline registration and online profiles need a robust identity/duplicate-resolution mechanism so records do not fragment.
+Consent and privacy
+Video consultations, medical records, prescriptions, reports and family/emergency notifications require explicit privacy and consent controls.
+Hospital interoperability
+Hospital-side workflows may need integration with existing HIS/EMR systems rather than assuming every hospital will replace its current workflow.
+Notifications
+Follow-up and emergency notifications need delivery tracking and fallback logic; a notification that is merely 'sent' is not the same as one that was received.
+9. End-to-End Summary
+The Qlyno journey is designed as a connected care ecosystem rather than a single appointment booking flow. A patient can discover a doctor, book offline or online care, receive consultation, prescriptions and diagnostic services, enter an emergency pathway, move through hospital admission and surgery when required, and then continue into discharge and follow-up. The central product opportunity is to keep patient information and coordination connected across these transitions.
+Qlyno — Patient Journey | Structured from the supplied Miro board

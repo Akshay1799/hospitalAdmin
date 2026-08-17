@@ -1,0 +1,681 @@
+﻿QLYNO
+UNIFIED SEARCH
+Healthcare Discovery & Patient Search Engine
+Document
+Version
+Scope
+Status
+Qlyno Unified Search PRD
+1.0
+Patient + Healthcare Ecosystem
+Product Working Document
+One search experience across Doctors • Clinics • Hospitals • Labs • Medicines • Services
+Internal Product Document | Qlyno
+1. Executive Summary
+Qlyno should not treat search as a simple doctor-directory search. Because the platform connects solo doctors, multi-doctor clinics, hospitals, independent labs, pharmacies and patients, the search layer should act as a Unified Healthcare Discovery Engine.
+The core principle is: Search the patient's intent, not just an entity. A patient should be able to type a doctor name, specialty, hospital, clinic, lab test, medicine or healthcare service into one search experience and receive relevant, bookable results.
+The architecture must preserve a single doctor identity across multiple practice locations while keeping each organization operationally independent. Likewise, one Qlyno Patient ID should remain persistent across providers, with access controlled by relationship, permission, consent and role.
+2. Problem Statement
+Some doctors work independently, some work in clinics, some in hospitals, and some do all three.
+The same doctor must not appear as multiple unrelated doctors simply because they work at multiple organizations.
+Patients may search for a doctor, clinic, hospital, lab test, medicine or service using the same search box.
+A patient's search intent changes the ranking logic: 'Dr Sharma' is different from 'cardiologist near me' or 'CBC test'.
+Appointments at different organizations must remain operationally separate even when they involve the same doctor.
+Search must connect discovery with real availability, location, service, price and organization context.
+Patient search and patient-owned health records must be distinguishable so discovery does not expose private medical information.
+3. Core Architectural Principles
+Principle
+Rule
+Doctor identity
+One persistent Doctor ID represents the person/professional identity.
+Practice affiliation
+Doctor can have multiple affiliations with hospitals, clinics and solo practice contexts.
+Organization boundary
+Hospital, clinic and solo practice remain separate operational organizations.
+Appointment context
+Appointment references Doctor + Affiliation/Organization + Location + Service + Schedule.
+Patient identity
+One persistent Qlyno Patient ID across providers.
+Privacy
+One Patient ID does not grant every organization unrestricted access.
+Search
+One search surface can federate multiple entity types.
+Ranking
+Ranking is query- and context-dependent, not a fixed universal order.
+Availability
+Real availability should strongly influence actionable healthcare results.
+AI
+AI interprets natural-language intent; deterministic search returns verified structured entities.
+4. Provider Identity Model
+The same doctor may operate in multiple contexts without creating duplicate provider identities.
+Recommended relationship model:
+Doctor → multiple Doctor Affiliations → multiple Organizations / Locations
+Object
+Example
+Purpose
+Doctor
+DOC_1029 – Dr. Raj Sharma
+Persistent professional identity.
+Affiliation
+AFF_001
+Links doctor to a specific organization/context.
+Organization
+ABC Hospital
+Hospital operating context.
+Location
+Main Hospital, Cardiology
+Physical/operational location.
+Schedule
+Mon/Wed 4–7 PM
+Availability for that affiliation.
+Service
+Cardiology Consultation
+Bookable service and fee context.
+5. Doctor Onboarding & Multi-Organization Linking
+Qlyno must prevent duplicate doctor accounts when an organization tries to onboard an already registered doctor.
+Scenario
+System behaviour
+Hospital adds an existing doctor
+Search existing Doctor ID before creating a new provider.
+Potential match found
+Show existing verified/registered doctor and offer Request Affiliation / Link Existing Doctor.
+Doctor approves
+Create an active affiliation with hospital, department, schedule and hospital-specific rules.
+Doctor does not approve
+Keep affiliation pending; do not publish the hospital relationship as active.
+Doctor leaves hospital
+End/suspend the affiliation; preserve historical appointments and clinical records.
+Doctor works at clinic + hospital + solo practice
+Keep one public doctor profile with multiple practice contexts.
+Recommended duplicate-matching signals: medical registration number, verified email/mobile, identity evidence and other controlled matching attributes.
+6. Unified Search Experience
+Primary search placeholder:
+“Search doctors, hospitals, clinics, medicines, lab tests…”
+Suggested top-level discovery categories:
+Doctors
+Hospitals
+Clinics
+Lab Tests / Diagnostics
+Medicines
+Healthcare Services
+7. Search Intent Model
+Example query
+Detected intent
+Primary result
+Dr Sharma
+Doctor identity / name
+Doctor profile + practice locations
+Cardiologist near me
+Specialty + location
+Available cardiologists
+Heart hospital
+Organization + specialty
+Hospitals with cardiology
+Dental clinic
+Organization + specialty
+Dental clinics
+CBC test
+Diagnostic test
+Labs offering CBC
+Blood test near me
+Diagnostic + location
+Nearby labs
+Paracetamol
+Medicine
+Medicine/pharmacy results where integrated
+Physiotherapy
+Healthcare service
+Providers offering physiotherapy
+Mere knee mein pain hai
+Natural-language care intent
+Potential orthopedic care options, without diagnosis
+8. Unified Search Architecture
+Patient Query → Query Understanding → Entity/Intent/Context Detection → Search Index → Ranking Engine → Unified Results
+Layer
+Responsibility
+Query Understanding
+Normalize spelling, synonyms, location phrases and natural-language input.
+Entity Detection
+Identify doctor, clinic, hospital, lab, medicine, test or service.
+Intent Detection
+Determine what the patient is trying to accomplish.
+Context Detection
+Use location, date, availability, patient relationships and preferences where permitted.
+Search Index
+Return structured candidates quickly across multiple entity types.
+Ranking Engine
+Order results based on relevance, location, availability, service fit and trust signals.
+Result Composer
+Render the correct card, context, CTA and filters for each entity type.
+9. Searchable Entity Model
+Entity Group
+Entities
+Providers
+Doctor, specialist, surgeon
+Organizations
+Solo practice, clinic, hospital
+Diagnostics
+Lab, test, radiology, MRI, CT, X-ray
+Pharmacy
+Medicine, brand/generic, pharmacy
+Services
+Consultation, physiotherapy, vaccination, surgery, home sample collection, teleconsultation
+Patient-owned records
+Reports, prescriptions, appointments, bills, documents, connected providers
+10. Unified Search Index
+Do not make every search request query a large number of operational collections independently. Create a dedicated searchable projection/index that is refreshed from source-of-truth records.
+Field
+Purpose
+entityType / entityId
+Identify the searchable entity.
+doctorId
+Connect practice/location results to the persistent doctor.
+organizationId / organizationType
+Preserve clinic/hospital/solo context.
+name / keywords
+Text matching and autocomplete.
+specialty / services
+Clinical/service relevance.
+location / geoCoordinates
+Distance and local ranking.
+availability
+Actionable appointment/test availability.
+priceRange
+Patient affordability filtering.
+verificationStatus
+Trust/publication controls.
+rating / review signals
+Quality signal, without allowing rating alone to dominate.
+status
+Active/inactive/pending visibility control.
+searchableContent
+Descriptions, specialties, service terms and controlled metadata.
+11. Doctor Search Result Design
+The doctor should appear once, with multiple practice contexts.
+Example: Dr. Raj Sharma — Cardiologist — 15 years — Verified
+Practice context
+Example
+ABC Hospital
+Today 4:00 PM | ₹1,500 | 2.1 km
+Raj Sharma Clinic
+Tomorrow 11:00 AM | ₹1,000 | 3.0 km
+XYZ Heart Clinic
+Friday 5:00 PM | ₹1,200 | 4.2 km
+Primary actions: View Profile, Choose Location, Book Appointment.
+12. Search Ranking Framework
+Ranking should be query-dependent. Do not permanently hard-code hospital results above clinic results or vice versa.
+Ranking signal
+Why it matters
+Query relevance
+The result must actually match the patient's search.
+Location / distance
+Local healthcare searches depend heavily on proximity.
+Availability
+A bookable provider is more useful than an unavailable one.
+Service match
+The provider must offer the requested service.
+Verification / profile completeness
+Improves trust and data quality.
+Quality signals
+Reviews and ratings can help but should not dominate.
+Price fit
+Useful when affordability is part of patient preference.
+Patient context
+Connected providers and previous relationships can improve relevance when appropriate.
+Historical performance
+Can be used carefully as a secondary signal after relevance and trust.
+13. Contextual Filters
+Search type
+Recommended filters
+Doctor
+Specialty, location, distance, gender, language, experience, fee, availability, consultation mode, hospital/clinic/solo, verified
+Hospital
+Location, departments, specialty, emergency availability, services, distance
+Clinic
+Specialty, doctor, location, service, fee, availability, distance
+Lab
+Test, location, price, home collection, availability, distance
+Medicine
+Medicine, brand/generic, form, availability, price, pharmacy, delivery
+Service
+Service type, provider type, location, availability, price
+14. Care-Setting Filter
+For doctor/provider searches, patients should be able to choose the context in which they want care:
+Any
+Clinic
+Hospital
+Doctor's Practice
+Online
+This filter changes the affiliation context rather than creating duplicate doctors.
+15. Appointment Data Model
+Appointments must reference the practice context. A doctor alone is not sufficient.
+Appointment component
+Purpose
+Patient
+Persistent Qlyno Patient ID.
+Doctor
+Persistent Doctor ID.
+Doctor Affiliation
+Specific organization/practice relationship.
+Organization
+Hospital, clinic or solo context.
+Location
+Specific branch/department/clinic location.
+Service
+Consultation/procedure/service being booked.
+Schedule
+Specific availability/slot/queue context.
+Appointment type
+In-person, online, queue/slot etc. as supported.
+16. Search + Patient Health Records
+Discovery and private patient records should be separate result domains inside the same search experience.
+Domain
+Example
+Discovery
+Find Dr Sharma, a cardiology clinic, CBC test or pharmacy.
+My Health
+Find my CBC report, prescription, appointment, bill or connected provider.
+If a patient searches 'CBC', Qlyno can show 'Your Records' first when relevant, followed by 'Book a Test'. The system must never expose another organization's private clinical data merely because the patient searched a name.
+17. Example Patient Journeys
+17.1 Doctor Name Search
+Patient searches: “Dr Raj Sharma”
+System detects Doctor identity intent.
+One doctor profile is returned.
+Multiple active practice locations are shown.
+Each location displays its own fee, schedule and next available appointment.
+Patient chooses the organization/location before booking.
+17.2 Specialty + Location Search
+Patient searches: “Cardiologist near me”
+System detects specialty + local intent.
+Results are ranked by relevance, distance, availability and trust.
+Patient can filter Hospital / Clinic / Solo.
+Patient can choose Today / Tomorrow / Available Now where data exists.
+17.3 Lab Test Search
+Patient searches: “CBC test”
+System detects diagnostic-test intent.
+Results show labs offering CBC.
+Where integrated, show price, home collection, availability and distance.
+Patient books the test; report lifecycle remains connected to the patient's Qlyno identity.
+17.4 Medicine Search
+Patient searches: “Paracetamol”
+System detects medicine intent.
+Show medicine/catalogue information and available pharmacies where the commerce integration exists.
+Availability and pricing must come from actual connected inventory, not guessed catalogue data.
+17.5 Natural-Language Care Search
+Patient searches: “Mere knee mein pain hai”
+AI interprets the request as a potential orthopedic-care intent.
+Search returns relevant orthopedic doctors/services.
+The system must not diagnose the patient or claim a disease.
+Emergency indicators, if detected, should follow Qlyno's separate emergency workflow.
+18. AI vs Deterministic Search
+Capability
+Recommended approach
+Natural-language understanding
+AI / NLP
+Synonyms and intent mapping
+AI + controlled medical/service taxonomy
+Doctor/hospital/lab retrieval
+Deterministic structured search
+Availability
+Source-of-truth scheduling system
+Price
+Source-of-truth organization/service catalogue
+Medicine inventory
+Connected pharmacy inventory
+Patient records
+Authorized internal record search with strict access controls
+Final ranking
+Hybrid rules + learned ranking later
+Emergency escalation
+Dedicated safety workflow, not open-ended AI chat
+19. Privacy & Access Control
+One Patient ID must not become a universal open medical record.
+Organization access must be relationship-, role-, permission- and consent-aware.
+Sensitive documents can require explicit permission.
+Internal clinical notes must not automatically become patient-facing search results.
+Every important access/share event should be auditable.
+Emergency access should follow a separate policy with stronger logging and safeguards.
+Discovery results must contain only public/eligible information.
+20. Organization & Doctor Visibility States
+State
+Search behaviour
+Verified + Active + Published
+Eligible for public discovery subject to listing rules.
+Verified + Active + Unpublished
+Not publicly discoverable unless internal relationship rules allow it.
+Pending verification
+Not publicly presented as verified.
+Suspended
+Removed from normal public discovery.
+Inactive affiliation
+Historical context may remain; no new booking.
+Archived
+Excluded from active discovery.
+21. Search Result CTAs
+Entity
+Primary actions
+Doctor
+View Profile | Choose Location | Book Appointment
+Clinic
+View Clinic | View Doctors | Book
+Hospital
+View Hospital | Departments | Find Doctor | Book
+Lab
+View Tests | Book Test
+Medicine
+View Medicine | Find Availability / Order where supported
+Service
+Find Providers | Book where supported
+22. Marketplace Trust & Sponsored Results
+If Qlyno later introduces paid promotion, sponsored placement must be clearly labelled. Paid visibility should not silently override relevance, safety or verification.
+23. MVP Scope
+Phase
+Scope
+MVP
+Doctor, clinic, hospital search; name/specialty/location; verified profiles; affiliation-aware results; appointment availability; Hospital/Clinic/Solo filters.
+Phase 2
+Labs, tests, diagnostic services; home collection; stronger location ranking; patient 'My Health' search.
+Phase 3
+Medicine/pharmacy discovery and connected inventory.
+Phase 4
+Natural-language AI search, personalized ranking, advanced recommendations and care navigation.
+24. Recommended Backend Objects
+Object
+Role
+Doctor
+Persistent doctor identity.
+DoctorAffiliation
+Doctor ↔ organization/location relationship.
+Organization
+Solo, clinic, hospital, lab, pharmacy or other provider organization.
+Location
+Physical or operational site.
+Service
+Bookable/available healthcare service.
+Schedule / Availability
+Source-of-truth appointment availability.
+SearchDocument
+Searchable projection across entity types.
+Patient
+Persistent Qlyno Patient ID.
+PatientProviderRelationship
+Patient ↔ provider/organization relationship.
+Consent
+Sharing and access permissions.
+Appointment
+Patient + doctor + affiliation + organization + location + service + schedule.
+25. Success Metrics
+Search-to-result success rate.
+Search-to-booking conversion.
+Zero-result search rate.
+Doctor duplicate rate.
+Search latency / p95 response time.
+Availability-to-book conversion.
+Distance-adjusted booking conversion.
+Repeat search rate for the same intent.
+Patient usage of 'My Health' search.
+Percentage of searches resolved without manual support.
+26. Product Decisions to Lock
+Doctor identity is independent from practice affiliation.
+Hospital and clinic affiliations create distinct operational appointment contexts.
+One unified patient search can surface multiple healthcare entity types.
+Ranking must be intent-aware and not simply organization-type based.
+Availability should be a major ranking signal for actionable provider searches.
+AI should interpret natural language but should not invent providers, prices, availability or medical facts.
+Search must respect Qlyno's patient privacy and organization boundaries.
+A dedicated search index should eventually sit between operational databases and the user-facing search experience.
+27. Reference to Existing Qlyno Architecture
+This Unified Search design is intended to extend Qlyno's existing patient-centered architecture. The existing Patient Module establishes one persistent Qlyno Patient ID across solo doctors, clinics, hospitals and labs, while preserving privacy and consent boundaries. Existing Doctor, Receptionist, Laboratory, Billing, Hospital Admin, Nurse Station and Super Admin documents establish the organization and role boundaries that this search layer must respect.
+The existing Patient Module also describes global search across healthcare records, while the Doctor and Laboratory modules already define operational global search within their respective contexts. The Unified Search layer should sit above these role-specific searches rather than replacing them.
+28. Final Product Principle
+ONE SEARCH → MANY HEALTHCARE ENTITIES → ONE CONNECTED PATIENT JOURNEY
+Qlyno's long-term advantage is not simply helping patients find a doctor. It is helping patients find the right care while maintaining one connected identity across the healthcare ecosystem.
+29. V2 Product Decision — Intent-First Search Hierarchy
+Critical correction to the original unified-search modelA flat result list containing Doctor, Clinic and Hospital as equal entities creates a conversion conflict. If a patient searches for a specific doctor, making the clinic or hospital the primary result can hide the doctor and shift the patient's decision toward the organization. Qlyno should therefore use an intent-first hierarchy: the entity matching the patient's intent is primary; related organizations, doctors, locations and services are supporting context.
+30. Primary Discovery Entity vs Practice Context
+Patient intent
+Primary entity
+Secondary context
+Primary CTA
+Doctor name
+Doctor
+Hospital / Clinic / Solo Practice locations
+View Doctor / Book
+Specialty / care provider
+Doctor
+Hospital / Clinic / Solo Practice affiliations
+View Doctor / Book
+Hospital name
+Hospital
+Departments / Doctors / Services
+View Hospital
+Clinic name
+Clinic
+Doctors / Services / Location
+View Clinic / Book
+Lab / diagnostic test
+Test or Lab depending on query
+Lab location / price / availability
+View Test / Book
+Medicine name
+Medicine
+Pharmacy / inventory / delivery
+View Medicine / Find Availability
+Healthcare service
+Service
+Doctors / Clinics / Hospitals offering it
+Find Providers / Book
+31. The Core Rule
+DOCTOR SEARCH → DOCTOR FIRST → PRACTICE LOCATION SECOND → BOOKING
+HOSPITAL SEARCH → HOSPITAL FIRST → DEPARTMENTS / DOCTORS SECOND
+CLINIC SEARCH → CLINIC FIRST → DOCTORS / SERVICES SECOND
+32. Doctor Search — Correct UX
+If the patient searches “Dr Raj Sharma”, Qlyno should not return three independent organization cards.
+Recommended resultDr. Raj SharmaCardiologist • 15 Years • Qlyno VerifiedChoose where you want to consult:• ABC Hospital — Today 5:00 PM — ₹1,500• Sharma Heart Clinic — Today 6:30 PM — ₹1,000• Dr. Sharma's Practice — Tomorrow 11:00 AM — ₹1,200Primary action: Book Appointment
+This keeps the doctor as the discoverable professional identity while allowing every active practice location to compete on availability, price, distance and convenience.
+33. Specialty Search — Doctor First, Organization Second
+If the patient searches “Cardiologist near me”, the patient is asking for a care provider, not an organization.
+Result
+Primary information
+Secondary information
+Dr. Raj Sharma
+Cardiologist • Verified • Next slot 5 PM
+ABC Hospital • 2.1 km • ₹1,500
+Dr. Amit Verma
+Cardiologist • Verified • Next slot 6 PM
+XYZ Heart Clinic • 2.8 km • ₹1,000
+Dr. Neha Gupta
+Cardiologist • Verified • Tomorrow 10 AM
+Solo Practice • 4.5 km • ₹900
+ABC Heart Hospital
+Hospital • Cardiology Department
+12 cardiologists • Emergency • 2.1 km
+Doctor results should dominate the first result set for provider-intent queries. Hospital/clinic discovery can appear as a secondary section or filter, rather than replacing the doctor.
+34. Why This Protects Doctor Value
+The doctor remains the primary searchable professional identity.
+A hospital or clinic cannot accidentally become the only visible brand when the patient searched for a doctor.
+The same doctor can receive bookings from multiple affiliated organizations.
+The doctor does not need separate public profiles for each hospital/clinic.
+Each organization still receives appointments that belong to its own operational context.
+Qlyno can measure doctor-level discovery and conversion separately from organization-level conversion.
+35. Hospital Search — Hospital First
+If the patient searches “ABC Hospital” or “heart hospital”, the hospital becomes the primary entity.
+Hospital resultABC Multispeciality HospitalCardiology • Emergency Available • 4.7★Departments:Cardiology • Neurology • Orthopedics • General MedicineDoctors:Dr. Raj Sharma • Dr. Amit Verma • Dr. Neha GuptaPrimary action: View Hospital
+The hospital profile then becomes the discovery surface for its departments, doctors, services, emergency capability and appointment options.
+36. Clinic Search — Clinic First
+If the patient searches “Sharma Heart Clinic” or “cardiology clinic near me”, the clinic is primary.
+Clinic resultSharma Heart ClinicCardiology Clinic • 3.0 kmDoctors:Dr. Raj Sharma • Dr. Amit VermaServices:Cardiology Consultation • ECG • Follow-upPrimary action: View Clinic / Book
+37. Care Provider vs Care Venue
+Core product model: Doctor = care provider; Hospital/Clinic = care venue or organization context.
+This distinction should be reflected in the search model, UI hierarchy, ranking and analytics. The same doctor may practice at multiple venues without becoming multiple doctors.
+Object
+Role in patient discovery
+Doctor
+Who will provide the care?
+Hospital
+Where will the patient receive care, and what departments/services exist?
+Clinic
+Where will the patient receive outpatient care?
+Lab
+Where can the requested diagnostic service be performed?
+Pharmacy
+Where can the requested medicine be fulfilled?
+38. Search Ranking Must Be Intent-Aware
+Qlyno should not use one fixed ranking order for every query.
+Query
+Dominant ranking signals
+Do not prioritize
+Dr Raj Sharma
+Exact doctor identity, verification, active affiliations, availability
+Hospital/clinic brand over doctor
+Cardiologist near me
+Doctor relevance, specialty, distance, availability, verification
+Hospital size alone
+ABC Hospital
+Hospital identity, location, departments, services, verification
+Individual doctor over hospital
+Dental clinic near me
+Clinic relevance, specialty, distance, availability
+Unrelated hospital results
+CBC test
+Test availability, lab, distance, price, home collection
+Doctor ranking
+Paracetamol
+Medicine identity, actual inventory, price, pharmacy/delivery
+Clinic/hospital ranking
+39. Result Composition Rules
+Intent
+Result layout
+Doctor name
+One doctor card → practice-location options → booking
+Specialty
+Doctor cards first → optional organization discovery section
+Hospital
+Hospital card → departments → doctors → services
+Clinic
+Clinic card → doctors → services → booking
+Lab test
+Test cards/lab options → price → availability → booking
+Medicine
+Medicine card → pharmacy availability → order/fulfillment
+Service
+Service → providers → organization/location options
+40. Organization Filters Should Not Replace Doctor Discovery
+For doctor-intent searches, Hospital / Clinic / Solo should be filters or practice-context options, not competing primary result types.
+All
+Hospital
+Clinic
+Solo Practice
+Online
+Example: “Cardiologist” → [All] [Hospital] [Clinic] [Solo] [Online]. The result cards remain doctors.
+41. Doctor Profile as the Conversion Hub
+The doctor profile should aggregate all eligible practice contexts without merging their operational data.
+Doctor profile section
+Purpose
+Identity
+Name, photo, qualifications, registration, specialty, experience.
+Trust
+Verification, reviews and profile completeness.
+Practice locations
+Hospital, clinics, solo practice and online options.
+Availability
+Next available slot/queue for each affiliation.
+Fee
+Organization-specific consultation fee.
+Services
+Services available at each practice context.
+Book
+Patient chooses the practice context before confirming appointment.
+Professional content
+Doctor-owned public content where supported.
+42. Appointment Must Preserve Practice Context
+The booking should not simply store Doctor ID.
+Reference
+Required
+Patient ID
+Yes
+Doctor ID
+Yes
+Doctor Affiliation ID
+Yes
+Organization ID
+Yes
+Location ID
+Yes
+Service ID
+Yes
+Schedule/slot/queue ID
+Yes
+Appointment type
+Yes where applicable
+ExampleDr Raj Sharma at ABC Hospital and Dr Raj Sharma at Sharma Heart Clinic are the same doctor identity but different appointment contexts. The hospital should see the hospital appointment; the clinic should see the clinic appointment.
+43. Doctor-Level vs Organization-Level Analytics
+Metric
+Doctor
+Clinic/Hospital
+Search impressions
+Doctor profile impressions
+Organization profile impressions
+Profile views
+Doctor profile views
+Organization profile views
+Booking conversion
+Doctor-level conversion
+Organization/location conversion
+Appointments
+Total across affiliations where permitted
+Appointments within organization
+Availability
+By affiliation
+By department/service/location
+Revenue
+Organization/doctor commercial model dependent
+Organization revenue/collections
+This lets Qlyno prove value to both sides: doctors can see discovery and booking performance, while clinics/hospitals can see organization-level patient acquisition and operational conversion.
+44. Search Personalization Without Cannibalization
+Patient context can improve ranking, but personalization must not silently replace the user's explicit search intent.
+If patient searches a specific doctor, show that doctor first even if another provider is closer.
+If patient searches a specialty, use location and availability to rank doctors.
+If patient searches a hospital by name, show the hospital first.
+Connected providers may receive a small relevance boost when appropriate, but should not override exact-name matches.
+Sponsored results, if introduced, must be clearly labelled and must not bypass verification or safety rules.
+45. Unified Search Architecture — Updated
+QUERY → INTENT → PRIMARY ENTITY → RELATED CONTEXT → RANKING → ACTION
+Stage
+Example: “Dr Raj Sharma”
+Query
+Dr Raj Sharma
+Intent
+Doctor identity
+Primary entity
+Doctor DOC_1029
+Related context
+ABC Hospital, Sharma Heart Clinic, Solo Practice
+Ranking
+Doctor identity + active/verified affiliations + availability
+Action
+Choose practice context → Book Appointment
+46. Updated Search UI Recommendation
+Patient searchSearch doctors, hospitals, clinics, medicines, lab tests…
+For a doctor-intent result:
+Dr. Raj SharmaCardiologist • 15 years • VerifiedAvailable at:🏥 ABC Hospital — Today 5:00 PM — ₹1,500🏢 Sharma Heart Clinic — Today 6:30 PM — ₹1,000👨‍⚕️ Solo Practice — Tomorrow 11:00 AM — ₹1,200[Book Appointment]
+47. Updated Product Principle
+ONE SEARCH → CORRECT PRIMARY INTENT → CONNECTED HEALTHCARE CONTEXT
+Qlyno should not force the patient to choose between a doctor, clinic or hospital before understanding what the patient searched for. Instead, the search engine should identify the patient's intent and make the matching entity primary. For provider-intent searches, the doctor remains primary and the hospital/clinic becomes the practice context. For organization-intent searches, the hospital or clinic becomes primary and its doctors become supporting discovery options.
+48. V2 Acceptance Criteria
+Searching a specific doctor returns one primary doctor identity, not duplicate hospital/clinic doctor cards.
+A doctor profile can display multiple active practice affiliations.
+Each affiliation can have its own location, fee, schedule, service and availability.
+Doctor-intent searches keep the doctor visually and functionally primary.
+Hospital/Clinic/Solo are available as practice-context filters for doctor-intent searches.
+Hospital-intent searches make the hospital primary and expose departments/doctors underneath.
+Clinic-intent searches make the clinic primary and expose doctors/services underneath.
+The same doctor can be linked to a hospital and clinic without creating duplicate doctor identities.
+Hospital and clinic appointments remain operationally isolated through affiliation and organization context.
+Doctor-level and organization-level discovery/booking analytics are separately measurable.
+Ranking changes according to query intent rather than using a universal entity-type ranking.
+AI can interpret natural-language intent but cannot invent availability, price, provider identity or medical diagnosis.
+Search results only expose verified/public information appropriate for discovery.
+The architecture prevents organization branding from unintentionally hiding the doctor in doctor-intent searches.
+49. Final Decision for Qlyno
+Recommended final modelDOCTOR = PRIMARY CARE PROVIDERHOSPITAL / CLINIC = PRACTICE / ORGANIZATION CONTEXTLAB / TEST = DIAGNOSTIC DISCOVERY CONTEXTMEDICINE = PRODUCT DISCOVERY CONTEXTWhen the patient asks for a doctor, Qlyno should answer: “Here is the doctor, and here are the places where you can see them.” When the patient asks for a hospital or clinic, Qlyno should answer: “Here is the organization, and here are the doctors/services available there.”
