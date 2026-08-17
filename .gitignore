@@ -1,23 +1,38 @@
 # Dependencies
-Frontend/node_modules/
-Backend/node_modules/
+node_modules/
 
 # Next.js
-Frontend/.next/
+.next/
+out/
 
-# Environment
-.env
-.env.local
-.env.development
-.env.production
-
-# Build outputs
+# Build output
 dist/
 build/
-*.tsbuildinfo
 
-# Generated Prisma client
-Backend/src/generated/
+# Environment variables / secrets
+.env
+.env.*
+!.env.example
 
 # Logs
 *.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Vercel
+.vercel/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# TypeScript
+*.tsbuildinfo
+
+# Coverage
+coverage/
+
+# IDE
+.vscode/
+.idea/
