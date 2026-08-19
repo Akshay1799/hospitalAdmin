@@ -31,7 +31,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import {
   Tooltip,
@@ -41,6 +40,7 @@ import {
 } from "@/components/ui/tooltip";
 import { SidebarNav } from "@/components/layout/sidebar";
 import { notifications } from "@/lib/mock-data/operations";
+import { GlobalSearch } from "@/components/layout/global-search";
 
 export function Topbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -60,13 +60,7 @@ export function Topbar() {
         </Sheet>
 
         <div className="hidden flex-1 sm:block">
-          <div className="relative max-w-md">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Search patients, doctors, invoices, orders..."
-              className="border-transparent bg-secondary pl-9 shadow-none focus-visible:border-input"
-            />
-          </div>
+          <GlobalSearch />
         </div>
         <div className="flex-1 sm:hidden" />
 
