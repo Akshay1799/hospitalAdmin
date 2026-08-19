@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono, Lexend } from "next/font/google";
 
 import { Toaster } from "@/components/ui/toaster";
+import { Providers } from "@/store/provider";
 
 import "./globals.css";
 
@@ -45,10 +46,12 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning data-scroll-behavior="smooth">
       <body suppressHydrationWarning className={`${bodyFont.variable} ${displayFont.variable} ${monoFont.variable} font-sans`}>
-        {children}
-        <Toaster />
+        <Providers>
+          {children}
+          <Toaster />
+        </Providers>
       </body>
     </html>
   );

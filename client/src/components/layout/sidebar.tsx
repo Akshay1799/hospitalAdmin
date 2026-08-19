@@ -1,11 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { ChevronsUpDown, LogOut, PanelLeftClose, PanelLeftOpen, Settings, User } from "lucide-react";
 import { usePathname } from "next/navigation";
 
 import { navGroups } from "@/components/layout/nav-items";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
 function Logo({ collapsed }: { collapsed: boolean }) {
@@ -36,12 +45,25 @@ export function SidebarNav({
 
   return (
     <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
-      <div className={cn("flex h-16 shrink-0 items-center border-b border-sidebar-border px-3 transition-all duration-300 ease-out", collapsed && "px-2")}>
+      <div className={cn("flex h-16 shrink-0 items-center justify-between border-b border-sidebar-border px-3 transition-all duration-300 ease-out", collapsed && "justify-center px-2")}>
         <Logo collapsed={Boolean(collapsed)} />
+        {!collapsed && onToggleCollapse && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 shrink-0 rounded-md text-sidebar-muted transition-all duration-200 ease-out hover:bg-muted hover:text-sidebar-foreground"
+            onClick={onToggleCollapse}
+            aria-label="Collapse sidebar"
+          >
+            <PanelLeftClose className="h-4 w-4" />
+          </Button>
+        )}
       </div>
+
       <nav className="flex-1 overflow-y-auto scrollbar-thin px-2 py-4">
         {navGroups.map((group) => (
-          <div key={group.title} className={cn("mb-5", collapsed && "mb-3") }>
+          <div key={group.title} className={cn("mb-5", collapsed && "mb-3")}>
             {!collapsed && (
               <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-sidebar-muted">
                 {group.title}
@@ -81,28 +103,77 @@ export function SidebarNav({
           </div>
         ))}
       </nav>
-      {!collapsed && (
-        <div className="border-t border-sidebar-border p-3">
-          <div className="flex items-center justify-between gap-2 rounded-lg bg-white/5 p-3">
-            <div>
-              <p className="text-xs font-medium text-sidebar-foreground">Qlyno Admin v1.0</p>
-              <p className="mt-0.5 text-[11px] text-sidebar-muted">Frontend build · mock data mode</p>
-            </div>
-            {onToggleCollapse && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 shrink-0 rounded-md text-sidebar-muted transition-all duration-200 ease-out hover:bg-muted hover:text-sidebar-foreground"
-                onClick={onToggleCollapse}
-                aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-              >
-                {collapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
-              </Button>
-            )}
+
+      {/* Hospital Admin Profile at bottom of sidebar */}
+      <div className="border-t border-sidebar-border p-2">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              className={cn(
+                "flex w-full items-center gap-3 rounded-lg p-2 text-left transition-colors hover:bg-white/5 focus:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+                collapsed ? "justify-center px-1" : "justify-between"
+              )}
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <Avatar className="h-8 w-8 shrink-0 rounded-lg">
+                  <AvatarImage src="https://i.pravatar.cc/150?img=68" alt="Hospital Admin" />
+                  <AvatarFallback className="rounded-lg bg-primary/20 text-xs font-semibold text-primary">HA</AvatarFallback>
+                </Avatar>
+                {!collapsed && (
+                  <div className="min-w-0 flex-1 truncate">
+                    <p className="truncate text-xs font-medium text-sidebar-foreground">Hospital Admin</p>
+                    <p className="truncate text-[11px] text-sidebar-muted">admin@qlyno.health</p>
+                  </div>
+                )}
+              </div>
+              {!collapsed && <ChevronsUpDown className="h-4 w-4 shrink-0 text-sidebar-muted" />}
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            side={collapsed ? "right" : "top"}
+            align={collapsed ? "end" : "center"}
+            className="w-56"
+          >
+            <DropdownMenuLabel>
+              <p className="text-sm font-medium">Hospital Admin</p>
+              <p className="text-xs font-normal text-muted-foreground">admin@qlyno.health</p>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <Link href="/settings" onClick={onNavigate}>
+                <User className="mr-2 h-4 w-4" /> My Profile
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href="/settings" onClick={onNavigate}>
+                <Settings className="mr-2 h-4 w-4" /> Settings
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <Link href="/login" onClick={onNavigate} className="text-destructive focus:text-destructive">
+                <LogOut className="mr-2 h-4 w-4" /> Sign out
+              </Link>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        {collapsed && onToggleCollapse && (
+          <div className="mt-2 flex justify-center border-t border-sidebar-border/50 pt-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 rounded-md text-sidebar-muted transition-all duration-200 ease-out hover:bg-muted hover:text-sidebar-foreground"
+              onClick={onToggleCollapse}
+              aria-label="Expand sidebar"
+            >
+              <PanelLeftOpen className="h-4 w-4" />
+            </Button>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

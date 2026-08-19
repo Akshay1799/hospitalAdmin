@@ -46,6 +46,10 @@ export default function DoctorsPage() {
   const [open, setOpen] = useState(false);
   const { toast } = useToast();
 
+  const [scheduleDoctor, setScheduleDoctor] = useState<any>(null);
+  const [verifyDoctor, setVerifyDoctor] = useState<any>(null);
+  const [suspendDoctor, setSuspendDoctor] = useState<any>(null);
+
   const specialties = useMemo(
     () => ["all", ...Array.from(new Set(initialDoctors.map((d) => d.specialty)))],
     []
@@ -240,17 +244,17 @@ export default function DoctorsPage() {
                           <DropdownMenuItem asChild>
                             <Link href={`/doctors/${doctor.id}`}>View profile</Link>
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => toast({ title: "Schedule opened" })}>
+                          <DropdownMenuItem onSelect={() => setScheduleDoctor(doctor)}>
                             Manage schedule
                           </DropdownMenuItem>
                           <DropdownMenuItem
-                            onClick={() => toast({ title: doctor.verified ? "Doctor re-verified" : "Verification requested" })}
+                            onSelect={() => setVerifyDoctor(doctor)}
                           >
                             {doctor.verified ? "Re-verify credentials" : "Verify credentials"}
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             className="text-destructive focus:text-destructive"
-                            onClick={() => toast({ title: "Doctor suspended", description: doctor.name })}
+                            onSelect={() => setSuspendDoctor(doctor)}
                           >
                             Suspend access
                           </DropdownMenuItem>
@@ -270,6 +274,101 @@ export default function DoctorsPage() {
       <div className="mt-2">
         <Badge variant="outline" className="text-[11px]">Multi-doctor clinic model · Clinic → Doctors → Staff hierarchy</Badge>
       </div>
+
+      {/* Action Modals */}
+      {scheduleDoctor && (
+        <Dialog open={!!scheduleDoctor} onOpenChange={() => setScheduleDoctor(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Manage Schedule - {scheduleDoctor.name}</DialogTitle>
+              <DialogDescription>Configure available hours and clinic days.</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-1.5">
+                <Label>Working Days</Label>
+                <Input defaultValue="Monday - Friday" />
+              </div>
+              <div className="grid gap-1.5">
+                <Label>Shift Timings</Label>
+                <Input defaultValue="09:00 AM - 05:00 PM" />
+              </div>
+              <div className="grid gap-1.5">
+                <Label>Consultation Duration (mins)</Label>
+                <Input type="number" defaultValue="20" />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setScheduleDoctor(null)}>Cancel</Button>
+              <Button onClick={() => {
+                toast({ title: "Schedule updated", description: `Updated schedule for ${scheduleDoctor.name}` });
+                setScheduleDoctor(null);
+              }}>Save Changes</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {verifyDoctor && (
+        <Dialog open={!!verifyDoctor} onOpenChange={() => setVerifyDoctor(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Verify Credentials - {verifyDoctor.name}</DialogTitle>
+              <DialogDescription>Review and approve medical credentials.</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="flex justify-between items-center p-3 border rounded-md">
+                <div>
+                  <p className="font-medium text-sm">Medical License Registration</p>
+                  <p className="text-xs text-muted-foreground">{verifyDoctor.registrationNo}</p>
+                </div>
+                <Badge variant={verifyDoctor.verified ? "default" : "secondary"}>
+                  {verifyDoctor.verified ? "Verified" : "Pending"}
+                </Badge>
+              </div>
+              <div className="flex justify-between items-center p-3 border rounded-md">
+                <div>
+                  <p className="font-medium text-sm">Board Certification</p>
+                  <p className="text-xs text-muted-foreground">{verifyDoctor.specialty} Board</p>
+                </div>
+                <Badge variant="secondary">Pending Review</Badge>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setVerifyDoctor(null)}>Close</Button>
+              <Button onClick={() => {
+                toast({ title: "Credentials verified", description: `${verifyDoctor.name} has been verified.` });
+                setVerifyDoctor(null);
+              }}>Approve Verification</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {suspendDoctor && (
+        <Dialog open={!!suspendDoctor} onOpenChange={() => setSuspendDoctor(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="text-destructive">Suspend Doctor Access</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to suspend {suspendDoctor.name}? They will immediately lose access to the hospital portal.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-1.5">
+                <Label>Reason for suspension</Label>
+                <Input placeholder="e.g. License expired, disciplinary action..." />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setSuspendDoctor(null)}>Cancel</Button>
+              <Button variant="destructive" onClick={() => {
+                toast({ title: "Doctor Suspended", description: `${suspendDoctor.name} has been suspended.` });
+                setSuspendDoctor(null);
+              }}>Confirm Suspension</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

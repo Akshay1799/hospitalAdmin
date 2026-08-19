@@ -16,7 +16,29 @@ export type Status =
   | "on-leave"
   | "available"
   | "assigned"
-  | "on-call";
+  | "on-call"
+  | "replaced"
+  | "waiting"
+  | "called"
+  | "in-progress"
+  | "completed"
+  | "no-show"
+  | "pending-route"
+  | "routed"
+  | "escalated"
+  | "registered"
+  | "in-consultation"
+  | "follow-up-scheduled"
+  | "under-treatment"
+  | "transfer-requested"
+  | "discharge-pending"
+  | "discharged"
+  | "admitted"
+  | "new"
+  | "duplicate-flagged"
+  | "granted"
+  | "restricted"
+  | "revoked";
 
 export interface BaseStaff {
   id: string;
@@ -81,8 +103,13 @@ export interface Doctor extends BaseStaff {
 export interface Receptionist extends BaseStaff {
   role: "Receptionist";
   assignedContext: "Solo Doctor" | "Clinic" | "Hospital";
+  branch: string;
+  desk: string;
+  department: string;
+  workflowScope: string[];
   scope: string[];
   appointmentsHandled: number;
+  isReplacementActive?: boolean;
 }
 
 export interface Nurse extends BaseStaff {
@@ -162,23 +189,98 @@ export interface Ambulance {
 
 /* ---------------------------------- Patient --------------------------------- */
 
+export type PatientRelationshipStatus = "new" | "active" | "inactive" | "duplicate-flagged";
+export type OPDStatus = "registered" | "waiting" | "in-consultation" | "follow-up-scheduled" | "completed";
+export type IPDStatus = "admitted" | "under-treatment" | "transfer-requested" | "discharge-pending" | "discharged";
+export type ConsentStatus = "granted" | "restricted" | "revoked";
+
+export interface PatientConsent {
+  status: ConsentStatus;
+  dataSharing: string[];
+  restrictions: string[];
+  recordedOn: string;
+  expiresOn?: string;
+}
+
+export interface OPDRecord {
+  id: string;
+  registrationDate: string;
+  doctor: string;
+  department: string;
+  status: OPDStatus;
+  visitReason: string;
+  queueToken?: string;
+  consultationNotes?: string;
+  followUpDate?: string;
+  prescriptions: string[];
+}
+
+export interface IPDRecord {
+  id: string;
+  admissionDate: string;
+  dischargeDate?: string;
+  department: string;
+  bedAssignment: string;
+  doctor: string;
+  diagnosis: string;
+  status: IPDStatus;
+  treatmentPlan: string;
+  dischargeSummary?: string;
+  transferRequests: string[];
+}
+
+export interface PatientDocument {
+  id: string;
+  type: string;
+  name: string;
+  uploadedOn: string;
+  generatedBy: string;
+  url: string;
+}
+
+export interface HospitalRelationship {
+  hospitalId: string;
+  hospitalName: string;
+  status: PatientRelationshipStatus;
+  relationshipEstablishedOn: string;
+  consent: PatientConsent;
+  opdHistory: OPDRecord[];
+  ipdHistory: IPDRecord[];
+  documents: PatientDocument[];
+  billingStatus: {
+    totalOutstanding: number;
+    totalSpent: number;
+    lastBillingDate?: string;
+  };
+}
+
 export interface Patient {
   id: string;
-  uhid: string;
+  qlynoPatientId: string;
+  uhid?: string;
   name: string;
   avatarUrl?: string;
-  age: number;
+  dateOfBirth: string;
   gender: "Male" | "Female" | "Other";
   phone: string;
   email: string;
   bloodGroup: string;
   address: string;
-  registeredOn: string;
-  lastVisit: string;
-  primaryDoctor: string;
-  status: "active" | "inactive";
-  outstandingBalance: number;
-  totalSpent: number;
+  emergencyContact?: {
+    name: string;
+    phone: string;
+    relationship: string;
+  };
+  identifiers: {
+    aadhar?: string;
+    pan?: string;
+    idNo?: string;
+  };
+  globalStatus: "active" | "inactive";
+  createdOn: string;
+  lastModified: string;
+  hospitalRelationships: HospitalRelationship[];
+  primaryHospitalId: string;
   tags: string[];
 }
 
@@ -191,12 +293,14 @@ export type AppointmentStatus =
   | "completed"
   | "cancelled"
   | "no-show"
-  | "rescheduled";
+  | "rescheduled"
+  | "registered";
 
 export interface Appointment {
   id: string;
   patientName: string;
   patientId: string;
+  qlynoPatientId: string;
   doctorName: string;
   doctorId: string;
   clinic: string;
@@ -205,6 +309,8 @@ export interface Appointment {
   type: "In-person" | "Follow-up" | "Video";
   status: AppointmentStatus;
   reason: string;
+  queueToken?: string;
+  waitTime?: number;
 }
 
 /* ---------------------------------- Vendor ----------------------------------- */

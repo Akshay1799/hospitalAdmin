@@ -2,14 +2,30 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Bell, LogOut, Menu, Search, Settings, ShieldAlert, User } from "lucide-react";
+import {
+  Activity,
+  Bed,
+  Bell,
+  Building2,
+  ChevronDown,
+  FileBarChart,
+  Menu,
+  Plus,
+  Search,
+  ShieldAlert,
+  ShoppingBag,
+  Siren,
+  Stethoscope,
+  UserPlus,
+  Users,
+} from "lucide-react";
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -48,10 +64,13 @@ export function Topbar() {
       <div className="flex-1 sm:hidden" />
 
       <div className="flex items-center gap-1.5 sm:gap-2">
-        <Button variant="ghost" size="icon" className="relative" aria-label="Emergency alerts">
-          <ShieldAlert className="h-5 w-5 text-destructive" />
+        <Button variant="ghost" size="icon" className="relative" aria-label="Emergency alerts" asChild>
+          <Link href="/emergency">
+            <ShieldAlert className="h-5 w-5 text-destructive" />
+          </Link>
         </Button>
 
+        {/* Notifications Dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="relative" aria-label="Notifications">
@@ -89,38 +108,73 @@ export function Topbar() {
           </DropdownMenuContent>
         </DropdownMenu>
 
+        {/* Quick Action Button & Dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="flex items-center gap-2 rounded-full pl-1 pr-2 py-1 transition-colors hover:bg-secondary">
-              <Avatar className="h-7 w-7">
-                <AvatarImage src="https://i.pravatar.cc/150?img=68" alt="Admin" />
-                <AvatarFallback>HA</AvatarFallback>
-              </Avatar>
-              <span className="hidden text-sm font-medium sm:inline">Hospital Admin</span>
-            </button>
+            <Button size="sm" className="gap-1.5 h-9 font-medium shadow-sm">
+              <Plus className="h-4 w-4" />
+              <span className="hidden sm:inline">Quick Action</span>
+              <ChevronDown className="h-3.5 w-3.5 opacity-70" />
+            </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel>
-              <p className="text-sm font-medium">Hospital Admin</p>
-              <p className="text-xs font-normal text-muted-foreground">admin@qlyno.health</p>
+            <DropdownMenuLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              Quick Actions
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <Link href="/settings">
-                <User className="h-4 w-4" /> My Profile
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link href="/settings">
-                <Settings className="h-4 w-4" /> Settings
-              </Link>
-            </DropdownMenuItem>
+            <DropdownMenuGroup>
+              <DropdownMenuItem asChild>
+                <Link href="/doctors" className="flex items-center gap-2.5 cursor-pointer">
+                  <UserPlus className="h-4 w-4 text-primary" />
+                  <span>Add doctor</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/nurses" className="flex items-center gap-2.5 cursor-pointer">
+                  <Users className="h-4 w-4 text-primary" />
+                  <span>Add staff</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/departments" className="flex items-center gap-2.5 cursor-pointer">
+                  <Building2 className="h-4 w-4 text-primary" />
+                  <span>Create department</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/nurse-stations" className="flex items-center gap-2.5 cursor-pointer">
+                  <Bed className="h-4 w-4 text-primary" />
+                  <span>Allocate bed</span>
+                </Link>
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <Link href="/login" className="text-destructive focus:text-destructive">
-                <LogOut className="h-4 w-4" /> Sign out
-              </Link>
-            </DropdownMenuItem>
+            <DropdownMenuGroup>
+              <DropdownMenuItem asChild>
+                <Link href="/emergency" className="flex items-center gap-2.5 cursor-pointer text-destructive font-medium focus:text-destructive">
+                  <Siren className="h-4 w-4 text-destructive" />
+                  <span>Emergency action</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/surgical-cases/surgeon-requests" className="flex items-center gap-2.5 cursor-pointer">
+                  <Activity className="h-4 w-4 text-primary" />
+                  <span>Surgeon request</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/procurement/create" className="flex items-center gap-2.5 cursor-pointer">
+                  <ShoppingBag className="h-4 w-4 text-primary" />
+                  <span>Vendor request</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/reports" className="flex items-center gap-2.5 cursor-pointer">
+                  <FileBarChart className="h-4 w-4 text-primary" />
+                  <span>Report</span>
+                </Link>
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
