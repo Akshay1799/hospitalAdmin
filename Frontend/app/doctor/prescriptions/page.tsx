@@ -2,31 +2,83 @@
 
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Plus, Trash2, Send } from "lucide-react";
+import { AlertTriangle, Download, Plus, Printer, Trash2, Send } from "lucide-react";
 import { SectionHeading, Card, Avatar, Pill, Modal, Field } from "@/components/ui";
-import { patients, prescriptions as seedRx, getPatient, matchesWorkContext, patientInWorkContext } from "@/lib/mock-data";
+import { patients as seedPatients, prescriptions as seedRx, getPatient, matchesWorkContext, patientInWorkContext } from "@/lib/mock-data";
 import { useMode } from "@/lib/mode-context";
-import { Medicine } from "@/lib/types";
+import { Medicine, Patient, Prescription } from "@/lib/types";
+import { CURRENT_DATE_ISO } from "@/lib/app-time";
+import { ApiSyncSkippedError, createBackendPrescription, getBackendBootstrap } from "@/lib/api-client";
 
 function emptyMedicine(): Medicine {
   return { id: crypto.randomUUID?.() ?? String(Math.random()), name: "", dosage: "", frequency: "", duration: "", instructions: "" };
 }
 
+const medicineTemplates = [
+  "Amlodipine",
+  "Amoxicillin",
+  "Aspirin",
+  "Atorvastatin",
+  "Azithromycin",
+  "Clopidogrel",
+  "Metformin",
+  "Pantoprazole",
+  "Paracetamol",
+  "Salbutamol Inhaler",
+];
+
 function PrescriptionBuilder() {
   const params = useSearchParams();
   const preselected = params.get("patient");
-  const { workContext } = useMode();
-  const [rxList, setRxList] = useState(seedRx);
+  const { selectedWorkplaceId, workContext } = useMode();
+  const [rxList, setRxList] = useState<Prescription[]>([]);
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [backendDoctorId, setBackendDoctorId] = useState("");
   const [showForm, setShowForm] = useState(false);
-  const [patientId, setPatientId] = useState(preselected ?? patients[0].id);
+  const [patientId, setPatientId] = useState(preselected ?? "");
   const [medicines, setMedicines] = useState<Medicine[]>([emptyMedicine()]);
   const [advice, setAdvice] = useState("");
+  const [signed, setSigned] = useState(false);
   const [sent, setSent] = useState(false);
+  const [syncMessage, setSyncMessage] = useState("");
   const contextPatients = useMemo(
     () => patients.filter((patient) => patientInWorkContext(patient, workContext)),
-    [workContext]
+    [patients, workContext]
   );
   const contextRxList = rxList.filter((rx) => matchesWorkContext(rx, workContext));
+  const patientById = useMemo(() => new Map(patients.map((patient) => [patient.id, patient])), [patients]);
+  const activePatient = contextPatients.find((patient) => patient.id === patientId);
+  const filledMedicineNames = medicines.map((medicine) => medicine.name.trim().toLowerCase()).filter(Boolean);
+  const duplicateMedicineNames = filledMedicineNames.filter((name, index) => filledMedicineNames.indexOf(name) !== index);
+  const allergyMatches =
+    activePatient?.allergies.filter((allergy) =>
+      filledMedicineNames.some((medicineName) => medicineName.includes(allergy.substance.toLowerCase()))
+    ) ?? [];
+  const incompleteMedicines = medicines.filter(
+    (medicine) => medicine.name.trim() && (!medicine.dosage.trim() || !medicine.frequency.trim() || !medicine.duration.trim())
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getBackendBootstrap()
+      .then((data) => {
+        if (cancelled) return;
+        setPatients(data.patients);
+        setRxList(data.prescriptions);
+        setBackendDoctorId(data.doctors[0]?.id ?? "");
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setPatients(seedPatients);
+        setRxList(seedRx);
+        setBackendDoctorId("doc-1");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     setPatientId((current) =>
@@ -38,24 +90,35 @@ function PrescriptionBuilder() {
     setMedicines((prev) => prev.map((m) => (m.id === id ? { ...m, [field]: value } : m)));
   }
 
-  function issue() {
+  async function issue() {
     const filled = medicines.filter((m) => m.name.trim());
-    if (filled.length === 0) return;
-    setRxList((prev) => [
-      {
-        id: `rx-${Date.now()}`,
+    if (filled.length === 0 || duplicateMedicineNames.length > 0 || !signed) return;
+    let nextPrescription: Prescription = {
+      id: `rx-${Date.now()}`,
+      patientId,
+      doctorId: backendDoctorId || "doc-1",
+      date: CURRENT_DATE_ISO,
+      medicines: filled,
+      advice,
+      status: "Active",
+      workContext,
+    };
+    try {
+      nextPrescription = await createBackendPrescription({
         patientId,
-        doctorId: "doc-1",
-        date: "2026-08-13",
-        medicines: filled,
+        doctorId: backendDoctorId,
+        workplaceId: selectedWorkplaceId,
         advice,
-        status: "Active",
-        workContext,
-      },
-      ...prev,
-    ]);
+        medicines: filled,
+      });
+      setSyncMessage("Prescription synced to backend.");
+    } catch (error) {
+      setSyncMessage(error instanceof ApiSyncSkippedError ? "Mock prescription saved locally." : "Backend sync failed; local prescription kept.");
+    }
+    setRxList((prev) => [nextPrescription, ...prev]);
     setMedicines([emptyMedicine()]);
     setAdvice("");
+    setSigned(false);
     setSent(true);
     setShowForm(false);
     setTimeout(() => setSent(false), 2500);
@@ -82,7 +145,11 @@ function PrescriptionBuilder() {
         size="xl"
         footer={
           <>
-            <button onClick={issue} className="btn-primary">
+            <button
+              onClick={issue}
+              disabled={!signed || duplicateMedicineNames.length > 0}
+              className="btn-primary disabled:cursor-not-allowed disabled:opacity-50"
+            >
               <Send size={14} /> Issue Prescription
             </button>
             <button onClick={() => setShowForm(false)} className="btn-secondary">
@@ -100,6 +167,30 @@ function PrescriptionBuilder() {
               ))}
             </select>
 
+            {(allergyMatches.length > 0 || duplicateMedicineNames.length > 0 || incompleteMedicines.length > 0) && (
+              <div className="mb-4 space-y-2">
+                {allergyMatches.length > 0 && (
+                  <div className="flex items-start gap-2 rounded-md border border-alert-100 bg-alert-50 px-3 py-2">
+                    <AlertTriangle size={14} className="mt-0.5 shrink-0 text-alert-500" />
+                    <p className="text-xs leading-5 text-ink-soft">
+                      Allergy warning: {activePatient?.name} has {allergyMatches.map((allergy) => allergy.substance).join(", ")} on file.
+                    </p>
+                  </div>
+                )}
+                {duplicateMedicineNames.length > 0 && (
+                  <div className="flex items-start gap-2 rounded-md border border-alert-100 bg-alert-50 px-3 py-2">
+                    <AlertTriangle size={14} className="mt-0.5 shrink-0 text-alert-500" />
+                    <p className="text-xs leading-5 text-ink-soft">Duplicate medicine detected. Remove duplicate entries before issuing.</p>
+                  </div>
+                )}
+                {incompleteMedicines.length > 0 && (
+                  <div className="rounded-md border border-clay-100 bg-clay-50 px-3 py-2 text-xs leading-5 text-ink-soft">
+                    Add dosage, frequency and duration for every medicine before final issue.
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="space-y-3 mb-4">
               {medicines.map((m, idx) => (
                 <div key={m.id} className="border border-line rounded-card p-3.5">
@@ -114,11 +205,17 @@ function PrescriptionBuilder() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     <Field label="Medicine Name">
                     <input
+                      list="medicine-templates"
                       placeholder="Medicine name"
                       value={m.name}
                       onChange={(e) => updateMed(m.id, "name", e.target.value)}
                       className="input-field"
                     />
+                    <datalist id="medicine-templates">
+                      {medicineTemplates.map((medicine) => (
+                        <option key={medicine} value={medicine} />
+                      ))}
+                    </datalist>
                     </Field>
                     <Field label="Dosage">
                     <input
@@ -170,8 +267,19 @@ function PrescriptionBuilder() {
               className="input-field resize-none mb-4"
             />
 
+            <label className="flex items-center gap-2 text-sm font-medium text-ink-soft">
+              <input
+                type="checkbox"
+                checked={signed}
+                onChange={(event) => setSigned(event.target.checked)}
+                className="h-4 w-4 accent-brand-500"
+              />
+              Apply e-signature before issue
+            </label>
+
       </Modal>
-      {sent && <span className="text-xs text-sage-500 mb-3 inline-block">Prescription issued</span>}
+      {sent && <span className="text-xs text-sage-500 mb-3 inline-block">Prescription issued and signed</span>}
+      {syncMessage && <span className="ml-3 text-xs text-ink-muted">{syncMessage}</span>}
 
         <div>
           <Card padded={false}>
@@ -180,13 +288,19 @@ function PrescriptionBuilder() {
             </div>
             <div className="divide-y divide-line max-h-[640px] overflow-y-auto">
               {contextRxList.map((rx) => {
-                const patient = getPatient(rx.patientId);
+                const patient = patientById.get(rx.patientId) ?? getPatient(rx.patientId);
                 return (
                   <div key={rx.id} className="px-5 py-3.5">
                     <div className="flex items-center gap-2.5 mb-1.5">
                       {patient && <Avatar initials={patient.avatarInitials} size={26} />}
                       <p className="text-[13px] font-medium text-ink">{patient?.name}</p>
                       <Pill tone={rx.status === "Active" ? "brand" : "neutral"}>{rx.status}</Pill>
+                      <button type="button" onClick={() => window.print()} className="btn-ghost ml-auto text-xs">
+                        <Printer size={12} /> Print
+                      </button>
+                      <button type="button" className="btn-ghost text-xs">
+                        <Download size={12} /> PDF
+                      </button>
                     </div>
                     <p className="text-xs text-ink-muted">{rx.medicines.map((m) => m.name).join(", ") || "—"}</p>
                     <p className="text-[11px] text-ink-faint mt-0.5">{rx.date}</p>

@@ -26,7 +26,14 @@ export default function Sidebar() {
     icon: workplace.type === "hospital" ? Hospital : Building2,
   }));
   const activeWorkplace =
-    workplaceOptions.find((item) => item.workplace.id === selectedWorkplaceId) ?? workplaceOptions[0];
+    workplaceOptions.find((item) => item.workplace.id === selectedWorkplaceId) ??
+    workplaceOptions[0] ?? {
+      workplace: { id: "", name: "Loading workspace", type: "clinic" as const, status: "Pending" as const },
+      value: "clinic" as const,
+      label: "Loading workspace",
+      detail: "Syncing records",
+      icon: Building2,
+    };
   const ActiveIcon = activeWorkplace.icon;
 
   function selectWorkplace(option: (typeof workplaceOptions)[number]) {

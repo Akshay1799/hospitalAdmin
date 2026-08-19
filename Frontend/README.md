@@ -20,6 +20,20 @@ npm run dev
 
 Then open http://localhost:3000 — it redirects to `/doctor/dashboard`.
 
+To connect the frontend to the Express backend, copy `.env.example` to `.env.local`
+and keep:
+
+```bash
+NEXT_PUBLIC_API_BASE_URL=http://localhost:4000
+```
+
+Start the backend from `../Backend` with `npm run dev`. The frontend now calls
+backend endpoints for patient registration, appointments, shifts, prescriptions,
+lab/radiology orders, clinic services and unified encounter completion. While
+the demo data still uses mock ids like `pat-1`, these calls safely fall back to
+local state. Once records are loaded from the backend with UUID ids, the same
+screens will persist to the API.
+
 To build for production:
 
 ```bash

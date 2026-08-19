@@ -5,14 +5,16 @@ import { Activity, Plus } from "lucide-react";
 import { SectionHeading, Card, Avatar, Modal } from "@/components/ui";
 import { patientInWorkContext, patients as seedPatients } from "@/lib/mock-data";
 import { useMode } from "@/lib/mode-context";
-import { Vitals } from "@/lib/types";
+import { Patient, Vitals } from "@/lib/types";
+import { ApiSyncSkippedError, createBackendVitals, getBackendBootstrap } from "@/lib/api-client";
 
 export default function VitalsPage() {
   const { workContext } = useMode();
-  const [patients, setPatients] = useState(seedPatients);
-  const [activeId, setActiveId] = useState(seedPatients[0].id);
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [activeId, setActiveId] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ bp: "", pulse: "", temp: "", spo2: "", weight: "" });
+  const [syncMessage, setSyncMessage] = useState("");
 
   const contextPatients = useMemo(
     () => patients.filter((patient) => patientInWorkContext(patient, workContext)),
@@ -21,13 +23,30 @@ export default function VitalsPage() {
   const active = contextPatients.find((p) => p.id === activeId) ?? contextPatients[0];
 
   useEffect(() => {
+    let cancelled = false;
+
+    getBackendBootstrap()
+      .then((data) => {
+        if (cancelled) return;
+        setPatients(data.patients);
+      })
+      .catch(() => {
+        if (!cancelled) setPatients(seedPatients);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
     setActiveId((current) =>
       contextPatients.some((patient) => patient.id === current) ? current : contextPatients[0]?.id ?? current
     );
   }, [contextPatients]);
 
-  function logVitals() {
-    if (!form.bp || !form.pulse) return;
+  async function logVitals() {
+    if (!active || !form.bp || !form.pulse) return;
     const heightM = 1.7; // assumed constant for BMI recompute demo
     const weight = Number(form.weight) || active.latestVitals?.weight || 0;
     const newVitals: Vitals = {
@@ -39,6 +58,21 @@ export default function VitalsPage() {
       weight,
       bmi: weight ? Math.round((weight / (heightM * heightM)) * 10) / 10 : active.latestVitals?.bmi || 0,
     };
+    try {
+      const savedVitals = await createBackendVitals({
+        patientId: activeId,
+        bp: newVitals.bp,
+        pulse: newVitals.pulse,
+        temp: newVitals.temp,
+        spo2: newVitals.spo2,
+        weight: newVitals.weight,
+        bmi: newVitals.bmi,
+      });
+      newVitals.recordedAt = savedVitals.recordedAt;
+      setSyncMessage("Vitals synced to backend.");
+    } catch (error) {
+      setSyncMessage(error instanceof ApiSyncSkippedError ? "Mock vitals saved locally." : "Backend sync failed; local vitals kept.");
+    }
     setPatients((prev) => prev.map((p) => (p.id === activeId ? { ...p, latestVitals: newVitals } : p)));
     setForm({ bp: "", pulse: "", temp: "", spo2: "", weight: "" });
     setShowForm(false);
@@ -60,7 +94,7 @@ export default function VitalsPage() {
       <Modal
         open={showForm}
         title="Log New Reading"
-        eyebrow={active.name}
+        eyebrow={active?.name ?? "Patient"}
         onClose={() => setShowForm(false)}
         footer={
           <>
@@ -121,8 +155,9 @@ export default function VitalsPage() {
           </div>
         </div>
       </Modal>
+      {syncMessage && <p className="mb-3 text-xs text-ink-muted">{syncMessage}</p>}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {active && <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card padded={false} className="lg:col-span-1">
           <div className="px-4 pt-4 pb-2">
             <p className="eyebrow">Select Patient</p>
@@ -251,7 +286,7 @@ export default function VitalsPage() {
             </button>
           </div>
         </div>
-      </div>
+      </div>}
     </div>
   );
 }

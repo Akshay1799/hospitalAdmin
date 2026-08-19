@@ -14,7 +14,14 @@ import {
   patients,
 } from "@/lib/mock-data";
 import { useMode } from "@/lib/mode-context";
-import { Appointment, AppointmentStatus, AppointmentType } from "@/lib/types";
+import { Appointment, AppointmentStatus, AppointmentType, ClinicLocation, Doctor, Patient } from "@/lib/types";
+import { CURRENT_DATE_ISO } from "@/lib/app-time";
+import {
+  ApiSyncSkippedError,
+  createBackendAppointment,
+  getBackendBootstrap,
+  updateBackendAppointmentStatus,
+} from "@/lib/api-client";
 
 const filterTabs: { label: string; value: "today" | "upcoming" | "past" | "all" }[] = [
   { label: "Today", value: "today" },
@@ -32,18 +39,24 @@ const statusOptions: AppointmentStatus[] = [
   "No Show",
 ];
 
-const TODAY = "2026-08-13";
+const TODAY = CURRENT_DATE_ISO;
 const hospitalLocations = [{ id: "hosp-1", name: "Aster City Hospital - Cardiology" }];
 
 export default function AppointmentsPage() {
-  const { workContext } = useMode();
-  const [appointments, setAppointments] = useState(seedAppointments);
+  const { selectedWorkplaceId, workContext } = useMode();
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [appointmentPatients, setAppointmentPatients] = useState<Patient[]>([]);
+  const [appointmentDoctors, setAppointmentDoctors] = useState<Doctor[]>([]);
+  const [appointmentLocations, setAppointmentLocations] = useState<ClinicLocation[]>([]);
+  const [backendWorkplaceId, setBackendWorkplaceId] = useState<string | null>(null);
+  const [isLoadingAppointments, setIsLoadingAppointments] = useState(true);
   const [tab, setTab] = useState<"today" | "upcoming" | "past" | "all">("today");
   const [showForm, setShowForm] = useState(false);
+  const [syncMessage, setSyncMessage] = useState("");
   const [form, setForm] = useState({
-    patientId: patients[0].id,
-    doctorId: doctors[0].id,
-    locationId: clinic.locations[0].id,
+    patientId: "",
+    doctorId: "",
+    locationId: "",
     date: TODAY,
     time: "12:00 PM",
     durationMins: "20",
@@ -52,18 +65,54 @@ export default function AppointmentsPage() {
   });
 
   const contextPatients = useMemo(
-    () => patients.filter((patient) => patientInWorkContext(patient, workContext)),
-    [workContext]
+    () => appointmentPatients.filter((patient) => patientInWorkContext(patient, workContext)),
+    [appointmentPatients, workContext]
   );
-  const contextLocations = workContext === "hospital" ? hospitalLocations : clinic.locations;
+  const contextLocations = workContext === "hospital" ? hospitalLocations : appointmentLocations;
+  const patientById = useMemo(
+    () => new Map(appointmentPatients.map((patient) => [patient.id, patient])),
+    [appointmentPatients]
+  );
+  const canScheduleAppointment = contextPatients.length > 0 && appointmentDoctors.length > 0 && contextLocations.length > 0;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getBackendBootstrap()
+      .then((data) => {
+        if (cancelled) return;
+        setAppointmentPatients(data.patients);
+        setAppointmentDoctors(data.doctors);
+        setAppointmentLocations(data.locations);
+        setAppointments(data.appointments);
+        if (data.workplaceId) setBackendWorkplaceId(data.workplaceId);
+        setSyncMessage("Loaded backend appointment data.");
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setAppointmentPatients(patients);
+        setAppointmentDoctors(doctors);
+        setAppointmentLocations(clinic.locations);
+        setAppointments(seedAppointments);
+        setSyncMessage("Backend unavailable; using local demo data.");
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingAppointments(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     setForm((prev) => ({
       ...prev,
       patientId: contextPatients[0]?.id ?? prev.patientId,
       locationId: contextLocations[0]?.id ?? prev.locationId,
+      doctorId: appointmentDoctors[0]?.id ?? prev.doctorId,
     }));
-  }, [contextPatients, contextLocations]);
+  }, [appointmentDoctors, contextPatients, contextLocations]);
 
   const filtered = useMemo(() => {
     return appointments
@@ -77,12 +126,18 @@ export default function AppointmentsPage() {
       .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
   }, [appointments, tab, workContext]);
 
-  function updateStatus(id: string, status: AppointmentStatus) {
+  async function updateStatus(id: string, status: AppointmentStatus) {
     setAppointments((prev) => prev.map((a) => (a.id === id ? { ...a, status } : a)));
+    try {
+      await updateBackendAppointmentStatus(id, status);
+      setSyncMessage("Appointment status synced to backend.");
+    } catch (error) {
+      setSyncMessage(error instanceof ApiSyncSkippedError ? "Mock appointment updated locally." : "Backend sync failed; local update kept.");
+    }
   }
 
-  function createAppointment() {
-    if (!form.reason.trim()) return;
+  async function createAppointment() {
+    if (!canScheduleAppointment || !form.reason.trim()) return;
     const nextAppointment: Appointment = {
       id: `local-apt-${Date.now()}`,
       patientId: form.patientId,
@@ -96,7 +151,17 @@ export default function AppointmentsPage() {
       status: "Scheduled",
       reason: form.reason,
     };
-    setAppointments((prev) => [nextAppointment, ...prev]);
+    try {
+      const savedAppointment = await createBackendAppointment({
+        ...nextAppointment,
+        workplaceId: backendWorkplaceId ?? selectedWorkplaceId,
+      });
+      setSyncMessage("Appointment saved to backend.");
+      setAppointments((prev) => [savedAppointment, ...prev]);
+    } catch (error) {
+      setSyncMessage(error instanceof ApiSyncSkippedError ? "Mock appointment saved locally." : "Backend sync failed; local appointment kept.");
+      setAppointments((prev) => [nextAppointment, ...prev]);
+    }
     setForm((prev) => ({ ...prev, date: TODAY, time: "12:00 PM", durationMins: "20", reason: "" }));
     setTab("all");
     setShowForm(false);
@@ -109,7 +174,11 @@ export default function AppointmentsPage() {
         title="Appointments"
         description={`View, manage and organize ${workContext} appointments only.`}
         action={
-          <button onClick={() => setShowForm((value) => !value)} className="btn-primary">
+          <button
+            onClick={() => setShowForm((value) => !value)}
+            disabled={isLoadingAppointments || !canScheduleAppointment}
+            className="btn-primary disabled:cursor-not-allowed disabled:opacity-60"
+          >
             <Plus size={14} /> New Appointment
           </button>
         }
@@ -122,7 +191,11 @@ export default function AppointmentsPage() {
         onClose={() => setShowForm(false)}
         footer={
           <>
-            <button onClick={createAppointment} className="btn-primary">
+            <button
+              onClick={createAppointment}
+              disabled={!canScheduleAppointment}
+              className="btn-primary disabled:cursor-not-allowed disabled:opacity-60"
+            >
               Schedule Appointment
             </button>
             <button onClick={() => setShowForm(false)} className="btn-secondary">
@@ -151,7 +224,7 @@ export default function AppointmentsPage() {
               onChange={(event) => setForm((prev) => ({ ...prev, doctorId: event.target.value }))}
               className="input-field"
             >
-              {doctors.map((doctor) => (
+              {appointmentDoctors.map((doctor) => (
                 <option key={doctor.id} value={doctor.id}>
                   {doctor.name}
                 </option>
@@ -234,9 +307,12 @@ export default function AppointmentsPage() {
           </button>
         ))}
       </div>
+      {syncMessage && <p className="mb-3 text-xs text-ink-muted">{syncMessage}</p>}
 
       <Card padded={false}>
-        {filtered.length === 0 ? (
+        {isLoadingAppointments ? (
+          <EmptyState title="Loading appointments" description="Fetching the latest appointment data." />
+        ) : filtered.length === 0 ? (
           <EmptyState title="No appointments here" description={`Nothing scheduled in this ${workContext} range yet.`} />
         ) : (
           <table className="w-full table-clean">
@@ -252,7 +328,7 @@ export default function AppointmentsPage() {
             </thead>
             <tbody>
               {filtered.map((apt) => {
-                const patient = getPatient(apt.patientId);
+                const patient = patientById.get(apt.patientId) ?? getPatient(apt.patientId);
                 if (!patient) return null;
                 return (
                   <tr key={apt.id}>

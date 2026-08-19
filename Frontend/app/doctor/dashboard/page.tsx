@@ -17,8 +17,9 @@ import {
 } from "@/lib/mock-data";
 import { useMode } from "@/lib/mode-context";
 import { useDoctorWorkflow } from "@/lib/doctor-workflow-context";
+import { CURRENT_DATE_ISO, CURRENT_DATE_LABEL } from "@/lib/app-time";
 
-const TODAY = "2026-08-17";
+const TODAY = CURRENT_DATE_ISO;
 
 export default function DoctorDashboard() {
   const { workContext } = useMode();
@@ -47,7 +48,7 @@ export default function DoctorDashboard() {
       <SectionHeading
         eyebrow="01 - Dashboard"
         title={`Good morning, ${currentDoctor.name.split(" ")[1] ? currentDoctor.name : currentDoctor.name}`}
-        description={`Monday, August 17, 2026 - showing ${workContext} appointments, patients, follow-ups and open clinical work only.`}
+        description={`${CURRENT_DATE_LABEL} - showing ${workContext} appointments, patients, follow-ups and open clinical work only.`}
       />
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_360px]">

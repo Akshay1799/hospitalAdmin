@@ -9,6 +9,8 @@ import { Avatar, Card, Field, Pill, SectionHeading } from "@/components/ui";
 import { useDoctorWorkflow } from "@/lib/doctor-workflow-context";
 import { EncounterDraft } from "@/lib/doctor-workflow-types";
 import { getPatient } from "@/lib/mock-data";
+import { useMode } from "@/lib/mode-context";
+import { ApiSyncSkippedError, completeBackendEncounter } from "@/lib/api-client";
 
 const initialDraft: EncounterDraft = {
   chiefComplaint: "",
@@ -27,6 +29,7 @@ const initialDraft: EncounterDraft = {
 
 export default function EncounterPage() {
   const params = useParams<{ id: string; encounterId: string }>();
+  const { workContext } = useMode();
   const {
     clinicQueue,
     completeHospitalItem,
@@ -47,6 +50,7 @@ export default function EncounterPage() {
   }));
   const [saved, setSaved] = useState(false);
   const [completed, setCompleted] = useState(false);
+  const [syncMessage, setSyncMessage] = useState("");
 
   const encounterType = queueItem ? "Clinic consultation" : hospitalItem ? "Hospital review" : "Encounter";
   const allergies = patient?.allergies ?? [];
@@ -69,7 +73,20 @@ export default function EncounterPage() {
     setTimeout(() => setSaved(false), 1800);
   }
 
-  function completeEncounter() {
+  async function completeEncounter() {
+    try {
+      await completeBackendEncounter({
+        patientId: patient?.id ?? params.id,
+        doctorId: patient?.primaryDoctorId ?? "doc-1",
+        workplaceId: workplace?.id ?? "",
+        appointmentId: undefined,
+        workContext,
+        ...draft,
+      });
+      setSyncMessage("Encounter synced to backend.");
+    } catch (error) {
+      setSyncMessage(error instanceof ApiSyncSkippedError ? "Mock encounter completed locally." : "Backend sync failed; local encounter completion kept.");
+    }
     if (queueItem) completeQueueConsultation(queueItem.id);
     if (hospitalItem) completeHospitalItem(hospitalItem.id);
     setCompleted(true);
@@ -202,7 +219,7 @@ export default function EncounterPage() {
       <Card className="sticky bottom-4 z-20 !p-3 shadow-lift">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="text-xs text-ink-muted">
-            {saved ? "Draft saved locally" : completed ? "Encounter completed" : "Frontend-only encounter draft"}
+            {syncMessage || (saved ? "Draft saved locally" : completed ? "Encounter completed" : "Frontend-only encounter draft")}
           </div>
           <div className="flex flex-wrap gap-2">
             {queueItem && queueItem.status !== "in_consultation" && queueItem.status !== "completed" && (

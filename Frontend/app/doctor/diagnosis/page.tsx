@@ -3,8 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { Search, Plus } from "lucide-react";
 import { SectionHeading, Card, Avatar, Pill, Modal } from "@/components/ui";
-import { patients, diagnoses as seedDx, getPatient, matchesWorkContext, patientInWorkContext } from "@/lib/mock-data";
+import { patients as seedPatients, diagnoses as seedDx, getPatient, matchesWorkContext, patientInWorkContext } from "@/lib/mock-data";
 import { useMode } from "@/lib/mode-context";
+import { DiagnosisEntry, Patient } from "@/lib/types";
+import { CURRENT_DATE_ISO } from "@/lib/app-time";
+import { ApiSyncSkippedError, createBackendDiagnosis, getBackendBootstrap } from "@/lib/api-client";
 
 const icdReference = [
   { code: "E11.9", description: "Type 2 diabetes mellitus without complications" },
@@ -23,16 +26,39 @@ const icdReference = [
 
 export default function DiagnosisPage() {
   const { workContext } = useMode();
-  const [dxList, setDxList] = useState(seedDx);
+  const [dxList, setDxList] = useState<DiagnosisEntry[]>([]);
+  const [patients, setPatients] = useState<Patient[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [icdQuery, setIcdQuery] = useState("");
-  const [patientId, setPatientId] = useState(patients[0].id);
+  const [patientId, setPatientId] = useState("");
   const [selectedCode, setSelectedCode] = useState<{ code: string; description: string } | null>(null);
+  const [syncMessage, setSyncMessage] = useState("");
   const contextPatients = useMemo(
     () => patients.filter((patient) => patientInWorkContext(patient, workContext)),
-    [workContext]
+    [patients, workContext]
   );
   const contextDxList = dxList.filter((dx) => matchesWorkContext(dx, workContext));
+  const patientById = useMemo(() => new Map(patients.map((patient) => [patient.id, patient])), [patients]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getBackendBootstrap()
+      .then((data) => {
+        if (cancelled) return;
+        setPatients(data.patients);
+        setDxList(data.diagnoses);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setPatients(seedPatients);
+        setDxList(seedDx);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     setPatientId((current) =>
@@ -46,21 +72,29 @@ export default function DiagnosisPage() {
     return icdReference.filter((c) => c.code.toLowerCase().includes(q) || c.description.toLowerCase().includes(q));
   }, [icdQuery]);
 
-  function addDiagnosis() {
+  async function addDiagnosis() {
     if (!selectedCode) return;
-    setDxList((prev) => [
-      {
-        id: `dx-${Date.now()}`,
+    let nextDiagnosis: DiagnosisEntry = {
+      id: `dx-${Date.now()}`,
+      patientId,
+      icdCode: selectedCode.code,
+      description: selectedCode.description,
+      diagnosedOn: CURRENT_DATE_ISO,
+      status: "Active",
+      doctorId: "doc-1",
+      workContext,
+    };
+    try {
+      nextDiagnosis = await createBackendDiagnosis({
         patientId,
         icdCode: selectedCode.code,
         description: selectedCode.description,
-        diagnosedOn: "2026-08-13",
-        status: "Active",
-        doctorId: "doc-1",
-        workContext,
-      },
-      ...prev,
-    ]);
+      });
+      setSyncMessage("Diagnosis synced to backend.");
+    } catch (error) {
+      setSyncMessage(error instanceof ApiSyncSkippedError ? "Mock diagnosis saved locally." : "Backend sync failed; local diagnosis kept.");
+    }
+    setDxList((prev) => [nextDiagnosis, ...prev]);
     setSelectedCode(null);
     setShowForm(false);
   }
@@ -129,6 +163,7 @@ export default function DiagnosisPage() {
               {icdResults.length === 0 && <p className="text-xs text-ink-muted px-3 py-3">No matching codes.</p>}
             </div>
       </Modal>
+      {syncMessage && <p className="mb-3 text-xs text-ink-muted">{syncMessage}</p>}
 
       <div>
           <Card padded={false}>
@@ -147,7 +182,7 @@ export default function DiagnosisPage() {
               </thead>
               <tbody>
                 {contextDxList.map((d) => {
-                  const patient = getPatient(d.patientId);
+                  const patient = patientById.get(d.patientId) ?? getPatient(d.patientId);
                   return (
                     <tr key={d.id}>
                       <td>

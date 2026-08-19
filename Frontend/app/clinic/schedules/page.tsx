@@ -1,8 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { SectionHeading, Card, Avatar, AvailabilityDot, Pill } from "@/components/ui";
-import { doctors, clinic } from "@/lib/mock-data";
+import { doctors as seedDoctors, clinic } from "@/lib/mock-data";
+import { Doctor } from "@/lib/types";
+import { getBackendBootstrap, getBackendState, saveBackendState } from "@/lib/api-client";
+import { useMode } from "@/lib/mode-context";
 
 const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -14,13 +17,43 @@ const scheduleSeed: Record<string, boolean[]> = {
 };
 
 export default function SchedulesPage() {
-  const [schedule, setSchedule] = useState(scheduleSeed);
+  const { selectedWorkplaceId } = useMode();
+  const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [schedule, setSchedule] = useState<Record<string, boolean[]>>({});
+  const [syncMessage, setSyncMessage] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    Promise.all([
+      getBackendBootstrap(),
+      getBackendState<Record<string, boolean[]>>("clinic-weekly-schedule", selectedWorkplaceId),
+    ])
+      .then(([data, savedSchedule]) => {
+        if (cancelled) return;
+        setDoctors(data.doctors);
+        if (savedSchedule) setSchedule(savedSchedule);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setDoctors(seedDoctors);
+        setSchedule(scheduleSeed);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedWorkplaceId]);
 
   function toggle(doctorId: string, dayIdx: number) {
     setSchedule((prev) => {
       const row = [...(prev[doctorId] ?? days.map(() => false))];
       row[dayIdx] = !row[dayIdx];
-      return { ...prev, [doctorId]: row };
+      const next = { ...prev, [doctorId]: row };
+      saveBackendState("clinic-weekly-schedule", selectedWorkplaceId, next)
+        .then(() => setSyncMessage("Clinic schedule synced to backend."))
+        .catch(() => setSyncMessage("Backend sync failed; local schedule update kept."));
+      return next;
     });
   }
 
@@ -80,6 +113,7 @@ export default function SchedulesPage() {
           </tbody>
         </table>
       </Card>
+      {syncMessage && <p className="text-xs text-ink-muted mt-3">{syncMessage}</p>}
       <p className="text-xs text-ink-muted mt-3">Click a cell to toggle that doctor&apos;s availability for the day.</p>
     </div>
   );

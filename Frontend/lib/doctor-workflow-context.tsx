@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, ReactNode, useContext, useState } from "react";
+import { createContext, ReactNode, useContext, useEffect, useState } from "react";
 import {
   clinicQueue as clinicQueueSeed,
   doctorShifts as doctorShiftsSeed,
@@ -14,20 +14,23 @@ import {
   DoctorTaskItem,
   HospitalWorkItem,
   ShiftStatus,
+  Workplace,
   workplaceToContext,
 } from "./doctor-workflow-types";
 import { useMode } from "./mode-context";
+import { getBackendBootstrap, getBackendState, saveBackendState } from "./api-client";
 
 interface DoctorWorkflowContextValue {
-  workplaces: typeof doctorWorkplaces;
+  workplaces: Workplace[];
   shifts: DoctorShift[];
   clinicQueue: ClinicQueueItem[];
   hospitalWorklist: HospitalWorkItem[];
   doctorTasks: DoctorTaskItem[];
+  backendDoctorId?: string;
   activeShift?: DoctorShift;
   selectedShift?: DoctorShift;
   selectShift: (id?: string) => void;
-  getWorkplace: (id: string) => (typeof doctorWorkplaces)[number] | undefined;
+  getWorkplace: (id: string) => Workplace | undefined;
   startShift: (id: string) => void;
   completeShift: (id: string) => void;
   addShift: (shift: DoctorShift) => void;
@@ -43,19 +46,72 @@ interface DoctorWorkflowContextValue {
 
 const DoctorWorkflowContext = createContext<DoctorWorkflowContextValue | null>(null);
 
+interface WorkflowStateSnapshot {
+  clinicQueue: ClinicQueueItem[];
+  hospitalWorklist: HospitalWorkItem[];
+  doctorTasks: DoctorTaskItem[];
+}
+
+const WORKFLOW_STATE_SCOPE = "doctor-workflow";
+const WORKFLOW_STATE_ENTITY_ID = "doctor-workspace";
+
 export function DoctorWorkflowProvider({ children }: { children: ReactNode }) {
   const { setSelectedWorkplaceId, setWorkContext } = useMode();
-  const [shifts, setShifts] = useState(doctorShiftsSeed);
-  const [clinicQueue, setClinicQueue] = useState(clinicQueueSeed);
-  const [hospitalWorklist, setHospitalWorklist] = useState(hospitalWorklistSeed);
-  const [doctorTasks, setDoctorTasks] = useState(doctorTasksSeed);
+  const [workplaces, setWorkplaces] = useState<Workplace[]>([]);
+  const [shifts, setShifts] = useState<DoctorShift[]>([]);
+  const [clinicQueue, setClinicQueue] = useState<ClinicQueueItem[]>([]);
+  const [hospitalWorklist, setHospitalWorklist] = useState<HospitalWorkItem[]>([]);
+  const [doctorTasks, setDoctorTasks] = useState<DoctorTaskItem[]>([]);
+  const [backendDoctorId, setBackendDoctorId] = useState<string | undefined>();
   const [selectedShiftId, setSelectedShiftId] = useState<string | undefined>();
 
   const activeShift = shifts.find((shift) => shift.status === "active");
   const selectedShift = shifts.find((shift) => shift.id === selectedShiftId);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    getBackendBootstrap()
+      .then((data) => {
+        if (cancelled) return;
+        if (data.doctors[0]?.id) setBackendDoctorId(data.doctors[0].id);
+        if (data.workplaces.length > 0) setWorkplaces(data.workplaces);
+        if (data.workplaceId) setSelectedWorkplaceId(data.workplaceId);
+        setShifts(data.shifts);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setBackendDoctorId(undefined);
+          setWorkplaces(doctorWorkplaces);
+          setShifts(doctorShiftsSeed);
+        }
+      });
+
+    getBackendState<Partial<WorkflowStateSnapshot>>(WORKFLOW_STATE_SCOPE, WORKFLOW_STATE_ENTITY_ID)
+      .then((state) => {
+        if (cancelled || !state) return;
+        if (Array.isArray(state.clinicQueue)) setClinicQueue(state.clinicQueue);
+        if (Array.isArray(state.hospitalWorklist)) setHospitalWorklist(state.hospitalWorklist);
+        if (Array.isArray(state.doctorTasks)) setDoctorTasks(state.doctorTasks);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setClinicQueue(clinicQueueSeed);
+        setHospitalWorklist(hospitalWorklistSeed);
+        setDoctorTasks(doctorTasksSeed);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  function persistWorkflowState(snapshot: WorkflowStateSnapshot) {
+    void saveBackendState(WORKFLOW_STATE_SCOPE, WORKFLOW_STATE_ENTITY_ID, snapshot).catch(() => undefined);
+  }
+
   function getWorkplace(id: string) {
-    return doctorWorkplaces.find((workplace) => workplace.id === id);
+    return workplaces.find((workplace) => workplace.id === id);
   }
 
   function startShift(id: string) {
@@ -86,54 +142,77 @@ export function DoctorWorkflowProvider({ children }: { children: ReactNode }) {
   }
 
   function startQueueConsultation(id: string) {
-    setClinicQueue((prev) =>
-      prev.map((item) => ({
+    setClinicQueue((prev) => {
+      const next: ClinicQueueItem[] = prev.map((item) => ({
         ...item,
         status: item.id === id ? "in_consultation" : item.status,
-      }))
-    );
+      }));
+      persistWorkflowState({ clinicQueue: next, hospitalWorklist, doctorTasks });
+      return next;
+    });
   }
 
   function completeQueueConsultation(id: string) {
-    setClinicQueue((prev) => prev.map((item) => (item.id === id ? { ...item, status: "completed" } : item)));
+    setClinicQueue((prev) => {
+      const next: ClinicQueueItem[] = prev.map((item) => (item.id === id ? { ...item, status: "completed" } : item));
+      persistWorkflowState({ clinicQueue: next, hospitalWorklist, doctorTasks });
+      return next;
+    });
   }
 
   function acceptHospitalRequest(id: string) {
-    setHospitalWorklist((prev) =>
-      prev.map((item) =>
+    setHospitalWorklist((prev) => {
+      const next: HospitalWorkItem[] = prev.map((item) =>
         item.id === id ? { ...item, status: "assigned", reasonAssigned: "Accepted consult request" } : item
-      )
-    );
+      );
+      persistWorkflowState({ clinicQueue, hospitalWorklist: next, doctorTasks });
+      return next;
+    });
   }
 
   function completeHospitalItem(id: string) {
-    setHospitalWorklist((prev) => prev.map((item) => (item.id === id ? { ...item, status: "completed" } : item)));
+    setHospitalWorklist((prev) => {
+      const next: HospitalWorkItem[] = prev.map((item) => (item.id === id ? { ...item, status: "completed" } : item));
+      persistWorkflowState({ clinicQueue, hospitalWorklist: next, doctorTasks });
+      return next;
+    });
   }
 
   function handoverHospitalItem(id: string, doctorName: string) {
-    setHospitalWorklist((prev) =>
-      prev.map((item) =>
+    setHospitalWorklist((prev) => {
+      const next: HospitalWorkItem[] = prev.map((item) =>
         item.id === id
           ? { ...item, handedOverTo: doctorName, reasonAssigned: `Handed over to ${doctorName}` }
           : item
-      )
-    );
+      );
+      persistWorkflowState({ clinicQueue, hospitalWorklist: next, doctorTasks });
+      return next;
+    });
   }
 
   function completeTask(id: string) {
-    setDoctorTasks((prev) => prev.map((task) => (task.id === id ? { ...task, status: "completed" } : task)));
+    setDoctorTasks((prev) => {
+      const next: DoctorTaskItem[] = prev.map((task) => (task.id === id ? { ...task, status: "completed" } : task));
+      persistWorkflowState({ clinicQueue, hospitalWorklist, doctorTasks: next });
+      return next;
+    });
   }
 
   function startTask(id: string) {
-    setDoctorTasks((prev) => prev.map((task) => (task.id === id ? { ...task, status: "today" } : task)));
+    setDoctorTasks((prev) => {
+      const next: DoctorTaskItem[] = prev.map((task) => (task.id === id ? { ...task, status: "today" } : task));
+      persistWorkflowState({ clinicQueue, hospitalWorklist, doctorTasks: next });
+      return next;
+    });
   }
 
   const value = {
-    workplaces: doctorWorkplaces,
+    workplaces,
     shifts,
     clinicQueue,
     hospitalWorklist,
     doctorTasks,
+    backendDoctorId,
     activeShift,
     selectedShift,
     selectShift: setSelectedShiftId,

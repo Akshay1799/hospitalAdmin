@@ -6,11 +6,16 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 export function getPrisma() {
-  if (!process.env.DATABASE_URL) return null;
+  if (!process.env.DATABASE_URL || process.env.DATABASE_URL.includes("[YOUR-PASSWORD]")) return null;
 
   if (globalForPrisma.prisma) return globalForPrisma.prisma;
 
-  const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+  const adapter = new PrismaPg({
+    connectionString: process.env.DATABASE_URL,
+    ssl: {
+      rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED === "true",
+    },
+  });
   const client = new PrismaClient({
     adapter,
     log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],

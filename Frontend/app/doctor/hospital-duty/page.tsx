@@ -7,6 +7,7 @@ import { HospitalPatientCard, WorkplaceBadge } from "@/components/doctor-workflo
 import { Card, EmptyState, Field, Modal, Pill, SectionHeading } from "@/components/ui";
 import { useDoctorWorkflow } from "@/lib/doctor-workflow-context";
 import { HospitalWorkStatus } from "@/lib/doctor-workflow-types";
+import { CURRENT_DATE_ISO } from "@/lib/app-time";
 
 const tabs: Array<{ label: string; value: HospitalWorkStatus | "all" }> = [
   { label: "Assigned", value: "assigned" },
@@ -40,7 +41,7 @@ export default function HospitalDutyPage() {
   const [handoverNote, setHandoverNote] = useState("");
 
   const workplace = getWorkplace(workplaceId);
-  const dutyShift = shifts.find((shift) => shift.workplaceId === workplaceId && shift.date === "2026-08-17");
+  const dutyShift = shifts.find((shift) => shift.workplaceId === workplaceId && shift.date === CURRENT_DATE_ISO);
   const visibleList = useMemo(
     () =>
       hospitalWorklist

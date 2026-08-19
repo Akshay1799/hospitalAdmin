@@ -16,6 +16,7 @@ import {
   Task,
   WorkContext,
 } from "./types";
+import { CURRENT_DATE_ISO } from "./app-time";
 
 export const clinic: Clinic = {
   id: "clinic-1",
@@ -250,9 +251,9 @@ export const patients: Patient[] = [
     bloodGroup: "A+",
     allergies: [allergy("Contrast dye", "Moderate", "Hives")],
     conditions: ["Post angioplasty review", "Hypertension"],
-    lastVisit: "2026-08-13",
+    lastVisit: CURRENT_DATE_ISO,
     latestVitals: {
-      recordedAt: "2026-08-13T17:20:00",
+      recordedAt: `${CURRENT_DATE_ISO}T17:20:00`,
       bp: "136/84",
       pulse: 82,
       temp: 98.5,
@@ -264,7 +265,7 @@ export const patients: Patient[] = [
   },
 ];
 
-const todayISO = "2026-08-13";
+const todayISO = CURRENT_DATE_ISO;
 
 export const appointments: Appointment[] = [
   { id: "apt-1", patientId: "pat-1", doctorId: "doc-1", locationId: "loc-1", date: todayISO, time: "09:00 AM", durationMins: 20, type: "In-Person", status: "Checked In", reason: "Diabetes follow-up" },
@@ -286,7 +287,7 @@ export const diagnoses: DiagnosisEntry[] = [
   { id: "dx-4", patientId: "pat-3", icdCode: "J44.9", description: "Chronic obstructive pulmonary disease, unspecified", diagnosedOn: "2023-05-19", status: "Active", doctorId: "doc-1" },
   { id: "dx-5", patientId: "pat-2", icdCode: "G43.909", description: "Migraine, unspecified, not intractable", diagnosedOn: "2025-01-22", status: "Active", doctorId: "doc-1" },
   { id: "dx-6", patientId: "pat-4", icdCode: "E03.9", description: "Hypothyroidism, unspecified", diagnosedOn: "2023-09-14", status: "Chronic", doctorId: "doc-1" },
-  { id: "dx-7", patientId: "pat-7", icdCode: "Z95.5", description: "Presence of coronary angioplasty implant and graft", diagnosedOn: "2026-08-13", status: "Active", doctorId: "doc-1", workContext: "hospital" },
+  { id: "dx-7", patientId: "pat-7", icdCode: "Z95.5", description: "Presence of coronary angioplasty implant and graft", diagnosedOn: CURRENT_DATE_ISO, status: "Active", doctorId: "doc-1", workContext: "hospital" },
 ];
 
 export const prescriptions: Prescription[] = [
@@ -330,7 +331,7 @@ export const prescriptions: Prescription[] = [
     id: "rx-4",
     patientId: "pat-7",
     doctorId: "doc-1",
-    date: "2026-08-13",
+    date: CURRENT_DATE_ISO,
     medicines: [
       { id: "m7", name: "Clopidogrel", dosage: "75mg", frequency: "1-0-0", duration: "90 days", instructions: "After breakfast" },
       { id: "m8", name: "Pantoprazole", dosage: "40mg", frequency: "1-0-0", duration: "14 days", instructions: "Before breakfast" },
@@ -348,22 +349,22 @@ export const labOrders: LabOrder[] = [
   { id: "lab-4", patientId: "pat-3", doctorId: "doc-1", testName: "BNP", orderedOn: "2026-08-11", status: "Sample Collected", source: "Partner Lab", priority: "Urgent" },
   { id: "lab-5", patientId: "pat-4", doctorId: "doc-1", testName: "TSH, Free T4", orderedOn: "2026-07-29", status: "Reviewed", source: "Internal", priority: "Routine" },
   { id: "lab-6", patientId: "pat-6", doctorId: "doc-1", testName: "Complete Blood Count", orderedOn: "2026-08-12", status: "Ordered", source: "External / Manual", priority: "Routine" },
-  { id: "lab-7", patientId: "pat-7", doctorId: "doc-1", testName: "Cardiac Enzymes Panel", orderedOn: "2026-08-13", status: "Report Ready", source: "Partner Lab", priority: "Urgent", workContext: "hospital" },
+  { id: "lab-7", patientId: "pat-7", doctorId: "doc-1", testName: "Cardiac Enzymes Panel", orderedOn: CURRENT_DATE_ISO, status: "Report Ready", source: "Partner Lab", priority: "Urgent", workContext: "hospital" },
 ];
 
 export const radiologyOrders: RadiologyOrder[] = [
   { id: "rad-1", patientId: "pat-3", doctorId: "doc-1", imagingType: "CT Scan", bodyRegion: "Chest (Coronary CTA)", orderedOn: "2026-08-11", status: "In Progress", priority: "Urgent" },
   { id: "rad-2", patientId: "pat-1", doctorId: "doc-1", imagingType: "Ultrasound", bodyRegion: "Abdomen", orderedOn: "2026-07-20", status: "Report Ready", priority: "Routine" },
   { id: "rad-3", patientId: "pat-4", doctorId: "doc-1", imagingType: "Ultrasound", bodyRegion: "Thyroid", orderedOn: "2026-07-29", status: "Reviewed", priority: "Routine" },
-  { id: "rad-4", patientId: "pat-7", doctorId: "doc-1", imagingType: "X-Ray", bodyRegion: "Chest portable", orderedOn: "2026-08-13", status: "Report Ready", priority: "Urgent", workContext: "hospital" },
+  { id: "rad-4", patientId: "pat-7", doctorId: "doc-1", imagingType: "X-Ray", bodyRegion: "Chest portable", orderedOn: CURRENT_DATE_ISO, status: "Report Ready", priority: "Urgent", workContext: "hospital" },
 ];
 
 export const followUps: FollowUp[] = [
   { id: "fu-1", patientId: "pat-1", doctorId: "doc-1", dueDate: "2026-08-20", reason: "BP & glucose recheck", status: "Upcoming" },
-  { id: "fu-2", patientId: "pat-3", doctorId: "doc-1", dueDate: "2026-08-13", reason: "Cardiology results review", status: "Due Today" },
+  { id: "fu-2", patientId: "pat-3", doctorId: "doc-1", dueDate: CURRENT_DATE_ISO, reason: "Cardiology results review", status: "Due Today" },
   { id: "fu-3", patientId: "pat-4", doctorId: "doc-1", dueDate: "2026-08-05", reason: "Thyroid dose titration", status: "Overdue" },
   { id: "fu-4", patientId: "pat-2", doctorId: "doc-1", dueDate: "2026-07-30", reason: "Migraine frequency check", status: "Completed" },
-  { id: "fu-5", patientId: "pat-7", doctorId: "doc-1", dueDate: "2026-08-13", reason: "Discharge medication reconciliation", status: "Due Today", workContext: "hospital" },
+  { id: "fu-5", patientId: "pat-7", doctorId: "doc-1", dueDate: CURRENT_DATE_ISO, reason: "Discharge medication reconciliation", status: "Due Today", workContext: "hospital" },
 ];
 
 export const clinicalAlerts: ClinicalAlert[] = [

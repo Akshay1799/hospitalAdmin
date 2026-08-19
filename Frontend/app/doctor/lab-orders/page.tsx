@@ -4,9 +4,11 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Plus, FlaskConical } from "lucide-react";
 import { SectionHeading, Card, Avatar, Pill, Modal } from "@/components/ui";
-import { patients, labOrders as seedOrders, getPatient, matchesWorkContext, patientInWorkContext } from "@/lib/mock-data";
+import { patients as seedPatients, labOrders as seedOrders, getPatient, matchesWorkContext, patientInWorkContext } from "@/lib/mock-data";
 import { useMode } from "@/lib/mode-context";
-import { OrderStatus } from "@/lib/types";
+import { LabOrder, OrderStatus, Patient } from "@/lib/types";
+import { CURRENT_DATE_ISO } from "@/lib/app-time";
+import { ApiSyncSkippedError, createBackendOrder, getBackendBootstrap, updateBackendOrderStatus } from "@/lib/api-client";
 
 const commonTests = ["HbA1c", "Complete Blood Count", "Lipid Profile", "Thyroid Panel", "Troponin-I", "Liver Function Test", "Kidney Function Test", "Urinalysis"];
 
@@ -15,18 +17,44 @@ const columns: OrderStatus[] = ["Ordered", "Sample Collected", "In Progress", "R
 function LabOrdersBoard() {
   const params = useSearchParams();
   const preselected = params.get("patient");
-  const { workContext } = useMode();
-  const [orders, setOrders] = useState(seedOrders);
-  const [patientId, setPatientId] = useState(preselected ?? patients[0].id);
+  const { selectedWorkplaceId, workContext } = useMode();
+  const [orders, setOrders] = useState<LabOrder[]>([]);
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [backendDoctorId, setBackendDoctorId] = useState("");
+  const [patientId, setPatientId] = useState(preselected ?? "");
   const [showForm, setShowForm] = useState(false);
   const [testName, setTestName] = useState("");
   const [priority, setPriority] = useState<"Routine" | "Urgent">("Routine");
   const [source, setSource] = useState<"Internal" | "Partner Lab" | "External / Manual">("Internal");
+  const [syncMessage, setSyncMessage] = useState("");
   const contextPatients = useMemo(
     () => patients.filter((patient) => patientInWorkContext(patient, workContext)),
-    [workContext]
+    [patients, workContext]
   );
   const contextOrders = orders.filter((order) => matchesWorkContext(order, workContext));
+  const patientById = useMemo(() => new Map(patients.map((patient) => [patient.id, patient])), [patients]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getBackendBootstrap()
+      .then((data) => {
+        if (cancelled) return;
+        setPatients(data.patients);
+        setOrders(data.labOrders);
+        setBackendDoctorId(data.doctors[0]?.id ?? "");
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setPatients(seedPatients);
+        setOrders(seedOrders);
+        setBackendDoctorId("doc-1");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     setPatientId((current) =>
@@ -34,25 +62,56 @@ function LabOrdersBoard() {
     );
   }, [contextPatients]);
 
-  function placeOrder() {
+  async function placeOrder() {
     if (!testName.trim()) return;
-    setOrders((prev) => [
-      { id: `lab-${Date.now()}`, patientId, doctorId: "doc-1", testName, orderedOn: "2026-08-13", status: "Ordered", source, priority, workContext },
-      ...prev,
-    ]);
+    const localOrder: LabOrder = {
+      id: `lab-${Date.now()}`,
+      patientId,
+      doctorId: backendDoctorId || "doc-1",
+      testName,
+      orderedOn: CURRENT_DATE_ISO,
+      status: "Ordered",
+      source,
+      priority,
+      workContext,
+    };
+    try {
+      const savedOrder = await createBackendOrder({
+        patientId,
+        doctorId: backendDoctorId,
+        workplaceId: selectedWorkplaceId,
+        type: "LABORATORY",
+        title: testName,
+        priority,
+        source,
+      });
+      localOrder.id = savedOrder.id;
+      setSyncMessage("Lab order synced to backend.");
+    } catch (error) {
+      setSyncMessage(error instanceof ApiSyncSkippedError ? "Mock lab order saved locally." : "Backend sync failed; local lab order kept.");
+    }
+    setOrders((prev) => [localOrder, ...prev]);
     setTestName("");
     setShowForm(false);
   }
 
-  function advance(id: string) {
+  async function advance(id: string) {
+    let nextStatus: OrderStatus = "Ordered";
     setOrders((prev) =>
       prev.map((o) => {
         if (o.id !== id) return o;
         const idx = columns.indexOf(o.status);
         const next = columns[Math.min(idx + 1, columns.length - 1)];
+        nextStatus = next;
         return { ...o, status: next };
       })
     );
+    try {
+      await updateBackendOrderStatus(id, nextStatus);
+      setSyncMessage("Lab order status synced to backend.");
+    } catch (error) {
+      setSyncMessage(error instanceof ApiSyncSkippedError ? "Mock lab order updated locally." : "Backend sync failed; local lab status kept.");
+    }
   }
 
   return (
@@ -127,6 +186,7 @@ function LabOrdersBoard() {
           </div>
         </div>
       </Modal>
+      {syncMessage && <p className="mb-3 text-xs text-ink-muted">{syncMessage}</p>}
 
       <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-5 gap-4">
         {columns.map((col) => (
@@ -138,7 +198,7 @@ function LabOrdersBoard() {
               {contextOrders
                 .filter((o) => o.status === col)
                 .map((o) => {
-                  const patient = getPatient(o.patientId);
+                  const patient = patientById.get(o.patientId) ?? getPatient(o.patientId);
                   return (
                     <Card key={o.id} className="!p-3">
                       <div className="flex items-center gap-2 mb-1.5">

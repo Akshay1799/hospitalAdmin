@@ -1,18 +1,25 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { AlertTriangle, Phone, Droplet, Stethoscope, FilePlus2, FlaskConical, CalendarClock } from "lucide-react";
-import { Card, SectionHeading, Avatar, Pill, OrderStatusBadge } from "@/components/ui";
+import { Card, SectionHeading, Avatar, Pill, OrderStatusBadge, EmptyState } from "@/components/ui";
 import {
   getPatient,
-  diagnoses,
-  prescriptions,
-  labOrders,
-  radiologyOrders,
-  followUps,
-  appointments,
   consultationNotes,
   getDoctor,
 } from "@/lib/mock-data";
+import { getBackendBootstrap } from "@/lib/api-client";
+import {
+  Appointment,
+  DiagnosisEntry,
+  Doctor,
+  FollowUp,
+  LabOrder,
+  Patient,
+  Prescription,
+  RadiologyOrder,
+} from "@/lib/types";
 
 const tagTone: Record<string, "brand" | "clay" | "alert" | "sage"> = {
   New: "brand",
@@ -22,8 +29,64 @@ const tagTone: Record<string, "brand" | "clay" | "alert" | "sage"> = {
 };
 
 export default function PatientDetail({ params }: { params: { id: string } }) {
-  const patient = getPatient(params.id);
-  if (!patient) return notFound();
+  const [loading, setLoading] = useState(true);
+  const [patient, setPatient] = useState<Patient | undefined>();
+  const [doctorRows, setDoctorRows] = useState<Doctor[]>([]);
+  const [diagnoses, setDiagnoses] = useState<DiagnosisEntry[]>([]);
+  const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
+  const [labOrders, setLabOrders] = useState<LabOrder[]>([]);
+  const [radiologyOrders, setRadiologyOrders] = useState<RadiologyOrder[]>([]);
+  const [followUps, setFollowUps] = useState<FollowUp[]>([]);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getBackendBootstrap()
+      .then((data) => {
+        if (cancelled) return;
+        setPatient(data.patients.find((item) => item.id === params.id));
+        setDoctorRows(data.doctors);
+        setDiagnoses(data.diagnoses);
+        setPrescriptions(data.prescriptions);
+        setLabOrders(data.labOrders);
+        setRadiologyOrders(data.radiologyOrders);
+        setFollowUps(data.followUps);
+        setAppointments(data.appointments);
+      })
+      .catch(() => {
+        if (!cancelled) setPatient(getPatient(params.id));
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [params.id]);
+
+  if (loading) {
+    return (
+      <Card>
+        <p className="text-sm text-ink-muted">Loading patient record...</p>
+      </Card>
+    );
+  }
+
+  if (!patient) {
+    return (
+      <EmptyState
+        title="Patient not found"
+        description="The selected patient record could not be loaded from the database."
+        action={
+          <Link href="/doctor/patients" className="btn-primary">
+            Back to patients
+          </Link>
+        }
+      />
+    );
+  }
 
   const patientDx = diagnoses.filter((d) => d.patientId === patient.id);
   const patientRx = prescriptions.filter((r) => r.patientId === patient.id);
@@ -32,7 +95,69 @@ export default function PatientDetail({ params }: { params: { id: string } }) {
   const patientFollowUps = followUps.filter((f) => f.patientId === patient.id);
   const patientAppointments = appointments.filter((a) => a.patientId === patient.id);
   const patientNotes = consultationNotes.filter((c) => c.patientId === patient.id);
-  const doctor = getDoctor(patient.primaryDoctorId);
+  const doctor = doctorRows.find((item) => item.id === patient.primaryDoctorId) ?? getDoctor(patient.primaryDoctorId);
+  const patientTimeline = [
+    ...patientAppointments.map((item) => ({
+      id: `appointment-${item.id}`,
+      date: item.date,
+      title: item.reason,
+      meta: `Appointment - ${item.status}`,
+      href: `/doctor/consultation?patient=${patient.id}&appointment=${item.id}`,
+    })),
+    ...(patient.latestVitals
+      ? [
+          {
+            id: "latest-vitals",
+            date: patient.latestVitals.recordedAt.slice(0, 10),
+            title: `Vitals: BP ${patient.latestVitals.bp}, SpO2 ${patient.latestVitals.spo2}%`,
+            meta: "Vitals",
+            href: "/doctor/vitals",
+          },
+        ]
+      : []),
+    ...patientNotes.map((item) => ({
+      id: `note-${item.id}`,
+      date: item.date,
+      title: item.chiefComplaint || item.diagnosis || "Consultation note",
+      meta: `Consultation - ${item.status}`,
+      href: `/doctor/consultation?patient=${patient.id}`,
+    })),
+    ...patientDx.map((item) => ({
+      id: `diagnosis-${item.id}`,
+      date: item.diagnosedOn,
+      title: item.description,
+      meta: `Diagnosis - ${item.icdCode}`,
+      href: "/doctor/diagnosis",
+    })),
+    ...patientRx.map((item) => ({
+      id: `rx-${item.id}`,
+      date: item.date,
+      title: item.medicines.map((medicine) => medicine.name).join(", "),
+      meta: `Prescription - ${item.status}`,
+      href: `/doctor/prescriptions?patient=${patient.id}`,
+    })),
+    ...patientLabs.map((item) => ({
+      id: `lab-${item.id}`,
+      date: item.orderedOn,
+      title: item.testName,
+      meta: `Lab - ${item.status}`,
+      href: `/doctor/lab-orders?patient=${patient.id}`,
+    })),
+    ...patientRadiology.map((item) => ({
+      id: `radiology-${item.id}`,
+      date: item.orderedOn,
+      title: `${item.imagingType} - ${item.bodyRegion}`,
+      meta: `Radiology - ${item.status}`,
+      href: `/doctor/radiology-orders?patient=${patient.id}`,
+    })),
+    ...patientFollowUps.map((item) => ({
+      id: `follow-up-${item.id}`,
+      date: item.dueDate,
+      title: item.reason,
+      meta: `Follow-up - ${item.status}`,
+      href: "/doctor/follow-up",
+    })),
+  ].sort((a, b) => b.date.localeCompare(a.date));
 
   return (
     <div>
@@ -122,6 +247,27 @@ export default function PatientDetail({ params }: { params: { id: string } }) {
           </div>
         </div>
       )}
+
+      <Card className="mb-6">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div>
+            <p className="eyebrow">Patient Journey</p>
+            <h2 className="font-display text-lg text-ink">Timeline</h2>
+          </div>
+          <Pill tone="brand">{patientTimeline.length} events</Pill>
+        </div>
+        <div className="max-h-80 space-y-3 overflow-y-auto">
+          {patientTimeline.map((item) => (
+            <Link key={item.id} href={item.href} className="grid grid-cols-[88px_1fr] gap-3 rounded-md border border-line bg-paper px-3 py-2 hover:bg-brand-50/60">
+              <span className="font-mono text-[11px] text-ink-muted">{item.date}</span>
+              <span className="min-w-0">
+                <span className="block truncate text-sm font-medium text-ink">{item.title}</span>
+                <span className="block text-[11px] text-ink-faint">{item.meta}</span>
+              </span>
+            </Link>
+          ))}
+        </div>
+      </Card>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <div className="xl:col-span-2 space-y-6">

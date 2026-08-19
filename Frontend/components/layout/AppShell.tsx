@@ -9,6 +9,7 @@ import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
 import { doctorWorkspaceNav, clinicOperationsNav } from "./nav-config";
 import { useMode } from "@/lib/mode-context";
+import { DoctorAiAssistant } from "@/components/doctor-workflow";
 
 export default function AppShell({ children }: { children: ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -60,6 +61,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
         <Topbar onMenuClick={() => setMobileOpen(true)} />
         <main className="flex-1 px-4 py-6 lg:px-8 lg:py-8 max-w-[1440px] w-full mx-auto">{children}</main>
       </div>
+      <DoctorAiAssistant />
     </div>
   );
 }
