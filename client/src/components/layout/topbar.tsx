@@ -48,7 +48,7 @@ export function Topbar() {
 
   return (
     <TooltipProvider delayDuration={200}>
-      <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-3 border-b border-border bg-card/80 px-4 backdrop-blur sm:px-6">
+      <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-3 border-b border-border bg-card/80 px-4 backdrop-blur sm:px-6 print:hidden">
         <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
           <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setMobileOpen(true)}>
             <Menu className="h-5 w-5" />

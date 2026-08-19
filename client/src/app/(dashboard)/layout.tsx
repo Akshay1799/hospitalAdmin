@@ -12,14 +12,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const collapsed = !isPinned && !isHovered;
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex min-h-screen bg-background print:bg-white print:min-h-0">
       <aside
-        className="hidden shrink-0 border-r border-sidebar-border lg:block transition-[width] duration-300 ease-out"
+        className="hidden shrink-0 border-r border-sidebar-border lg:block transition-[width] duration-300 ease-out print:hidden"
         style={{ width: collapsed ? 78 : 248 }}
         onMouseEnter={() => !isPinned && setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
-        <div className="fixed h-screen transition-[width] duration-300 ease-out" style={{ width: collapsed ? 78 : 248 }}>
+        <div className="fixed h-screen transition-[width] duration-300 ease-out print:hidden" style={{ width: collapsed ? 78 : 248 }}>
           <SidebarNav
             collapsed={collapsed}
             onToggleCollapse={() => {
@@ -29,10 +29,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           />
         </div>
       </aside>
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col print:w-full print:p-0">
         <Topbar />
-        <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">
-          <div className="mx-auto max-w-[1600px]">{children}</div>
+        <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8 print:p-0 print:m-0 print:w-full">
+          <div className="mx-auto max-w-[1600px] print:max-w-none print:w-full print:p-0">{children}</div>
         </main>
       </div>
     </div>
