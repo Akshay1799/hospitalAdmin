@@ -4,15 +4,22 @@ import { useMemo, useState } from "react";
 import {
   AlertTriangle,
   Bell,
+  Building2,
   CalendarClock,
   CheckCircle2,
   ClipboardList,
+  Eye,
   Gauge,
+  Mail,
+  MapPin,
   MoreHorizontal,
   PencilLine,
+  Phone,
   Plus,
   RefreshCcw,
+  Shield,
   ShieldCheck,
+  User,
   Users,
   Workflow,
   Clock,
@@ -99,18 +106,37 @@ export default function ReceptionistsPage() {
   const [department, setDepartment] = useState("all");
   const [desk, setDesk] = useState("all");
   const [status, setStatus] = useState("all");
+  const [staffList, setStaffList] = useState<Receptionist[]>(receptionists);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedReceptionist, setSelectedReceptionist] = useState<Receptionist | null>(null);
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [viewingReceptionist, setViewingReceptionist] = useState<Receptionist | null>(null);
+
+  // Suspend Dialog State
+  const [suspendDialogOpen, setSuspendDialogOpen] = useState(false);
+  const [suspendTarget, setSuspendTarget] = useState<Receptionist | null>(null);
+  const [suspendReason, setSuspendReason] = useState("Administrative review");
+
+  // Replace Dialog State
+  const [replaceDialogOpen, setReplaceDialogOpen] = useState(false);
+  const [replaceTarget, setReplaceTarget] = useState<Receptionist | null>(null);
+  const [incomingStaffId, setIncomingStaffId] = useState<string>("");
+  const [replaceReason, setReplaceReason] = useState("Shift rotation");
+
+  // Remove Dialog State
+  const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
+  const [removeTarget, setRemoveTarget] = useState<Receptionist | null>(null);
+
   const { toast } = useToast();
 
-  const branchOptions = useMemo(() => ["all", ...Array.from(new Set(receptionists.map((r) => r.branch)))], []);
-  const departmentOptions = useMemo(() => ["all", ...Array.from(new Set(receptionists.map((r) => r.department)))], []);
-  const deskOptions = useMemo(() => ["all", ...Array.from(new Set(receptionists.map((r) => r.desk)))], []);
+  const branchOptions = useMemo(() => ["all", ...Array.from(new Set(staffList.map((r) => r.branch)))], [staffList]);
+  const departmentOptions = useMemo(() => ["all", ...Array.from(new Set(staffList.map((r) => r.department)))], [staffList]);
+  const deskOptions = useMemo(() => ["all", ...Array.from(new Set(staffList.map((r) => r.desk)))], [staffList]);
   const statusOptions = ["all", "active", "suspended", "invited", "replaced"];
 
   const filtered = useMemo(
     () =>
-      receptionists.filter((r) => {
+      staffList.filter((r) => {
         const matchesSearch =
           r.name.toLowerCase().includes(search.toLowerCase()) ||
           r.email.toLowerCase().includes(search.toLowerCase()) ||
@@ -121,7 +147,7 @@ export default function ReceptionistsPage() {
         const matchesStatus = status === "all" || r.status === status;
         return matchesSearch && matchesBranch && matchesDepartment && matchesDesk && matchesStatus;
       }),
-    [branch, department, desk, search, status]
+    [branch, department, desk, search, status, staffList]
   );
 
   const openCreateDialog = () => {
@@ -132,6 +158,83 @@ export default function ReceptionistsPage() {
   const openEditDialog = (receptionist: Receptionist) => {
     setSelectedReceptionist(receptionist);
     setDialogOpen(true);
+  };
+
+  const openViewDialog = (receptionist: Receptionist) => {
+    setViewingReceptionist(receptionist);
+    setViewDialogOpen(true);
+  };
+
+  const openSuspendDialog = (receptionist: Receptionist) => {
+    setSuspendTarget(receptionist);
+    setSuspendReason("Administrative review");
+    setSuspendDialogOpen(true);
+  };
+
+  const handleConfirmSuspend = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!suspendTarget) return;
+
+    const newStatus = suspendTarget.status === "suspended" ? "active" : "suspended";
+    setStaffList((prev) =>
+      prev.map((item) => (item.id === suspendTarget.id ? { ...item, status: newStatus } : item))
+    );
+
+    toast({
+      title: newStatus === "suspended" ? "Receptionist Suspended" : "Receptionist Reactivated",
+      description: `${suspendTarget.name} status updated to ${newStatus}. Reason: ${suspendReason}. (${DELEGATION_STRING})`,
+    });
+
+    setSuspendDialogOpen(false);
+  };
+
+  const openReplaceDialog = (receptionist?: Receptionist) => {
+    const target = receptionist || staffList[0];
+    setReplaceTarget(target);
+    const available = staffList.find((s) => s.id !== target?.id && s.status === "active") || staffList[1];
+    if (available) setIncomingStaffId(available.id);
+    setReplaceReason("Shift rotation");
+    setReplaceDialogOpen(true);
+  };
+
+  const handleConfirmReplace = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!replaceTarget) return;
+    const incoming = staffList.find((s) => s.id === incomingStaffId);
+
+    setStaffList((prev) =>
+      prev.map((item) => {
+        if (item.id === replaceTarget.id) {
+          return { ...item, status: "replaced" as any };
+        }
+        if (item.id === incomingStaffId) {
+          return { ...item, desk: replaceTarget.desk, department: replaceTarget.department };
+        }
+        return item;
+      })
+    );
+
+    toast({
+      title: "Receptionist Replacement Executed",
+      description: `${replaceTarget.name} at ${replaceTarget.desk} replaced by ${incoming?.name || "Assigned Staff"}. Reason: ${replaceReason}. (${DELEGATION_STRING})`,
+    });
+
+    setReplaceDialogOpen(false);
+  };
+
+  const openRemoveDialog = (receptionist: Receptionist) => {
+    setRemoveTarget(receptionist);
+    setRemoveDialogOpen(true);
+  };
+
+  const handleConfirmRemove = () => {
+    if (!removeTarget) return;
+    setStaffList((prev) => prev.filter((item) => item.id !== removeTarget.id));
+    toast({
+      title: "Receptionist Removed",
+      description: `${removeTarget.name} has been removed from front desk pool. (${DELEGATION_STRING})`,
+    });
+    setRemoveDialogOpen(false);
   };
 
   function handleSubmit(e: React.FormEvent) {
@@ -153,7 +256,7 @@ export default function ReceptionistsPage() {
         crumbs={[{ label: "Clinic Staff" }, { label: "Receptionists" }]}
         actions={
           <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={() => toast({ title: "Replacement workflow opened" })}>
+            <Button variant="outline" onClick={() => openReplaceDialog()}>
               <RefreshCcw className="h-4 w-4" /> Replace Receptionist
             </Button>
             <Button onClick={openCreateDialog}>
@@ -361,14 +464,14 @@ export default function ReceptionistsPage() {
                   <TableBody>
                     {filtered.map((r) => (
                       <TableRow key={r.id}>
-                        <TableCell>
+                        <TableCell className="cursor-pointer" onClick={() => openViewDialog(r)}>
                           <div className="flex items-center gap-3">
                             <Avatar className="h-9 w-9">
                               <AvatarImage src={r.avatarUrl} alt={r.name} />
                               <AvatarFallback>{getInitials(r.name)}</AvatarFallback>
                             </Avatar>
                             <div>
-                              <p className="text-sm font-medium text-foreground">{r.name}</p>
+                              <p className="text-sm font-medium text-foreground hover:text-primary transition-colors">{r.name}</p>
                               <p className="text-xs text-muted-foreground">{r.email}</p>
                             </div>
                           </div>
@@ -387,13 +490,29 @@ export default function ReceptionistsPage() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => openViewDialog(r)}>
+                                <Eye className="mr-2 h-4 w-4 text-primary" /> View Details
+                              </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => openEditDialog(r)}>
                                 <PencilLine className="mr-2 h-4 w-4" /> Edit
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => toast({ title: "Receptionist view opened", description: DELEGATION_STRING })}>View</DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => toast({ title: "Receptionist suspended", description: DELEGATION_STRING })}>Suspend</DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => toast({ title: "Replacement flow initiated", description: DELEGATION_STRING })}>Replace</DropdownMenuItem>
-                              <DropdownMenuItem className="text-destructive" onClick={() => toast({ title: "Receptionist removed", description: DELEGATION_STRING })}>Remove</DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => openSuspendDialog(r)}>
+                                {r.status === "suspended" ? (
+                                  <>
+                                    <CheckCircle2 className="mr-2 h-4 w-4 text-success" /> Reactivate
+                                  </>
+                                ) : (
+                                  <>
+                                    <AlertTriangle className="mr-2 h-4 w-4 text-warning" /> Suspend
+                                  </>
+                                )}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => openReplaceDialog(r)}>
+                                <RefreshCcw className="mr-2 h-4 w-4 text-primary" /> Replace
+                              </DropdownMenuItem>
+                              <DropdownMenuItem className="text-destructive" onClick={() => openRemoveDialog(r)}>
+                                Remove
+                              </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>
@@ -842,6 +961,326 @@ export default function ReceptionistsPage() {
               <Button type="submit">{selectedReceptionist ? "Save changes" : "Create receptionist"}</Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* RECEPTIONIST DETAILS VIEW MODAL */}
+      <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
+        <DialogContent className="max-w-lg">
+          {viewingReceptionist && (
+            <div className="space-y-4">
+              <DialogHeader className="border-b pb-3">
+                <div className="flex items-center gap-3">
+                  <Avatar className="h-12 w-12 border border-border">
+                    <AvatarImage src={viewingReceptionist.avatarUrl} alt={viewingReceptionist.name} />
+                    <AvatarFallback className="bg-primary/10 text-primary font-bold">
+                      {getInitials(viewingReceptionist.name)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <DialogTitle className="text-base font-bold">{viewingReceptionist.name}</DialogTitle>
+                      <StatusBadge status={viewingReceptionist.status} />
+                    </div>
+                    <DialogDescription className="text-xs mt-0.5">
+                      Staff ID: <span className="font-mono font-semibold text-foreground">{viewingReceptionist.id.toUpperCase()}</span> • Joined {viewingReceptionist.createdAt}
+                    </DialogDescription>
+                  </div>
+                </div>
+              </DialogHeader>
+
+              {/* Contact Details */}
+              <div className="grid grid-cols-2 gap-3 p-3 rounded-lg bg-muted/30 border border-border text-xs">
+                <div className="flex items-center gap-2">
+                  <Mail className="h-4 w-4 text-primary shrink-0" />
+                  <div className="truncate">
+                    <span className="text-muted-foreground text-[11px]">Email Address</span>
+                    <p className="font-medium text-foreground truncate">{viewingReceptionist.email}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Phone className="h-4 w-4 text-primary shrink-0" />
+                  <div>
+                    <span className="text-muted-foreground text-[11px]">Phone Number</span>
+                    <p className="font-medium text-foreground">{viewingReceptionist.phone}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Operational Assignment */}
+              <div className="space-y-2">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  Operational Assignment & Desk Allocation
+                </h4>
+                <div className="grid grid-cols-2 gap-3 p-3 rounded-lg border border-border bg-muted/20 text-xs">
+                  <div>
+                    <span className="text-muted-foreground">Assigned Desk:</span>
+                    <p className="font-bold text-foreground mt-0.5">{viewingReceptionist.desk}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Department:</span>
+                    <p className="font-bold text-foreground mt-0.5">{viewingReceptionist.department}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Hospital Branch:</span>
+                    <p className="font-semibold text-foreground mt-0.5">{viewingReceptionist.branch}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Facility Location:</span>
+                    <p className="font-semibold text-foreground mt-0.5 truncate">{viewingReceptionist.location}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Performance & Workload Metrics */}
+              <div className="space-y-2">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  Workload & Throughput
+                </h4>
+                <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                  <div className="p-2.5 rounded-lg border border-border bg-muted/30">
+                    <span className="text-muted-foreground text-[11px]">Total Handled</span>
+                    <p className="font-bold text-sm text-foreground mt-0.5 font-mono">
+                      {viewingReceptionist.appointmentsHandled.toLocaleString("en-IN")}
+                    </p>
+                  </div>
+                  <div className="p-2.5 rounded-lg border border-border bg-muted/30">
+                    <span className="text-muted-foreground text-[11px]">Context</span>
+                    <p className="font-bold text-sm text-foreground mt-0.5">
+                      {viewingReceptionist.assignedContext}
+                    </p>
+                  </div>
+                  <div className="p-2.5 rounded-lg border border-border bg-muted/30">
+                    <span className="text-muted-foreground text-[11px]">Status</span>
+                    <p className="font-bold text-sm text-success mt-0.5 capitalize">
+                      {viewingReceptionist.status}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Workflow & Access Governance Scope */}
+              <div className="space-y-2">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  Workflow & Governance Scope
+                </h4>
+                <div className="p-3 rounded-lg border border-border bg-muted/20 space-y-2 text-xs">
+                  <div>
+                    <span className="text-muted-foreground font-medium">Assigned Workflow Scope:</span>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {viewingReceptionist.workflowScope.map((scope, idx) => (
+                        <Badge key={idx} variant="secondary" className="text-[10px]">
+                          {scope}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground font-medium">Permission Capabilities:</span>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {viewingReceptionist.scope.map((s, idx) => (
+                        <Badge key={idx} variant="outline" className="text-[10px] bg-background">
+                          {s}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="pt-1 border-t border-border flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                    <ShieldCheck className="h-3.5 w-3.5 text-success" />
+                    <span>Non-clinical operational staff • EHR modification privileges restricted</span>
+                  </div>
+                </div>
+              </div>
+
+              <DialogFooter className="flex flex-row items-center justify-between gap-2 border-t pt-3">
+                <Button variant="outline" onClick={() => setViewDialogOpen(false)}>
+                  Close
+                </Button>
+                <Button
+                  onClick={() => {
+                    const currentRec = viewingReceptionist;
+                    setViewDialogOpen(false);
+                    openEditDialog(currentRec);
+                  }}
+                >
+                  <PencilLine className="mr-1.5 h-3.5 w-3.5" /> Edit Profile
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* SUSPEND / REACTIVATE RECEPTIONIST DIALOG */}
+      <Dialog open={suspendDialogOpen} onOpenChange={setSuspendDialogOpen}>
+        <DialogContent className="max-w-md">
+          {suspendTarget && (
+            <form onSubmit={handleConfirmSuspend}>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  {suspendTarget.status === "suspended" ? (
+                    <>
+                      <CheckCircle2 className="h-5 w-5 text-success" /> Reactivate Receptionist
+                    </>
+                  ) : (
+                    <>
+                      <AlertTriangle className="h-5 w-5 text-warning" /> Suspend Receptionist Access
+                    </>
+                  )}
+                </DialogTitle>
+                <DialogDescription>
+                  {suspendTarget.status === "suspended"
+                    ? `Restore operational desk queue access and token management permissions for ${suspendTarget.name}.`
+                    : `Temporarily revoke desk queue access and token calling privileges for ${suspendTarget.name}.`}
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-3 py-3 text-xs">
+                <div className="p-3 rounded-lg bg-muted/40 border border-border space-y-1">
+                  <p><strong>Staff Member:</strong> {suspendTarget.name} ({suspendTarget.email})</p>
+                  <p><strong>Assigned Desk:</strong> {suspendTarget.desk} • {suspendTarget.department}</p>
+                  <p><strong>Current Status:</strong> <span className="capitalize font-semibold">{suspendTarget.status}</span></p>
+                </div>
+
+                {suspendTarget.status !== "suspended" && (
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="suspend-reason">Suspension Reason</Label>
+                    <Select value={suspendReason} onValueChange={setSuspendReason}>
+                      <SelectTrigger id="suspend-reason">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Administrative review">Administrative review</SelectItem>
+                        <SelectItem value="Unscheduled absence">Unscheduled absence</SelectItem>
+                        <SelectItem value="Temporary desk re-allocation">Temporary desk re-allocation</SelectItem>
+                        <SelectItem value="Disciplinary inquiry">Disciplinary inquiry</SelectItem>
+                        <SelectItem value="Shift rotation leave">Shift rotation leave</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setSuspendDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  variant={suspendTarget.status === "suspended" ? "default" : "destructive"}
+                >
+                  {suspendTarget.status === "suspended" ? "Confirm Reactivation" : "Confirm Suspension"}
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* REPLACE RECEPTIONIST DIALOG */}
+      <Dialog open={replaceDialogOpen} onOpenChange={setReplaceDialogOpen}>
+        <DialogContent className="max-w-md">
+          {replaceTarget && (
+            <form onSubmit={handleConfirmReplace}>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <RefreshCcw className="h-5 w-5 text-primary" /> Replace Receptionist Handover
+                </DialogTitle>
+                <DialogDescription>
+                  Reassign {replaceTarget.desk} responsibilities and active token queue to a replacement front-desk staff member.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-3 py-3 text-xs">
+                {/* Outgoing Details */}
+                <div className="p-3 rounded-lg bg-muted/40 border border-border space-y-1">
+                  <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+                    Outgoing Receptionist:
+                  </span>
+                  <p className="font-semibold text-foreground">{replaceTarget.name} ({replaceTarget.desk})</p>
+                  <p className="text-muted-foreground">Department: {replaceTarget.department} • Branch: {replaceTarget.branch}</p>
+                </div>
+
+                {/* Incoming Selection */}
+                <div className="grid gap-1.5">
+                  <Label htmlFor="incoming-staff">Select Replacement Staff</Label>
+                  <Select value={incomingStaffId} onValueChange={setIncomingStaffId}>
+                    <SelectTrigger id="incoming-staff">
+                      <SelectValue placeholder="Select replacement receptionist" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {staffList
+                        .filter((s) => s.id !== replaceTarget.id)
+                        .map((staff) => (
+                          <SelectItem key={staff.id} value={staff.id}>
+                            {staff.name} — Current: {staff.desk} ({staff.status})
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Handover Reason */}
+                <div className="grid gap-1.5">
+                  <Label htmlFor="replace-reason">Replacement Reason</Label>
+                  <Select value={replaceReason} onValueChange={setReplaceReason}>
+                    <SelectTrigger id="replace-reason">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Shift rotation">Shift rotation & handover</SelectItem>
+                      <SelectItem value="Emergency desk cover">Emergency desk cover</SelectItem>
+                      <SelectItem value="Long-term re-allocation">Long-term re-allocation</SelectItem>
+                      <SelectItem value="Workload balancing">Workload balancing</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex items-center space-x-2 pt-1">
+                  <Checkbox id="auto-tokens" defaultChecked />
+                  <Label htmlFor="auto-tokens" className="text-xs font-normal">
+                    Auto-transfer active waiting tokens & queue ownership
+                  </Label>
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setReplaceDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit">Execute Replacement Handover</Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* REMOVE RECEPTIONIST CONFIRMATION DIALOG */}
+      <Dialog open={removeDialogOpen} onOpenChange={setRemoveDialogOpen}>
+        <DialogContent className="max-w-sm">
+          {removeTarget && (
+            <div>
+              <DialogHeader>
+                <DialogTitle className="text-destructive">Remove Receptionist</DialogTitle>
+                <DialogDescription>
+                  Are you sure you want to remove <strong className="text-foreground">{removeTarget.name}</strong> from the front desk staff pool?
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="py-3 text-xs text-muted-foreground">
+                This will unassign <strong className="text-foreground">{removeTarget.desk}</strong>. Active patients must be re-routed.
+              </div>
+
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setRemoveDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button variant="destructive" onClick={handleConfirmRemove}>
+                  Confirm Remove
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
