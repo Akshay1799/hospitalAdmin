@@ -17,9 +17,19 @@ import {
   UserCheck,
   MapPin,
   Flame,
+  Bed,
+  Stethoscope,
+  HeartPulse,
+  History,
+  Activity,
+  UserPlus,
+  Users,
+  Building2,
+  Download,
 } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -41,6 +51,8 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { ScopeIndicator } from "@/components/shared/ScopeIndicator";
@@ -52,10 +64,8 @@ import {
   EmergencyCase,
 } from "@/store/slices/emergencySlice";
 import { useToast } from "@/hooks/use-toast";
+import { cn, formatCurrency, getInitials } from "@/lib/utils";
 
-const DELEGATION_STRING = "Performed by Hospital Admin • acting within Emergency workflow";
-
-const PRIORITY_WEIGHT: Record<string, number> = { Critical: 3, High: 2, Medium: 1 };
 const SLA_LIMITS_MINUTES: Record<string, number> = { Critical: 5, High: 15, Medium: 30 };
 
 function getSlaStatus(createdAt: string, status: string, priority: string) {
@@ -77,36 +87,71 @@ function getSlaStatus(createdAt: string, status: string, priority: string) {
   };
 }
 
+// 12 Emergency Bays Matrix
+const initialErBays = [
+  { id: "BAY-01", type: "Resuscitation (Red)", status: "occupied", patient: "Rajesh Varma (Cardiac Arrest)", doctor: "Dr. K. N. Rao" },
+  { id: "BAY-02", type: "Resuscitation (Red)", status: "occupied", patient: "Alok S. (Severe Polytrauma)", doctor: "Dr. Arvind Joshi" },
+  { id: "BAY-03", type: "Trauma & Acute", status: "occupied", patient: "Siddharth Mehra (Fracture)", doctor: "Dr. Rohan Mehta" },
+  { id: "BAY-04", type: "Trauma & Acute", status: "occupied", patient: "Vikram N. (Head Injury)", doctor: "Dr. Kavya Iyer" },
+  { id: "BAY-05", type: "Trauma & Acute", status: "available", patient: "", doctor: "" },
+  { id: "BAY-06", type: "Trauma & Acute", status: "cleaning", patient: "", doctor: "" },
+  { id: "BAY-07", type: "Observation (Yellow)", status: "occupied", patient: "Fatima A. (Asthma Attack)", doctor: "Dr. Simran Kaur" },
+  { id: "BAY-08", type: "Observation (Yellow)", status: "occupied", patient: "Harish M. (Chest Pain)", doctor: "Dr. Ananya Rao" },
+  { id: "BAY-09", type: "Observation (Yellow)", status: "available", patient: "", doctor: "" },
+  { id: "BAY-10", type: "Observation (Yellow)", status: "available", patient: "", doctor: "" },
+  { id: "BAY-11", type: "Isolation Bay (Green)", status: "occupied", patient: "Dinesh P. (Fever / Rash)", doctor: "Dr. Simran Kaur" },
+  { id: "BAY-12", type: "Isolation Bay (Green)", status: "available", patient: "", doctor: "" },
+];
+
+// ER Doctors & Trauma Roster
+const initialErDoctors = [
+  { id: "er_doc_1", name: "Dr. K. N. Rao", role: "Chief Emergency Medical Officer (EMO)", shift: "08:00 AM - 08:00 PM", status: "In Resuscitation", contact: "+91 98201 11223" },
+  { id: "er_doc_2", name: "Dr. Arvind Joshi", role: "Consultant Trauma Surgeon", shift: "On-Call (10 min away)", status: "Active in ER", contact: "+91 98202 22334" },
+  { id: "er_doc_3", name: "Dr. Sneha Roy", role: "Emergency Resident Physician", shift: "08:00 AM - 08:00 PM", status: "Available at Triage", contact: "+91 98203 33445" },
+  { id: "er_doc_4", name: "Dr. Vikram Seth", role: "Interventional Cardiologist", shift: "On-Call Code STEMI", status: "Standby Alpha", contact: "+91 98204 44556" },
+];
+
+// Historical ER Dispositions
+const initialErHistory = [
+  { id: "EMG-2026-041", patientName: "Rohan Verma", age: 48, arrivalTime: "2026-08-14 06:30 AM", triage: "Priority 1 (Red)", complaint: "STEMI Anterior Wall", disposition: "Shifted to Cath Lab / ICU", doctor: "Dr. Vikram Seth" },
+  { id: "EMG-2026-040", patientName: "Pooja Hegde", age: 31, arrivalTime: "2026-08-14 04:15 AM", triage: "Priority 2 (Yellow)", complaint: "Acute Appendicular Colic", disposition: "Shifted to Emergency OT", doctor: "Dr. Arvind Joshi" },
+  { id: "EMG-2026-039", patientName: "Manoj Tiwari", age: 55, arrivalTime: "2026-08-13 11:20 PM", triage: "Priority 3 (Green)", complaint: "Laceration Suturing", disposition: "Discharged Post-Observation", doctor: "Dr. Sneha Roy" },
+];
+
 export default function EmergencyPage() {
   const dispatch = useDispatch();
   const { toast } = useToast();
   const cases = useSelector((state: RootState) => state.emergency.cases);
   const ambulances = useSelector((state: RootState) => state.ambulance.fleet);
 
-  const [sort, setSort] = useState("newest");
-  const [deliveryFilter, setDeliveryFilter] = useState("all");
-  const [simulationOpen, setSimulationOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("active-cases");
+  const [priorityFilter, setPriorityFilter] = useState("all");
+  const [erBays, setErBays] = useState(initialErBays);
+  const [erDoctors] = useState(initialErDoctors);
+  const [erHistory] = useState(initialErHistory);
+
+  // Rapid Walk-In Emergency Modal State
+  const [newEmergencyOpen, setNewEmergencyOpen] = useState(false);
+  const [walkinName, setWalkinName] = useState("");
+  const [walkinAge, setWalkinAge] = useState("45");
+  const [walkinGender, setWalkinGender] = useState("Male");
+  const [walkinPriority, setWalkinPriority] = useState<"Critical" | "High" | "Medium">("Critical");
+  const [walkinComplaint, setWalkinComplaint] = useState("");
+  const [walkinBay, setWalkinBay] = useState("BAY-05");
+  const [walkinGcs, setWalkinGcs] = useState("15");
+
   const [ackModalOpen, setAckModalOpen] = useState(false);
   const [selectedCaseForAck, setSelectedCaseForAck] = useState<EmergencyCase | null>(null);
 
-  // Simulation form states
-  const [simPatientName, setSimPatientName] = useState("Siddharth Mehra");
-  const [simLocation, setSimLocation] = useState("MG Road Metro Station, Mumbai");
-  const [simPriority, setSimPriority] = useState<"Critical" | "High" | "Medium">("Critical");
-  const [simFlowType, setSimFlowType] = useState<"Flow A (Active Relationship)" | "Flow B (Location Routing)">(
-    "Flow A (Active Relationship)"
-  );
-  const [simComplaint, setSimComplaint] = useState("Severe cardiac distress & collapse");
-
   const [, setTick] = useState(0);
 
-  // Re-evaluate SLA countdown timer every 15 seconds
+  // Timer Tick
   useEffect(() => {
     const interval = setInterval(() => setTick((t) => t + 1), 15000);
     return () => clearInterval(interval);
   }, []);
 
-  // Check and dispatch SLA breaches automatically
+  // Check SLA Breaches
   useEffect(() => {
     cases.forEach((c) => {
       const sla = getSlaStatus(c.createdAt, c.status, c.priority);
@@ -116,376 +161,536 @@ export default function EmergencyPage() {
     });
   }, [cases, dispatch]);
 
-  const filteredAndSortedCases = useMemo(() => {
-    return [...cases]
-      .filter((c) => {
-        if (deliveryFilter === "all") return true;
-        return c.deliveryState === deliveryFilter;
-      })
-      .sort((a, b) => {
-        if (sort === "priority") {
-          return PRIORITY_WEIGHT[b.priority] - PRIORITY_WEIGHT[a.priority];
-        }
-        if (sort === "sla") {
-          const slaA = getSlaStatus(a.createdAt, a.status, a.priority).timeRemaining;
-          const slaB = getSlaStatus(b.createdAt, b.status, b.priority).timeRemaining;
-          return slaA - slaB;
-        }
-        // default newest first
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-      });
-  }, [cases, sort, deliveryFilter]);
-
-  // Ambulance fleet stats
-  const ambAvailable = ambulances.filter((a) => a.status === "Available").length;
-  const ambDispatched = ambulances.filter((a) =>
-    ["Dispatched", "En Route", "At Scene", "Transporting"].includes(a.status)
-  ).length;
-  const ambOffline = ambulances.filter((a) => a.status === "Maintenance/Offline").length;
-
-  const handleQuickAck = (c: EmergencyCase) => {
-    setSelectedCaseForAck(c);
-    setAckModalOpen(true);
-  };
-
-  const confirmAcknowledgment = () => {
-    if (!selectedCaseForAck) return;
-    dispatch(
-      acknowledgeCase({
-        id: selectedCaseForAck.id,
-        actor: "Performed by Hospital Admin • acting within Emergency workflow",
-      })
-    );
-    toast({
-      title: "Administrative Receipt Acknowledged",
-      description: `Case ${selectedCaseForAck.id} acknowledged and routed to clinical emergency team. (${DELEGATION_STRING})`,
+  const filteredCases = useMemo(() => {
+    return cases.filter((c) => {
+      if (priorityFilter === "all") return true;
+      return c.priority.toLowerCase() === priorityFilter.toLowerCase();
     });
-    setAckModalOpen(false);
-  };
+  }, [cases, priorityFilter]);
 
-  const handleCreateSimulation = (e: React.FormEvent) => {
+  const criticalCases = cases.filter((c) => c.priority === "Critical" && c.status !== "Closed");
+
+  const handleWalkinEmergencySubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!walkinName.trim()) {
+      toast({ title: "Validation Error", description: "Patient name is required", variant: "destructive" });
+      return;
+    }
+
     const newCase: EmergencyCase = {
       id: `SOS-${Math.floor(100 + Math.random() * 900)}`,
-      patientName: simPatientName,
-      age: 40,
-      gender: "Male",
-      phone: "+91 98765 43210",
-      location: simLocation,
-      destinationHospital: "Qlyno Multispecialty Hospital (Main Campus)",
-      priority: simPriority,
+      patientName: walkinName.trim(),
+      location: `Walk-in ER Arrival (${walkinBay})`,
+      destinationHospital: "Qlyno Multispecialty Hospital",
+      priority: walkinPriority,
       status: "Hospital Notified",
       deliveryState: "Pending Ack",
-      flowType: simFlowType,
-      chiefComplaint: simComplaint,
+      flowType: "Flow A (Active Relationship)",
       createdAt: new Date().toISOString(),
       slaBreached: false,
-      assignedTeam: "Emergency Triage Pool",
+      age: Number(walkinAge) || 45,
+      gender: walkinGender,
+      chiefComplaint: `${walkinComplaint.trim() || "Acute trauma/distress"} • GCS: ${walkinGcs}/15`,
     };
 
     dispatch(triggerAlertSimulation(newCase));
-    setSimulationOpen(false);
+
+    // Occupy the bay
+    setErBays((prev) =>
+      prev.map((b) => (b.id === walkinBay ? { ...b, status: "occupied", patient: walkinName } : b))
+    );
+
+    setNewEmergencyOpen(false);
+    setWalkinName("");
+    setWalkinComplaint("");
     toast({
-      title: "Simulated SOS Alert Triggered",
-      description: `New ${simPriority} emergency alert generated for ${simPatientName} (${simFlowType}). (${DELEGATION_STRING})`,
+      title: "🚨 Emergency Patient Triage Enqueued",
+      description: `${walkinName} admitted to ${walkinBay} as ${walkinPriority.toUpperCase()} priority.`,
+    });
+  };
+
+  const handleAcknowledge = (c: EmergencyCase) => {
+    dispatch(acknowledgeCase({ id: c.id, actor: "Hospital Admin • Emergency Desk" }));
+    setAckModalOpen(false);
+    toast({
+      title: "Emergency Case Acknowledged",
+      description: `Case ${c.id} received and dispatched to ER Clinical Lead.`,
     });
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 animate-fade-in pb-12">
       <PageHeader
-        title="Emergency / SOS Command"
-        description="High-stakes emergency routing, SLA countdown monitoring, ambulance coordination, and accountable human response."
-        crumbs={[{ label: "Hospital Operations" }, { label: "Emergency Command" }]}
+        title="Emergency & Trauma Command Center"
+        description="Live red-alert triage telemetry, trauma bay allocation, Code Blue readiness & critical patient queues."
+        crumbs={[{ label: "Patient Care" }, { label: "Emergency Management" }]}
         actions={
-          <div className="flex flex-wrap items-center gap-2">
-            <Link href="/emergency/audit">
-              <Button variant="outline" size="sm">
-                <FileText className="mr-2 h-4 w-4" /> Audit Trail
-              </Button>
-            </Link>
-            <Link href="/emergency/config">
-              <Button variant="outline" size="sm">
-                <Settings className="mr-2 h-4 w-4" /> Settings & Capacity
-              </Button>
-            </Link>
-            <Button size="sm" onClick={() => setSimulationOpen(true)}>
-              <Siren className="mr-2 h-4 w-4" /> Simulate SOS Alert
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/emergency/audit">
+                <FileText className="h-4 w-4 mr-1.5" /> Audit Log
+              </Link>
             </Button>
+            <Dialog open={newEmergencyOpen} onOpenChange={setNewEmergencyOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm" className="bg-destructive hover:bg-destructive/90 text-white font-bold gap-1.5 animate-pulse">
+                  <Siren className="h-4 w-4" /> New Walk-In Emergency
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[540px]">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2 text-destructive">
+                    <Siren className="h-5 w-5" /> Rapid Walk-in Trauma &amp; Emergency Intake
+                  </DialogTitle>
+                  <DialogDescription>
+                    Assign Manchester Triage classification, capture GCS and allocate ER Trauma Bay.
+                  </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleWalkinEmergencySubmit} className="space-y-3.5 py-2">
+                  <div className="space-y-1.5">
+                    <Label>Patient Name</Label>
+                    <Input
+                      placeholder="e.g. Alok Sharma"
+                      value={walkinName}
+                      onChange={(e) => setWalkinName(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label>Age</Label>
+                      <Input
+                        type="number"
+                        value={walkinAge}
+                        onChange={(e) => setWalkinAge(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Gender</Label>
+                      <Select value={walkinGender} onValueChange={setWalkinGender}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Gender" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Male">Male</SelectItem>
+                          <SelectItem value="Female">Female</SelectItem>
+                          <SelectItem value="Other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {/* Triage Level Selection */}
+                  <div className="space-y-1.5">
+                    <Label>Triage Priority Classification</Label>
+                    <Select value={walkinPriority} onValueChange={(v: any) => setWalkinPriority(v)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select Triage Level" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Critical" className="text-rose-600 font-bold">
+                          🔴 Priority 1 (Red) — Resuscitation (Immediate)
+                        </SelectItem>
+                        <SelectItem value="High" className="text-amber-600 font-bold">
+                          🟡 Priority 2 (Yellow) — Emergent (&lt; 15 mins)
+                        </SelectItem>
+                        <SelectItem value="Medium" className="text-emerald-600 font-bold">
+                          🟢 Priority 3 (Green) — Urgent (&lt; 60 mins)
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label>Glasgow Coma Scale (GCS)</Label>
+                      <Select value={walkinGcs} onValueChange={setWalkinGcs}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="GCS Score" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="15">GCS 15 (Fully Alert)</SelectItem>
+                          <SelectItem value="13">GCS 13-14 (Mild Impairment)</SelectItem>
+                          <SelectItem value="9">GCS 9-12 (Moderate Trauma)</SelectItem>
+                          <SelectItem value="6">GCS 3-8 (Severe Coma / Intubate)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Allocate ER Bay</Label>
+                      <Select value={walkinBay} onValueChange={setWalkinBay}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select Bay" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="BAY-01">BAY-01 (Resuscitation)</SelectItem>
+                          <SelectItem value="BAY-02">BAY-02 (Resuscitation)</SelectItem>
+                          <SelectItem value="BAY-05">BAY-05 (Trauma Acute)</SelectItem>
+                          <SelectItem value="BAY-09">BAY-09 (Observation)</SelectItem>
+                          <SelectItem value="BAY-12">BAY-12 (Isolation)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label>Presenting Trauma / Chief Complaints</Label>
+                    <Input
+                      placeholder="e.g. Severe chest pain, crush injury, acute shortness of breath"
+                      value={walkinComplaint}
+                      onChange={(e) => setWalkinComplaint(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <DialogFooter className="pt-2">
+                    <Button type="button" variant="outline" onClick={() => setNewEmergencyOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button type="submit" className="bg-destructive hover:bg-destructive/90 text-white font-bold">
+                      Admit to ER Bay &amp; Trigger Alert
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
           </div>
         }
       />
 
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-        <ScopeIndicator scope="Hospital Admin" stationName="Emergency Command" />
-        <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/30 px-3 py-1.5 rounded-md border border-border">
-          <ShieldAlert className="h-3.5 w-3.5 text-warning" />
-          <span>Coordination & routing only • Clinical triage remains with Emergency Clinical Team</span>
-        </div>
-      </div>
+      {/* Main Tabs: Active Cases / Critical Patients / ER Beds / ER Doctors / History */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid grid-cols-5 max-w-3xl bg-muted/60 p-1">
+          <TabsTrigger value="active-cases" className="text-xs font-semibold">
+            <Flame className="h-3.5 w-3.5 mr-1.5 text-rose-500" /> Active Cases ({cases.length})
+          </TabsTrigger>
+          <TabsTrigger value="critical" className="text-xs font-semibold">
+            <Siren className="h-3.5 w-3.5 mr-1.5 text-rose-600" /> Critical ({criticalCases.length})
+          </TabsTrigger>
+          <TabsTrigger value="beds" className="text-xs font-semibold">
+            <Bed className="h-3.5 w-3.5 mr-1.5" /> ER Bays ({erBays.filter((b) => b.status === "occupied").length}/12)
+          </TabsTrigger>
+          <TabsTrigger value="doctors" className="text-xs font-semibold">
+            <Stethoscope className="h-3.5 w-3.5 mr-1.5" /> ER Doctors ({erDoctors.length})
+          </TabsTrigger>
+          <TabsTrigger value="history" className="text-xs font-semibold">
+            <History className="h-3.5 w-3.5 mr-1.5" /> Dispositions
+          </TabsTrigger>
+        </TabsList>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-        {/* Main Board */}
-        <div className="lg:col-span-3 space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-card p-3 rounded-lg border border-border">
-            <div className="flex items-center gap-2">
-              <h3 className="font-semibold text-lg flex items-center gap-2">
-                Live SOS Emergency Board
-              </h3>
-              <Badge variant="secondary">
-                {cases.filter((c) => c.status !== "Closed").length} active
-              </Badge>
+        {/* ========================================================================= */}
+        {/* TAB 1: ACTIVE CASES                                                       */}
+        {/* ========================================================================= */}
+        <TabsContent value="active-cases" className="space-y-4 mt-4">
+          <div className="flex items-center justify-between">
+            {/* Triage Filter Pills */}
+            <div className="flex items-center gap-1.5 text-xs">
+              <span className="text-muted-foreground font-semibold uppercase text-[11px] mr-1">Triage Filter:</span>
+              {(["all", "critical", "high", "medium"] as const).map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => setPriorityFilter(p)}
+                  className={cn(
+                    "px-2.5 py-1 rounded-full text-xs font-medium capitalize transition-colors",
+                    priorityFilter === p
+                      ? "bg-primary text-primary-foreground font-semibold"
+                      : "bg-muted/40 text-muted-foreground hover:bg-muted"
+                  )}
+                >
+                  {p === "all" ? "All Priorities" : p}
+                </button>
+              ))}
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <Select value={deliveryFilter} onValueChange={setDeliveryFilter}>
-                <SelectTrigger className="w-[150px] h-8 text-xs">
-                  <SelectValue placeholder="Delivery State" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Delivery States</SelectItem>
-                  <SelectItem value="Pending Ack">Pending Ack</SelectItem>
-                  <SelectItem value="Delivered">Delivered</SelectItem>
-                  <SelectItem value="Escalated">Escalated</SelectItem>
-                </SelectContent>
-              </Select>
-              <div className="flex items-center gap-1.5">
-                <Filter className="h-3.5 w-3.5 text-muted-foreground" />
-                <Select value={sort} onValueChange={setSort}>
-                  <SelectTrigger className="w-[160px] h-8 text-xs">
-                    <SelectValue placeholder="Sort by" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="newest">Newest First</SelectItem>
-                    <SelectItem value="priority">Highest Priority</SelectItem>
-                    <SelectItem value="sla">SLA Breach Risk</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+            <Badge variant="outline" className="text-xs font-mono font-bold">
+              {filteredCases.length} Cases Listed
+            </Badge>
           </div>
 
-          <div className="grid gap-3">
-            {filteredAndSortedCases.map((c) => {
-              if (c.status === "Closed") return null;
-
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+            {filteredCases.map((c) => {
               const sla = getSlaStatus(c.createdAt, c.status, c.priority);
-              const isBreached = (c.status === "Hospital Notified" || c.status === "SOS Created") && sla.breached;
-              const isPendingAck = c.status === "Hospital Notified" || c.status === "SOS Created";
 
               return (
                 <Card
                   key={c.id}
-                  className={`transition-all hover:shadow-sm border-border ${
-                    isBreached
-                      ? "border-destructive/80 bg-destructive/5 dark:bg-destructive/10"
-                      : isPendingAck
-                      ? "border-warning/60 bg-warning/5 dark:bg-warning/10"
-                      : "bg-card"
-                  }`}
+                  className={cn(
+                    "border bg-card shadow-sm flex flex-col justify-between transition-all",
+                    c.priority === "Critical" && "border-rose-500/40 bg-rose-500/5",
+                    c.priority === "High" && "border-amber-500/40 bg-amber-500/5",
+                    c.priority === "Medium" && "border-border"
+                  )}
                 >
-                  <CardContent className="p-4">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                      {/* Left: Case Info */}
-                      <div className="space-y-2">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Link
-                            href={`/emergency/${c.id}`}
-                            className="font-bold text-foreground hover:text-primary transition-colors hover:underline text-base"
-                          >
-                            {c.id}
-                          </Link>
-                          <StatusBadge status={c.priority} />
-                          <Badge
-                            variant="outline"
-                            className={`text-xs ${
-                              c.flowType.includes("Flow A")
-                                ? "border-blue-400 text-blue-700 dark:text-blue-300"
-                                : "border-purple-400 text-purple-700 dark:text-purple-300"
-                            }`}
-                          >
-                            {c.flowType}
-                          </Badge>
-                          <Badge
-                            variant={
-                              c.deliveryState === "Delivered"
-                                ? "success"
-                                : c.deliveryState === "Pending Ack"
-                                ? "warning"
-                                : "destructive"
-                            }
-                            className="text-xs"
-                          >
-                            Delivery: {c.deliveryState}
-                          </Badge>
-                        </div>
-
-                        <div>
-                          <p className="font-medium text-foreground text-sm">
-                            {c.patientName} {c.age ? `(${c.age}y, ${c.gender})` : ""}
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
-                            <MapPin className="h-3 w-3 shrink-0" /> {c.location}
-                          </p>
-                          {c.chiefComplaint && (
-                            <p className="text-xs text-muted-foreground mt-1 line-clamp-1 italic">
-                              "{c.chiefComplaint}"
-                            </p>
-                          )}
-                        </div>
-
-                        <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground pt-1">
-                          <span className="font-medium bg-muted/60 px-2 py-0.5 rounded">
-                            Owner: <span className="text-foreground">{c.assignedTeam || "Unassigned"}</span>
-                          </span>
-                          {c.ambulanceId && (
-                            <span className="flex items-center gap-1 text-primary font-medium">
-                              <AmbulanceIcon className="h-3 w-3" /> {c.ambulanceId} En Route
-                            </span>
-                          )}
-                          {c.fallbackTriggered && (
-                            <span className="text-destructive font-medium">
-                              Fallback: {c.fallbackHospital}
-                            </span>
-                          )}
-                        </div>
+                  <CardHeader className="p-4 pb-2.5 border-b border-border/60">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <CardTitle className="text-sm font-bold text-foreground">{c.patientName}</CardTitle>
+                        <span className="font-mono text-[10px] text-muted-foreground">{c.id}</span>
                       </div>
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          "text-[10px] font-bold",
+                          c.priority === "Critical" && "bg-rose-500/10 text-rose-600 border-rose-500/30",
+                          c.priority === "High" && "bg-amber-500/10 text-amber-600 border-amber-500/30",
+                          c.priority === "Medium" && "bg-emerald-500/10 text-emerald-600 border-emerald-500/30"
+                        )}
+                      >
+                        {c.priority} Priority
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="p-4 space-y-2 text-xs flex-1">
+                    <div>
+                      <strong className="text-foreground block font-semibold">{c.chiefComplaint || "Acute trauma / emergency distress"}</strong>
+                      <p className="text-muted-foreground text-[11px] flex items-center gap-1 mt-0.5">
+                        <MapPin className="h-3 w-3" /> {c.location}
+                      </p>
+                    </div>
 
-                      {/* Right: SLA, Status & Action */}
-                      <div className="flex flex-row md:flex-col items-center md:items-end justify-between md:justify-center gap-3 shrink-0 border-t md:border-t-0 pt-3 md:pt-0">
-                        <div className="text-left md:text-right">
-                          <div className="text-xs text-muted-foreground">Current Status</div>
-                          <Badge
-                            variant={c.status === "Hospital Notified" ? "destructive" : "secondary"}
-                            className="mt-0.5"
-                          >
-                            {c.status}
-                          </Badge>
-                        </div>
-
-                        <div className="text-left md:text-right">
-                          <div className="text-xs text-muted-foreground flex items-center md:justify-end gap-1">
-                            <Clock className="h-3 w-3" /> SLA Countdown
-                          </div>
-                          <div
-                            className={`text-xs mt-0.5 font-mono ${
-                              isBreached
-                                ? "text-destructive font-bold animate-pulse"
-                                : "text-muted-foreground font-medium"
-                            }`}
-                          >
-                            {sla.text}
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          {isPendingAck && (
-                            <Button
-                              size="sm"
-                              className="h-8 text-xs bg-destructive hover:bg-destructive/90"
-                              onClick={() => handleQuickAck(c)}
-                            >
-                              <CheckCircle2 className="mr-1 h-3.5 w-3.5" /> Acknowledge
-                            </Button>
-                          )}
-                          <Button size="sm" variant="outline" className="h-8 text-xs" asChild>
-                            <Link href={`/emergency/${c.id}`}>
-                              Manage Case <ArrowRight className="ml-1 h-3 w-3" />
-                            </Link>
-                          </Button>
-                        </div>
-                      </div>
+                    <div className="p-2 rounded bg-background/80 border border-border flex items-center justify-between text-[11px]">
+                      <span className="text-muted-foreground">SLA Countdown:</span>
+                      <strong
+                        className={cn(
+                          "font-mono font-bold",
+                          sla.breached ? "text-rose-600 animate-pulse" : "text-emerald-600"
+                        )}
+                      >
+                        {sla.text}
+                      </strong>
                     </div>
                   </CardContent>
+                  <div className="p-3 border-t border-border/60 flex items-center justify-between gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs flex-1"
+                      onClick={() => {
+                        setSelectedCaseForAck(c);
+                        setAckModalOpen(true);
+                      }}
+                    >
+                      Acknowledge
+                    </Button>
+                    <Button size="sm" className="h-7 text-xs flex-1 font-semibold" asChild>
+                      <Link href={`/emergency/${c.id}`}>View Console →</Link>
+                    </Button>
+                  </div>
                 </Card>
               );
             })}
-
-            {filteredAndSortedCases.filter((c) => c.status !== "Closed").length === 0 && (
-              <div className="py-16 text-center border rounded-lg border-dashed text-muted-foreground bg-muted/10">
-                <CheckCircle2 className="h-8 w-8 mx-auto text-success mb-2" />
-                <p className="font-medium text-foreground">No Active Emergencies</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  All incoming emergency alerts have been managed or closed.
-                </p>
-              </div>
-            )}
           </div>
-        </div>
+        </TabsContent>
 
-        {/* Sidebar Widgets */}
-        <div className="space-y-4">
-          {/* Transport Widget */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center justify-between">
-                <span className="flex items-center gap-2">
-                  <AmbulanceIcon className="h-4 w-4 text-primary" /> Fleet Transport Status
-                </span>
-                <Badge variant="outline" className="text-xs">Module 09</Badge>
-              </CardTitle>
-              <CardDescription>Live ambulance fleet availability</CardDescription>
+        {/* ========================================================================= */}
+        {/* TAB 2: CRITICAL PATIENTS (Priority 1 Red Resuscitation)                    */}
+        {/* ========================================================================= */}
+        <TabsContent value="critical" className="space-y-4 mt-4">
+          <Card className="border-rose-500/40 bg-rose-500/5 shadow-sm">
+            <CardHeader className="p-4 pb-3 flex flex-row items-center justify-between border-b border-rose-500/20">
+              <div>
+                <CardTitle className="text-base font-bold text-rose-700 dark:text-rose-400 flex items-center gap-2">
+                  <Siren className="h-5 w-5 animate-pulse" /> Resuscitation &amp; Priority 1 Critical Inpatients
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Immediate trauma, cardiac arrest, intubated or severe polytrauma cases requiring emergency clinical lead
+                </CardDescription>
+              </div>
+              <Button
+                variant="destructive"
+                size="sm"
+                className="font-bold text-xs"
+                onClick={() =>
+                  toast({
+                    title: "📢 Code Blue Broadcast Triggered",
+                    description: "Trauma team and CPR responders notified via station sirens & pagers.",
+                  })
+                }
+              >
+                Broadcast Code Blue Alert
+              </Button>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex justify-between items-center text-sm">
-                <span className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-success"></div> Available Units
-                </span>
-                <span className="font-bold text-foreground">{ambAvailable}</span>
-              </div>
-              <div className="flex justify-between items-center text-sm">
-                <span className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-warning"></div> Dispatched / En Route
-                </span>
-                <span className="font-bold text-foreground">{ambDispatched}</span>
-              </div>
-              <div className="flex justify-between items-center text-sm">
-                <span className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-muted-foreground"></div> Maintenance / Offline
-                </span>
-                <span className="font-bold text-foreground">{ambOffline}</span>
-              </div>
-              <div className="pt-2 border-t">
-                <Link href="/ambulance">
-                  <Button variant="outline" className="w-full text-xs h-8">
-                    View Fleet Dispatch Console
-                  </Button>
-                </Link>
-              </div>
+            <CardContent className="p-4 space-y-3">
+              {criticalCases.map((c) => (
+                <div
+                  key={c.id}
+                  className="p-3 rounded-lg border border-rose-500/30 bg-card flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-xs"
+                >
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-2">
+                      <strong className="text-sm font-bold text-foreground">{c.patientName}</strong>
+                      <Badge variant="destructive" className="text-[10px]">Priority 1 Resus</Badge>
+                    </div>
+                    <p className="text-muted-foreground font-medium">{c.chiefComplaint || "Critical emergency case"}</p>
+                    <p className="text-[11px] text-muted-foreground font-mono">Location: {c.location} • Status: {c.status}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button size="sm" variant="outline" className="h-7 text-xs text-rose-600" asChild>
+                      <Link href={`/emergency/${c.id}`}>Open Emergency Bay Console</Link>
+                    </Button>
+                  </div>
+                </div>
+              ))}
             </CardContent>
           </Card>
+        </TabsContent>
 
-          {/* Auto-Escalation Ladder Widget */}
-          <Card className="border-warning/40 bg-warning/5 dark:bg-warning/10">
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-base text-warning-foreground">
-                <AlertTriangle className="h-4 w-4 text-warning" /> Auto-Escalation Ladder
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="text-xs space-y-2 text-muted-foreground">
-              <p>Sequential automated escalation active per policy:</p>
-              <div className="space-y-1 bg-card/60 p-2.5 rounded border border-border font-medium">
-                <div>1. Triage Desk → Immediate (0m)</div>
-                <div>2. Emergency Coordinator → 2 mins</div>
-                <div>3. Clinical Lead → 5 mins</div>
-                <div>4. Admin Director → 10 mins (SMS/Pager)</div>
+        {/* ========================================================================= */}
+        {/* TAB 3: EMERGENCY BAYS & TRAUMA BEDS                                       */}
+        {/* ========================================================================= */}
+        <TabsContent value="beds" className="space-y-4 mt-4">
+          <Card className="border-border bg-card shadow-sm">
+            <CardHeader className="p-4 pb-3 flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-sm font-bold">Emergency Department Trauma Bay Matrix</CardTitle>
+                <CardDescription className="text-xs">12 Resuscitation, Trauma, Observation and Isolation ER Bays</CardDescription>
               </div>
-              <Link href="/emergency/config" className="inline-block text-primary hover:underline font-medium pt-1">
-                Configure Thresholds →
-              </Link>
+              <div className="flex items-center gap-3 text-xs">
+                <span className="flex items-center gap-1.5 text-muted-foreground">
+                  <span className="h-2.5 w-2.5 rounded-full bg-rose-500" /> Occupied
+                </span>
+                <span className="flex items-center gap-1.5 text-muted-foreground">
+                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" /> Available
+                </span>
+              </div>
+            </CardHeader>
+            <CardContent className="p-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+              {erBays.map((bay) => (
+                <div
+                  key={bay.id}
+                  className={cn(
+                    "p-3 rounded-lg border text-xs space-y-1.5 transition-all",
+                    bay.status === "occupied" && "bg-rose-500/10 border-rose-500/30 text-rose-950 dark:text-rose-200",
+                    bay.status === "available" && "bg-emerald-500/10 border-emerald-500/30 text-emerald-950 dark:text-emerald-200 hover:border-emerald-500 cursor-pointer",
+                    bay.status === "cleaning" && "bg-amber-500/10 border-amber-500/30 text-amber-950 dark:text-amber-200"
+                  )}
+                  onClick={() => {
+                    if (bay.status === "available") {
+                      setWalkinBay(bay.id);
+                      setNewEmergencyOpen(true);
+                    }
+                  }}
+                >
+                  <div className="flex justify-between items-center">
+                    <strong className="font-mono font-bold text-sm">{bay.id}</strong>
+                    <Badge variant="outline" className="text-[9px] py-0">{bay.status}</Badge>
+                  </div>
+                  <span className="text-[10px] text-muted-foreground block">{bay.type}</span>
+                  <p className="font-semibold text-foreground text-[11px] truncate">
+                    {bay.status === "occupied" ? bay.patient : bay.status === "available" ? "Click to Allocate" : "Sanitizing"}
+                  </p>
+                  {bay.doctor && <p className="text-[10px] text-muted-foreground">Attending: {bay.doctor}</p>}
+                </div>
+              ))}
             </CardContent>
           </Card>
-        </div>
-      </div>
+        </TabsContent>
+
+        {/* ========================================================================= */}
+        {/* TAB 4: ER DOCTORS & TRAUMA TEAM                                           */}
+        {/* ========================================================================= */}
+        <TabsContent value="doctors" className="space-y-4 mt-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3.5">
+            {erDoctors.map((doc) => (
+              <Card key={doc.id} className="border-border bg-card shadow-sm p-4 space-y-2.5 text-xs">
+                <div className="flex items-center gap-3">
+                  <Avatar className="h-9 w-9">
+                    <AvatarFallback>{getInitials(doc.name)}</AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <strong className="text-sm font-bold text-foreground block">{doc.name}</strong>
+                    <span className="text-[11px] text-muted-foreground">{doc.role}</span>
+                  </div>
+                </div>
+                <div className="space-y-1 pt-1 border-t border-border/60 text-[11px]">
+                  <p className="text-muted-foreground">Shift: <strong>{doc.shift}</strong></p>
+                  <p className="text-muted-foreground">Contact: <span className="font-mono">{doc.contact}</span></p>
+                </div>
+                <Badge variant="outline" className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 text-[10px] font-semibold">
+                  {doc.status}
+                </Badge>
+              </Card>
+            ))}
+          </div>
+        </TabsContent>
+
+        {/* ========================================================================= */}
+        {/* TAB 5: ER DISPOSITIONS & HISTORY                                          */}
+        {/* ========================================================================= */}
+        <TabsContent value="history" className="space-y-4 mt-4">
+          <Card className="border-border bg-card shadow-sm">
+            <CardHeader className="p-4 pb-3 flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-sm font-bold">Emergency Dispositions History</CardTitle>
+                <CardDescription className="text-xs">Past emergency arrivals, triage classifications &amp; hospital outcomes</CardDescription>
+              </div>
+              <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5">
+                <Download className="h-3.5 w-3.5" /> Export ER Register
+              </Button>
+            </CardHeader>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Case ID &amp; Time</TableHead>
+                    <TableHead>Patient Details</TableHead>
+                    <TableHead>Triage Level</TableHead>
+                    <TableHead>Emergency Complaint</TableHead>
+                    <TableHead>Final Disposition</TableHead>
+                    <TableHead className="text-right">Attending Physician</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {erHistory.map((h) => (
+                    <TableRow key={h.id}>
+                      <TableCell>
+                        <strong className="font-mono text-xs text-foreground block">{h.id}</strong>
+                        <span className="text-[10px] text-muted-foreground">{h.arrivalTime}</span>
+                      </TableCell>
+                      <TableCell>
+                        <strong className="text-xs font-semibold text-foreground block">{h.patientName}</strong>
+                        <span className="text-[10px] text-muted-foreground">{h.age} years old</span>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            "text-[10px] font-bold",
+                            h.triage.includes("Red") && "bg-rose-500/10 text-rose-600 border-rose-500/30",
+                            h.triage.includes("Yellow") && "bg-amber-500/10 text-amber-600 border-amber-500/30",
+                            h.triage.includes("Green") && "bg-emerald-500/10 text-emerald-600 border-emerald-500/30"
+                          )}
+                        >
+                          {h.triage}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-xs text-foreground max-w-[200px] truncate">
+                        {h.complaint}
+                      </TableCell>
+                      <TableCell className="text-xs font-semibold text-primary">
+                        {h.disposition}
+                      </TableCell>
+                      <TableCell className="text-right text-xs text-muted-foreground">
+                        {h.doctor}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* ACKNOWLEDGE MODAL */}
       <Dialog open={ackModalOpen} onOpenChange={setAckModalOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 text-success" /> Acknowledge Emergency Receipt
+              <CheckCircle2 className="h-5 w-5 text-emerald-600" /> Acknowledge Emergency Receipt
             </DialogTitle>
             <DialogDescription>
-              Confirms administrative receipt of alert and stops the SLA countdown timer.
+              Confirms administrative receipt of alert and notifies trauma lead.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 py-2 text-sm">
@@ -494,89 +699,15 @@ export default function EmergencyPage() {
               <p className="text-xs text-muted-foreground">{selectedCaseForAck?.location}</p>
               <p className="text-xs text-muted-foreground">Priority: {selectedCaseForAck?.priority}</p>
             </div>
-            <div className="rounded-md bg-blue-50 dark:bg-blue-950/40 p-2.5 text-xs text-blue-800 dark:text-blue-200 border border-blue-200 dark:border-blue-900">
-              <strong>Clinical Guardrail:</strong> Acknowledgment notifies the emergency clinical team. Admin does not make clinical triage judgments.
-            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAckModalOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={confirmAcknowledgment}>
-              Confirm & Route to Clinical Team
+            <Button onClick={() => selectedCaseForAck && handleAcknowledge(selectedCaseForAck)}>
+              Confirm Receipt &amp; Stop SLA
             </Button>
           </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* SIMULATE ALERT MODAL */}
-      <Dialog open={simulationOpen} onOpenChange={setSimulationOpen}>
-        <DialogContent className="max-w-lg">
-          <form onSubmit={handleCreateSimulation}>
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <Siren className="h-5 w-5 text-destructive" /> Simulate Incoming SOS Emergency
-              </DialogTitle>
-              <DialogDescription>
-                Simulate emergency alert creation to test Flow A (active hospital relationship) or Flow B (location-based ad-hoc routing).
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-3 py-3">
-              <div className="grid gap-1.5">
-                <Label htmlFor="sim-flow">Emergency Source Flow</Label>
-                <Select
-                  value={simFlowType}
-                  onValueChange={(v: "Flow A (Active Relationship)" | "Flow B (Location Routing)") => setSimFlowType(v)}
-                >
-                  <SelectTrigger id="sim-flow">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Flow A (Active Relationship)">Flow A — Existing Patient (Active Relationship)</SelectItem>
-                    <SelectItem value="Flow B (Location Routing)">Flow B — Unregistered Patient (Location Routing)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="grid gap-1.5">
-                  <Label htmlFor="sim-name">Patient Name</Label>
-                  <Input id="sim-name" value={simPatientName} onChange={(e) => setSimPatientName(e.target.value)} required />
-                </div>
-                <div className="grid gap-1.5">
-                  <Label htmlFor="sim-prio">Priority</Label>
-                  <Select
-                    value={simPriority}
-                    onValueChange={(v: "Critical" | "High" | "Medium") => setSimPriority(v)}
-                  >
-                    <SelectTrigger id="sim-prio">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Critical">Critical (5m SLA)</SelectItem>
-                      <SelectItem value="High">High (15m SLA)</SelectItem>
-                      <SelectItem value="Medium">Medium (30m SLA)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="grid gap-1.5">
-                <Label htmlFor="sim-loc">Incident Location</Label>
-                <Input id="sim-loc" value={simLocation} onChange={(e) => setSimLocation(e.target.value)} required />
-              </div>
-              <div className="grid gap-1.5">
-                <Label htmlFor="sim-complaint">Chief Complaint / Context</Label>
-                <Input id="sim-complaint" value={simComplaint} onChange={(e) => setSimComplaint(e.target.value)} required />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setSimulationOpen(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" className="bg-destructive hover:bg-destructive/90">
-                Trigger Emergency Alert
-              </Button>
-            </DialogFooter>
-          </form>
         </DialogContent>
       </Dialog>
     </div>
