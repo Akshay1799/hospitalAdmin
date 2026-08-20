@@ -51,24 +51,21 @@ import {
 } from "lucide-react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip as RechartsTooltip } from "recharts";
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 // Circular Progress Component for Hospital Capacity
 function CapacityGauge({ value, color, label }: { value: number; color: string; label: string }) {
-  const radius = 30;
-  const stroke = 4.5;
+  const radius = 28;
+  const stroke = 4;
   const normalizedRadius = radius - stroke;
   const circumference = normalizedRadius * 2 * Math.PI;
   const strokeDashoffset = circumference - (value / 100) * circumference;
 
   return (
     <div className="flex flex-col items-center">
-      <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+      <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
         {label}
       </span>
       <div className="relative flex items-center justify-center">
@@ -163,7 +160,7 @@ export default function DashboardPage() {
       {/* ROW 1: 5 TOP KPI CARDS                                                    */}
       {/* ========================================================================= */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
-        {/* Card 1: Today's Patients */}
+        {/* Card 1.1: Today's Patients */}
         <Card className="border-border bg-card shadow-sm p-4 hover:border-primary/40 transition-colors">
           <div className="flex items-center gap-3.5">
             <div className="h-11 w-11 rounded-2xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
@@ -179,7 +176,7 @@ export default function DashboardPage() {
           </div>
         </Card>
 
-        {/* Card 2: Beds Occupied */}
+        {/* Card 1.2: Beds Occupied */}
         <Card className="border-border bg-card shadow-sm p-4 hover:border-amber-500/40 transition-colors">
           <div className="flex items-center gap-3.5">
             <div className="h-11 w-11 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
@@ -195,7 +192,7 @@ export default function DashboardPage() {
           </div>
         </Card>
 
-        {/* Card 3: Emergency Cases */}
+        {/* Card 1.3: Emergency Cases */}
         <Card className="border-border bg-card shadow-sm p-4 hover:border-rose-500/40 transition-colors">
           <div className="flex items-center gap-3.5">
             <div className="h-11 w-11 rounded-2xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
@@ -211,7 +208,7 @@ export default function DashboardPage() {
           </div>
         </Card>
 
-        {/* Card 4: Revenue Today */}
+        {/* Card 1.4: Revenue Today */}
         <Card className="border-border bg-card shadow-sm p-4 hover:border-emerald-500/40 transition-colors">
           <div className="flex items-center gap-3.5">
             <div className="h-11 w-11 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
@@ -227,7 +224,7 @@ export default function DashboardPage() {
           </div>
         </Card>
 
-        {/* Card 5: Pending Doctor Actions */}
+        {/* Card 1.5: Pending Doctor Actions */}
         <Card className="border-border bg-card shadow-sm p-4 hover:border-indigo-500/40 transition-colors">
           <div className="flex items-center gap-3.5">
             <div className="h-11 w-11 rounded-2xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
@@ -245,9 +242,9 @@ export default function DashboardPage() {
       </div>
 
       {/* ========================================================================= */}
-      {/* ROW 2: 4 CARDS (Patient Journey, Hospital Capacity, Reports, Communication)*/}
+      {/* ROW 2: 3 CARDS (Patient Journey Today, Reports Awaiting Review, Follow-ups) */}
       {/* ========================================================================= */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3.5">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
         {/* Card 2.1: Patient Journey Today */}
         <Card className="border-border bg-card shadow-sm flex flex-col justify-between">
           <CardHeader className="pb-2.5 pt-4 px-4">
@@ -321,25 +318,7 @@ export default function DashboardPage() {
           </div>
         </Card>
 
-        {/* Card 2.2: Hospital Capacity */}
-        <Card className="border-border bg-card shadow-sm flex flex-col justify-between">
-          <CardHeader className="pb-2.5 pt-4 px-4">
-            <CardTitle className="text-sm font-bold text-foreground">Hospital Capacity</CardTitle>
-          </CardHeader>
-          <CardContent className="px-4 pb-2 pt-2 flex items-center justify-around flex-1">
-            <CapacityGauge value={72} color="#0d9488" label="OPD" />
-            <CapacityGauge value={84} color="#f59e0b" label="Beds" />
-            <CapacityGauge value={92} color="#e11d48" label="ICU" />
-            <CapacityGauge value={68} color="#8b5cf6" label="OT" />
-          </CardContent>
-          <div className="p-3 border-t border-border/80 text-center">
-            <Link href="/wards-beds" className="text-xs font-semibold text-primary hover:underline">
-              View capacity details &gt;
-            </Link>
-          </div>
-        </Card>
-
-        {/* Card 2.3: Reports Awaiting Review */}
+        {/* Card 2.2: Reports Awaiting Review */}
         <Card className="border-border bg-card shadow-sm flex flex-col justify-between">
           <CardHeader className="pb-2 pt-4 px-4 flex flex-row items-center justify-between">
             <CardTitle className="text-sm font-bold text-foreground">Reports Awaiting Review</CardTitle>
@@ -413,86 +392,76 @@ export default function DashboardPage() {
           </div>
         </Card>
 
-        {/* Card 2.4: Patient Communication */}
+        {/* Card 2.3: Follow-ups Due */}
         <Card className="border-border bg-card shadow-sm flex flex-col justify-between">
           <CardHeader className="pb-2.5 pt-4 px-4">
-            <CardTitle className="text-sm font-bold text-foreground">Patient Communication</CardTitle>
+            <CardTitle className="text-sm font-bold text-foreground">Follow-ups Due</CardTitle>
           </CardHeader>
-          <CardContent className="px-4 pb-2 space-y-2 text-xs flex-1">
-            <div className="flex items-center justify-between py-0.5">
-              <span className="flex items-center gap-2 text-muted-foreground">
-                <span className="h-5 w-5 rounded bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0 text-[10px]">
-                  <MessageCircle className="h-3 w-3" />
-                </span>
-                WhatsApp messages
+          <CardContent className="px-4 pb-2 space-y-2.5 text-xs flex-1">
+            <div className="flex items-start gap-2.5">
+              <span className="h-5 w-5 rounded bg-blue-500/10 text-blue-600 flex items-center justify-center shrink-0 text-[10px] mt-0.5">
+                <CalendarClock className="h-3 w-3" />
               </span>
-              <strong className="font-mono text-foreground">42</strong>
+              <div>
+                <strong className="text-foreground block text-xs">18 follow-ups due today</strong>
+                <span className="text-[11px] text-muted-foreground">Patients need to book or visit.</span>
+              </div>
             </div>
 
-            <div className="flex items-center justify-between py-0.5">
-              <span className="flex items-center gap-2 text-muted-foreground">
-                <span className="h-5 w-5 rounded bg-cyan-500/10 text-cyan-600 flex items-center justify-center shrink-0 text-[10px]">
-                  <CalendarCheck className="h-3 w-3" />
-                </span>
-                Appointment confirmations
+            <div className="flex items-start gap-2.5">
+              <span className="h-5 w-5 rounded bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0 text-[10px] mt-0.5">
+                <CalendarDays className="h-3 w-3" />
               </span>
-              <strong className="font-mono text-foreground">31</strong>
+              <div>
+                <strong className="text-foreground block text-xs">7 appointments not booked</strong>
+                <span className="text-[11px] text-muted-foreground">Follow-up appointments pending.</span>
+              </div>
             </div>
 
-            <div className="flex items-center justify-between py-0.5">
-              <span className="flex items-center gap-2 text-muted-foreground">
-                <span className="h-5 w-5 rounded bg-blue-500/10 text-blue-600 flex items-center justify-center shrink-0 text-[10px]">
-                  <FileText className="h-3 w-3" />
-                </span>
-                Report notifications
+            <div className="flex items-start gap-2.5">
+              <span className="h-5 w-5 rounded bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0 text-[10px] mt-0.5">
+                <FileCheck className="h-3 w-3" />
               </span>
-              <strong className="font-mono text-foreground">18</strong>
+              <div>
+                <strong className="text-foreground block text-xs">5 reports need patient action</strong>
+                <span className="text-[11px] text-muted-foreground">Additional tests or documents pending.</span>
+              </div>
             </div>
 
-            <div className="flex items-center justify-between py-0.5">
-              <span className="flex items-center gap-2 text-muted-foreground">
-                <span className="h-5 w-5 rounded bg-rose-500/10 text-rose-600 flex items-center justify-center shrink-0 text-[10px]">
-                  <CalendarDays className="h-3 w-3" />
-                </span>
-                Follow-up reminders
+            <div className="flex items-start gap-2.5">
+              <span className="h-5 w-5 rounded bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0 text-[10px] mt-0.5">
+                <Clock className="h-3 w-3" />
               </span>
-              <strong className="font-mono text-foreground">11</strong>
+              <div>
+                <strong className="text-foreground block text-xs">4 patients waiting for instructions</strong>
+                <span className="text-[11px] text-muted-foreground">Doctor has added notes/plan.</span>
+              </div>
             </div>
 
-            <div className="flex items-center justify-between py-0.5">
-              <span className="flex items-center gap-2 text-rose-600 dark:text-rose-400 font-medium">
-                <span className="h-5 w-5 rounded bg-rose-500/10 text-rose-600 flex items-center justify-center shrink-0 text-[10px]">
-                  <HelpCircle className="h-3 w-3" />
-                </span>
-                Unanswered patient queries
+            <div className="flex items-start gap-2.5">
+              <span className="h-5 w-5 rounded bg-blue-500/10 text-blue-600 flex items-center justify-center shrink-0 text-[10px] mt-0.5">
+                <HelpCircle className="h-3 w-3" />
               </span>
-              <strong className="font-mono text-rose-600 dark:text-rose-400">7</strong>
-            </div>
-
-            <div className="flex items-center justify-between py-0.5">
-              <span className="flex items-center gap-2 text-amber-600 dark:text-amber-400 font-medium">
-                <span className="h-5 w-5 rounded bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0 text-[10px]">
-                  <AlertTriangle className="h-3 w-3" />
-                </span>
-                Escalated to doctor
-              </span>
-              <strong className="font-mono text-amber-600 dark:text-amber-400">3</strong>
+              <div>
+                <strong className="text-foreground block text-xs">2 patients haven&apos;t responded</strong>
+                <span className="text-[11px] text-muted-foreground">Follow-up reminders sent.</span>
+              </div>
             </div>
           </CardContent>
           <div className="p-3 border-t border-border/80 text-center">
-            <Link href="/care-coordination/communication" className="text-xs font-semibold text-primary hover:underline">
-              Open communication center &gt;
+            <Link href="/follow-ups" className="text-xs font-semibold text-primary hover:underline">
+              View follow-ups &gt;
             </Link>
           </div>
         </Card>
       </div>
 
       {/* ========================================================================= */}
-      {/* ROW 3: 3 CARDS (Today's Appointments, Needs Attention, Follow-ups Due)    */}
+      {/* ROW 3: 2 CARDS (Today's Appointments, Needs Attention)                    */}
       {/* ========================================================================= */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5">
-        {/* Card 3.1: Today's Appointments (4.5 / 12 cols) */}
-        <Card className="lg:col-span-4 border-border bg-card shadow-sm flex flex-col justify-between">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5">
+        {/* Card 3.1: Today's Appointments */}
+        <Card className="border-border bg-card shadow-sm flex flex-col justify-between">
           <div>
             <CardHeader className="pb-2 pt-4 px-4">
               <CardTitle className="text-sm font-bold text-foreground">Today&apos;s Appointments</CardTitle>
@@ -594,10 +563,10 @@ export default function DashboardPage() {
           </div>
         </Card>
 
-        {/* Card 3.2: Needs Attention (4.5 / 12 cols) */}
-        <Card className="lg:col-span-5 border-border bg-card shadow-sm flex flex-col justify-between">
+        {/* Card 3.2: Needs Attention */}
+        <Card className="border-border bg-card shadow-sm flex flex-col justify-between">
           <div>
-            <CardHeader className="pb-2 pt-4 px-4 flex flex-row items-center justify-between">
+            <CardHeader className="pb-2 pt-4 px-4">
               <CardTitle className="text-sm font-bold text-foreground">Needs Attention</CardTitle>
             </CardHeader>
             <div className="px-4 pb-2">
@@ -673,76 +642,31 @@ export default function DashboardPage() {
             </Link>
           </div>
         </Card>
-
-        {/* Card 3.3: Follow-ups Due (3 / 12 cols) */}
-        <Card className="lg:col-span-3 border-border bg-card shadow-sm flex flex-col justify-between">
-          <CardHeader className="pb-2.5 pt-4 px-4">
-            <CardTitle className="text-sm font-bold text-foreground">Follow-ups Due</CardTitle>
-          </CardHeader>
-          <CardContent className="px-4 pb-2 space-y-2.5 text-xs flex-1">
-            <div className="flex items-start gap-2.5">
-              <span className="h-5 w-5 rounded bg-blue-500/10 text-blue-600 flex items-center justify-center shrink-0 text-[10px] mt-0.5">
-                <CalendarClock className="h-3 w-3" />
-              </span>
-              <div>
-                <strong className="text-foreground block text-xs">18 follow-ups due today</strong>
-                <span className="text-[11px] text-muted-foreground">Patients need to book or visit.</span>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-2.5">
-              <span className="h-5 w-5 rounded bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0 text-[10px] mt-0.5">
-                <CalendarDays className="h-3 w-3" />
-              </span>
-              <div>
-                <strong className="text-foreground block text-xs">7 appointments not booked</strong>
-                <span className="text-[11px] text-muted-foreground">Follow-up appointments pending.</span>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-2.5">
-              <span className="h-5 w-5 rounded bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0 text-[10px] mt-0.5">
-                <FileCheck className="h-3 w-3" />
-              </span>
-              <div>
-                <strong className="text-foreground block text-xs">5 reports need patient action</strong>
-                <span className="text-[11px] text-muted-foreground">Additional tests or documents pending.</span>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-2.5">
-              <span className="h-5 w-5 rounded bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0 text-[10px] mt-0.5">
-                <Clock className="h-3 w-3" />
-              </span>
-              <div>
-                <strong className="text-foreground block text-xs">4 patients waiting for instructions</strong>
-                <span className="text-[11px] text-muted-foreground">Doctor has added notes/plan.</span>
-              </div>
-            </div>
-
-            <div className="flex items-start gap-2.5">
-              <span className="h-5 w-5 rounded bg-blue-500/10 text-blue-600 flex items-center justify-center shrink-0 text-[10px] mt-0.5">
-                <HelpCircle className="h-3 w-3" />
-              </span>
-              <div>
-                <strong className="text-foreground block text-xs">2 patients haven&apos;t responded</strong>
-                <span className="text-[11px] text-muted-foreground">Follow-up reminders sent.</span>
-              </div>
-            </div>
-          </CardContent>
-          <div className="p-3 border-t border-border/80 text-center">
-            <Link href="/follow-ups" className="text-xs font-semibold text-primary hover:underline">
-              View follow-ups &gt;
-            </Link>
-          </div>
-        </Card>
       </div>
 
       {/* ========================================================================= */}
-      {/* ROW 4: 4 BOTTOM CARDS (Bed Status, Emergency, Cross-Provider, Financial)  */}
+      {/* ROW 4: 3 CARDS (Hospital Capacity, Bed Status, Emergency Snapshot)        */}
       {/* ========================================================================= */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3.5">
-        {/* Card 4.1: Bed Status (with Donut Chart) */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+        {/* Card 4.1: Hospital Capacity */}
+        <Card className="border-border bg-card shadow-sm flex flex-col justify-between">
+          <CardHeader className="pb-2.5 pt-4 px-4">
+            <CardTitle className="text-sm font-bold text-foreground">Hospital Capacity</CardTitle>
+          </CardHeader>
+          <CardContent className="px-4 pb-2 pt-2 flex items-center justify-around flex-1">
+            <CapacityGauge value={72} color="#0d9488" label="OPD" />
+            <CapacityGauge value={84} color="#f59e0b" label="Beds" />
+            <CapacityGauge value={92} color="#e11d48" label="ICU" />
+            <CapacityGauge value={68} color="#8b5cf6" label="OT" />
+          </CardContent>
+          <div className="p-3 border-t border-border/80 text-center">
+            <Link href="/wards-beds" className="text-xs font-semibold text-primary hover:underline">
+              View capacity details &gt;
+            </Link>
+          </div>
+        </Card>
+
+        {/* Card 4.2: Bed Status (with Donut Chart) */}
         <Card className="border-border bg-card shadow-sm flex flex-col justify-between">
           <CardHeader className="pb-2.5 pt-4 px-4">
             <CardTitle className="text-sm font-bold text-foreground">Bed Status</CardTitle>
@@ -800,7 +724,7 @@ export default function DashboardPage() {
           </div>
         </Card>
 
-        {/* Card 4.2: Emergency Snapshot */}
+        {/* Card 4.3: Emergency Snapshot */}
         <Card className="border-border bg-card shadow-sm flex flex-col justify-between">
           <CardHeader className="pb-2.5 pt-4 px-4">
             <div className="flex items-center gap-1.5 text-rose-600 dark:text-rose-400">
@@ -849,61 +773,13 @@ export default function DashboardPage() {
             </Link>
           </div>
         </Card>
+      </div>
 
-        {/* Card 4.3: Cross-Provider Connections */}
-        <Card className="border-border bg-card shadow-sm flex flex-col justify-between">
-          <CardHeader className="pb-2.5 pt-4 px-4">
-            <CardTitle className="text-sm font-bold text-foreground">Cross-Provider Connections</CardTitle>
-          </CardHeader>
-          <CardContent className="px-4 pb-2 space-y-2 text-xs flex-1">
-            <div className="flex items-center justify-between py-0.5">
-              <span className="flex items-center gap-2 text-muted-foreground">
-                <span className="h-5 w-5 rounded bg-cyan-500/10 text-cyan-600 flex items-center justify-center shrink-0 text-[10px]">
-                  <FileCheck className="h-3 w-3" />
-                </span>
-                External lab reports received
-              </span>
-              <strong className="font-mono text-foreground">24</strong>
-            </div>
-
-            <div className="flex items-center justify-between py-0.5">
-              <span className="flex items-center gap-2 text-muted-foreground">
-                <span className="h-5 w-5 rounded bg-blue-500/10 text-blue-600 flex items-center justify-center shrink-0 text-[10px]">
-                  <UserCheck className="h-3 w-3" />
-                </span>
-                External doctor referrals
-              </span>
-              <strong className="font-mono text-foreground">11</strong>
-            </div>
-
-            <div className="flex items-center justify-between py-0.5">
-              <span className="flex items-center gap-2 text-muted-foreground">
-                <span className="h-5 w-5 rounded bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0 text-[10px]">
-                  <Share2 className="h-3 w-3" />
-                </span>
-                Patients referred outside
-              </span>
-              <strong className="font-mono text-foreground">7</strong>
-            </div>
-
-            <div className="flex items-center justify-between py-0.5">
-              <span className="flex items-center gap-2 text-muted-foreground">
-                <span className="h-5 w-5 rounded bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0 text-[10px]">
-                  <Network className="h-3 w-3" />
-                </span>
-                Records shared with providers
-              </span>
-              <strong className="font-mono text-foreground">15</strong>
-            </div>
-          </CardContent>
-          <div className="p-3 border-t border-border/80 text-center">
-            <Link href="/integrations" className="text-xs font-semibold text-primary hover:underline">
-              View connections &gt;
-            </Link>
-          </div>
-        </Card>
-
-        {/* Card 4.4: Financial Snapshot (Today) */}
+      {/* ========================================================================= */}
+      {/* ROW 5: 3 CARDS (Financial Snapshot, Patient Communication, Cross-Provider) */}
+      {/* ========================================================================= */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+        {/* Card 5.1: Financial Snapshot (Today) */}
         <Card className="border-border bg-card shadow-sm flex flex-col justify-between">
           <CardHeader className="pb-2.5 pt-4 px-4">
             <CardTitle className="text-sm font-bold text-foreground">Financial Snapshot (Today)</CardTitle>
@@ -952,6 +828,132 @@ export default function DashboardPage() {
           <div className="p-3 border-t border-border/80 text-center">
             <Link href="/financial-reports" className="text-xs font-semibold text-primary hover:underline">
               View financial reports &gt;
+            </Link>
+          </div>
+        </Card>
+
+        {/* Card 5.2: Patient Communication */}
+        <Card className="border-border bg-card shadow-sm flex flex-col justify-between">
+          <CardHeader className="pb-2.5 pt-4 px-4">
+            <CardTitle className="text-sm font-bold text-foreground">Patient Communication</CardTitle>
+          </CardHeader>
+          <CardContent className="px-4 pb-2 space-y-2 text-xs flex-1">
+            <div className="flex items-center justify-between py-0.5">
+              <span className="flex items-center gap-2 text-muted-foreground">
+                <span className="h-5 w-5 rounded bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0 text-[10px]">
+                  <MessageCircle className="h-3 w-3" />
+                </span>
+                WhatsApp messages
+              </span>
+              <strong className="font-mono text-foreground">42</strong>
+            </div>
+
+            <div className="flex items-center justify-between py-0.5">
+              <span className="flex items-center gap-2 text-muted-foreground">
+                <span className="h-5 w-5 rounded bg-cyan-500/10 text-cyan-600 flex items-center justify-center shrink-0 text-[10px]">
+                  <CalendarCheck className="h-3 w-3" />
+                </span>
+                Appointment confirmations
+              </span>
+              <strong className="font-mono text-foreground">31</strong>
+            </div>
+
+            <div className="flex items-center justify-between py-0.5">
+              <span className="flex items-center gap-2 text-muted-foreground">
+                <span className="h-5 w-5 rounded bg-blue-500/10 text-blue-600 flex items-center justify-center shrink-0 text-[10px]">
+                  <FileText className="h-3 w-3" />
+                </span>
+                Report notifications
+              </span>
+              <strong className="font-mono text-foreground">18</strong>
+            </div>
+
+            <div className="flex items-center justify-between py-0.5">
+              <span className="flex items-center gap-2 text-rose-600 dark:text-rose-400 font-medium">
+                <span className="h-5 w-5 rounded bg-rose-500/10 text-rose-600 flex items-center justify-center shrink-0 text-[10px]">
+                  <CalendarDays className="h-3 w-3" />
+                </span>
+                Follow-up reminders
+              </span>
+              <strong className="font-mono text-rose-600 dark:text-rose-400">11</strong>
+            </div>
+
+            <div className="flex items-center justify-between py-0.5">
+              <span className="flex items-center gap-2 text-rose-600 dark:text-rose-400 font-medium">
+                <span className="h-5 w-5 rounded bg-rose-500/10 text-rose-600 flex items-center justify-center shrink-0 text-[10px]">
+                  <HelpCircle className="h-3 w-3" />
+                </span>
+                Unanswered patient queries
+              </span>
+              <strong className="font-mono text-rose-600 dark:text-rose-400">7</strong>
+            </div>
+
+            <div className="flex items-center justify-between py-0.5">
+              <span className="flex items-center gap-2 text-amber-600 dark:text-amber-400 font-medium">
+                <span className="h-5 w-5 rounded bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0 text-[10px]">
+                  <AlertTriangle className="h-3 w-3" />
+                </span>
+                Escalated to doctor
+              </span>
+              <strong className="font-mono text-amber-600 dark:text-amber-400">3</strong>
+            </div>
+          </CardContent>
+          <div className="p-3 border-t border-border/80 text-center">
+            <Link href="/care-coordination/communication" className="text-xs font-semibold text-primary hover:underline">
+              Open communication center &gt;
+            </Link>
+          </div>
+        </Card>
+
+        {/* Card 5.3: Cross-Provider Connections */}
+        <Card className="border-border bg-card shadow-sm flex flex-col justify-between">
+          <CardHeader className="pb-2.5 pt-4 px-4">
+            <CardTitle className="text-sm font-bold text-foreground">Cross-Provider Connections</CardTitle>
+          </CardHeader>
+          <CardContent className="px-4 pb-2 space-y-2 text-xs flex-1">
+            <div className="flex items-center justify-between py-0.5">
+              <span className="flex items-center gap-2 text-muted-foreground">
+                <span className="h-5 w-5 rounded bg-cyan-500/10 text-cyan-600 flex items-center justify-center shrink-0 text-[10px]">
+                  <FileCheck className="h-3 w-3" />
+                </span>
+                External lab reports received
+              </span>
+              <strong className="font-mono text-foreground">24</strong>
+            </div>
+
+            <div className="flex items-center justify-between py-0.5">
+              <span className="flex items-center gap-2 text-muted-foreground">
+                <span className="h-5 w-5 rounded bg-blue-500/10 text-blue-600 flex items-center justify-center shrink-0 text-[10px]">
+                  <UserCheck className="h-3 w-3" />
+                </span>
+                External doctor referrals
+              </span>
+              <strong className="font-mono text-foreground">11</strong>
+            </div>
+
+            <div className="flex items-center justify-between py-0.5">
+              <span className="flex items-center gap-2 text-muted-foreground">
+                <span className="h-5 w-5 rounded bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0 text-[10px]">
+                  <Share2 className="h-3 w-3" />
+                </span>
+                Patients referred outside
+              </span>
+              <strong className="font-mono text-foreground">7</strong>
+            </div>
+
+            <div className="flex items-center justify-between py-0.5">
+              <span className="flex items-center gap-2 text-muted-foreground">
+                <span className="h-5 w-5 rounded bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0 text-[10px]">
+                  <Network className="h-3 w-3" />
+                </span>
+                Records shared with providers
+              </span>
+              <strong className="font-mono text-foreground">15</strong>
+            </div>
+          </CardContent>
+          <div className="p-3 border-t border-border/80 text-center">
+            <Link href="/integrations" className="text-xs font-semibold text-primary hover:underline">
+              View connections &gt;
             </Link>
           </div>
         </Card>
