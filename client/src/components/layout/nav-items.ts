@@ -2,31 +2,42 @@ import {
   Activity,
   Ambulance,
   BadgeIndianRupee,
+  BarChart3,
   Bed,
+  Bell,
+  BookOpen,
   Boxes,
+  Building2,
   CalendarClock,
   CalendarDays,
   ClipboardList,
+  Clock,
+  Cpu,
   CreditCard,
-  FileBox,
+  FileCheck,
   FileText,
   FlaskConical,
   Gauge,
   HeartPulse,
   LayoutDashboard,
-  Microscope,
+  MessageSquare,
+  Milestone,
   Pill,
   Receipt,
+  Scan,
+  Scissors,
   ScrollText,
   Settings,
+  ShieldAlert,
   ShieldCheck,
   ShoppingCart,
-  Siren,
+  Star,
   Stethoscope,
-  Syringe,
+  TrendingUp,
   Truck,
   UserCog,
   Users,
+  Webhook,
 } from "lucide-react";
 
 export interface NavItem {
@@ -42,64 +53,109 @@ export interface NavGroup {
 }
 
 export const navGroups: NavGroup[] = [
+  // 1. OVERVIEW
   {
-    title: "Overview",
-    items: [{ label: "Dashboard", href: "/dashboard", icon: LayoutDashboard }],
-  },
-  {
-    title: "Care Delivery",
+    title: "1. Overview",
     items: [
-      { label: "Doctors", href: "/doctors", icon: Stethoscope },
-      { label: "Surgeons", href: "/surgeons", icon: Stethoscope },
+      { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+    ],
+  },
+
+  // 2. PATIENT CARE
+  {
+    title: "2. Patient Care",
+    items: [
       { label: "Patients", href: "/patients", icon: Users },
       { label: "Appointments", href: "/appointments", icon: CalendarClock },
-      { label: "Lab Orders", href: "/lab", icon: FlaskConical },
-      { label: "Departments", href: "/departments", icon: Activity },
+      { label: "OPD Management", href: "/appointments/opd-queue", icon: Activity },
+      { label: "IPD", href: "/ipd", icon: Bed },
+      { label: "Emergency Management", href: "/emergency", icon: ShieldAlert },
+      { label: "Follow-ups", href: "/follow-ups", icon: CalendarDays },
     ],
   },
+
+  // 3. CLINICAL OPERATIONS
   {
-    title: "Hospital Operations",
+    title: "3. Clinical Operations",
     items: [
-      { label: "Surgical Cases", href: "/surgical-cases", icon: Activity },
-      { label: "OT Scheduling", href: "/ot-scheduling", icon: CalendarClock },
-      { label: "Emergency Command", href: "/emergency", icon: ShieldCheck },
+      { label: "Doctors", href: "/doctors", icon: Stethoscope },
+      { label: "Departments", href: "/departments", icon: Building2 },
       { label: "Nurse Stations", href: "/nurse-stations", icon: HeartPulse },
-      { label: "Support Staff", href: "/support-staff", icon: ClipboardList },
-      { label: "Hospital Roster", href: "/roster", icon: CalendarClock },
-      { label: "Shift Templates", href: "/shift-templates", icon: Activity },
-      { label: "Ambulance Dispatch", href: "/ambulance", icon: Truck },
+      { label: "Wards & Beds", href: "/wards-beds", icon: Bed },
+      { label: "OT / Surgeries Management", href: "/surgical-cases", icon: Scissors },
+      { label: "Lab", href: "/lab", icon: FlaskConical },
+      { label: "Radiology", href: "/radiology", icon: Scan },
+      { label: "Pharmacy", href: "/pharmacy", icon: Pill },
     ],
   },
+
+  // 4. PEOPLE & STAFF
   {
-    title: "Clinic Staff",
+    title: "4. People & Staff",
     items: [
-      { label: "Receptionists", href: "/staff/receptionists", icon: ClipboardList },
+      { label: "Reception", href: "/staff/receptionists", icon: ClipboardList },
       { label: "Nurses", href: "/nurses", icon: HeartPulse },
       { label: "Billing Staff", href: "/staff/billing-staff", icon: UserCog },
-      { label: "Lab Staff", href: "/staff/lab-staff", icon: Activity },
+      { label: "Other Staff", href: "/support-staff", icon: Users },
+      { label: "Duty & Shifts", href: "/roster", icon: CalendarClock },
+      { label: "Attendance", href: "/attendance", icon: Clock },
     ],
   },
+
+  // 5. CARE COORDINATION
   {
-    title: "Network",
+    title: "5. Care Coordination",
     items: [
-      { label: "Procurement", href: "/procurement", icon: ShoppingCart },
-      { label: "Vendors", href: "/procurement/vendors", icon: Truck },
+      { label: "Patient Journey", href: "/care-coordination/patient-journey", icon: Milestone },
+      { label: "Reports Awaiting Review", href: "/care-coordination/reports-review", icon: FileCheck },
+      { label: "Communication", href: "/care-coordination/communication", icon: MessageSquare },
     ],
   },
+
+  // 6. FINANCE
   {
-    title: "Finance",
+    title: "6. Finance",
     items: [
       { label: "Billing & Invoices", href: "/billing", icon: Receipt },
-      { label: "Reports & Analytics", href: "/reports", icon: Gauge },
+      { label: "Payments", href: "/payments", icon: CreditCard },
+      { label: "Insurance / TPA", href: "/insurance-tpa", icon: ShieldCheck },
+      { label: "Financial Reports", href: "/financial-reports", icon: BadgeIndianRupee },
     ],
   },
+
+  // 7. SUPPLY & ASSETS
   {
-    title: "Administration",
+    title: "7. Supply & Assets",
     items: [
+      { label: "Inventory", href: "/inventory", icon: Boxes },
+      { label: "Procurement", href: "/procurement", icon: ShoppingCart },
+      { label: "Vendors", href: "/procurement/vendors", icon: Truck },
+      { label: "Assets", href: "/assets", icon: Cpu },
+      { label: "Ambulance", href: "/ambulance", icon: Ambulance },
+    ],
+  },
+
+  // 8. HOSPITAL GROWTH
+  {
+    title: "8. Hospital Growth",
+    items: [
+      { label: "Hospital Profile", href: "/hospital-profile", icon: Building2 },
+      { label: "Content & Resources", href: "/content-resources", icon: BookOpen },
+      { label: "Reviews", href: "/reviews", icon: Star },
+      { label: "Analytics", href: "/analytics", icon: TrendingUp },
+    ],
+  },
+
+  // 9. ADMINISTRATION
+  {
+    title: "9. Administration",
+    items: [
+      { label: "Reports", href: "/reports", icon: Gauge },
       { label: "Roles & Permissions", href: "/roles", icon: ShieldCheck },
-      { label: "Staff Permissions", href: "/staff-permissions", icon: ShieldCheck },
       { label: "Audit Logs", href: "/audit-logs", icon: ScrollText },
-      { label: "Nursing Audit", href: "/nursing-audit-logs", icon: ScrollText },
+      { label: "Documents", href: "/documents", icon: FileText },
+      { label: "Notifications", href: "/notifications", icon: Bell },
+      { label: "Integrations", href: "/integrations", icon: Webhook },
       { label: "Settings", href: "/settings", icon: Settings },
     ],
   },
