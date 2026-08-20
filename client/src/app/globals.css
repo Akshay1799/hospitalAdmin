@@ -148,3 +148,45 @@
     scroll-behavior: auto !important;
   }
 }
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 10mm;
+  }
+
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-size: 11pt !important;
+  }
+
+  /* Hide header, navigation, sidebar, and non-printable elements */
+  header,
+  nav,
+  aside,
+  footer,
+  .print\:hidden,
+  button,
+  [data-radix-collection-item],
+  .no-print {
+    display: none !important;
+  }
+
+  /* Target invoice document container to occupy full print sheet cleanly */
+  .printable-invoice-page,
+  .printable-invoice-card {
+    position: static !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-shadow: none !important;
+    border: 1px solid #1e293b !important;
+    border-radius: 0 !important;
+    padding: 24px !important;
+    margin: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+}
+
+
