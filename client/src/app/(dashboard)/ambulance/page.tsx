@@ -8,7 +8,10 @@ import {
   Ambulance as AmbulanceIcon,
   CheckCircle2,
   Clock,
+  Compass,
   Edit,
+  Eye,
+  Gauge,
   Kanban,
   LayoutList,
   MapPin,
@@ -130,6 +133,13 @@ export default function AmbulancePage() {
   const [showVehicleModal, setShowVehicleModal] = useState(false);
   const [editingAmbulance, setEditingAmbulance] = useState<Ambulance | null>(null);
   const [crewModalAmb, setCrewModalAmb] = useState<Ambulance | null>(null);
+  const [viewingAmbulance, setViewingAmbulance] = useState<Ambulance | null>(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+
+  const openDetailsModal = (amb: Ambulance) => {
+    setViewingAmbulance(amb);
+    setShowDetailsModal(true);
+  };
 
   // Form states for vehicle registration/edit
   const [vehicleNo, setVehicleNo] = useState("");
@@ -481,16 +491,16 @@ export default function AmbulancePage() {
                 {filteredAmbulances.map((amb) => {
                   const cfg = STATUS_CONFIG[amb.status];
                   return (
-                    <TableRow key={amb.id} className="hover:bg-muted/30 transition-colors">
-                      <TableCell>
-                        <div className="font-bold text-sm text-foreground flex items-center gap-2">
+                    <TableRow key={amb.id} className="hover:bg-muted/40 transition-colors">
+                      <TableCell className="cursor-pointer" onClick={() => openDetailsModal(amb)}>
+                        <div className="font-bold text-sm text-foreground flex items-center gap-2 hover:text-primary transition-colors">
                           <AmbulanceIcon className="h-4 w-4 text-primary" />
                           <span>{amb.vehicleNo}</span>
                         </div>
                         <span className="text-[11px] font-mono text-muted-foreground">{amb.id}</span>
                       </TableCell>
 
-                      <TableCell>
+                      <TableCell className="cursor-pointer" onClick={() => openDetailsModal(amb)}>
                         <Badge variant="secondary" className="text-[10px] mb-1 font-semibold">
                           {amb.type}
                         </Badge>
@@ -506,14 +516,14 @@ export default function AmbulancePage() {
                         </div>
                       </TableCell>
 
-                      <TableCell className="text-xs text-muted-foreground">
+                      <TableCell className="text-xs text-muted-foreground cursor-pointer" onClick={() => openDetailsModal(amb)}>
                         <div className="flex items-center gap-1">
                           <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                           <span>{amb.baseLocation}</span>
                         </div>
                       </TableCell>
 
-                      <TableCell className="text-xs">
+                      <TableCell className="text-xs cursor-pointer" onClick={() => openDetailsModal(amb)}>
                         {amb.driver ? (
                           <div>
                             <p className="font-semibold text-foreground">{amb.driver.name}</p>
@@ -570,6 +580,9 @@ export default function AmbulancePage() {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="text-xs">
                             <DropdownMenuLabel>Vehicle Controls</DropdownMenuLabel>
+                            <DropdownMenuItem onClick={() => openDetailsModal(amb)}>
+                              <Eye className="mr-2 h-3.5 w-3.5 text-primary" /> View Vehicle Details
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => openEditModal(amb)}>
                               <Pencil className="mr-2 h-3.5 w-3.5" /> Edit Registry Info
                             </DropdownMenuItem>
@@ -639,8 +652,11 @@ export default function AmbulancePage() {
                           key={amb.id}
                           className="bg-card border border-border rounded-lg p-3 shadow-sm hover:border-primary/50 transition-all space-y-2 text-xs"
                         >
-                          <div className="flex items-center justify-between">
-                            <span className="font-bold text-foreground flex items-center gap-1.5">
+                          <div
+                            className="flex items-center justify-between cursor-pointer hover:opacity-80"
+                            onClick={() => openDetailsModal(amb)}
+                          >
+                            <span className="font-bold text-foreground flex items-center gap-1.5 hover:text-primary transition-colors">
                               <AmbulanceIcon className="h-3.5 w-3.5 text-primary" />
                               {amb.vehicleNo}
                             </span>
@@ -649,7 +665,10 @@ export default function AmbulancePage() {
                             </Badge>
                           </div>
 
-                          <div className="text-[11px] text-muted-foreground space-y-0.5">
+                          <div
+                            className="text-[11px] text-muted-foreground space-y-0.5 cursor-pointer"
+                            onClick={() => openDetailsModal(amb)}
+                          >
                             <p>Base: <strong className="text-foreground">{amb.baseLocation}</strong></p>
                             <p>Driver: <strong className="text-foreground">{amb.driver?.name || "Unassigned"}</strong></p>
                             {amb.currentCaseId && (
@@ -969,6 +988,207 @@ export default function AmbulancePage() {
                 <Button type="submit">Assign Driver & Crew</Button>
               </DialogFooter>
             </form>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* AMBULANCE VEHICLE PROFILE & DETAILS MODAL */}
+      <Dialog open={showDetailsModal} onOpenChange={setShowDetailsModal}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          {viewingAmbulance && (
+            <div>
+              <DialogHeader>
+                <div className="flex items-center justify-between pb-2 border-b border-border">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold">
+                      <AmbulanceIcon className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <DialogTitle className="text-base font-bold flex items-center gap-2">
+                        <span>{viewingAmbulance.vehicleNo}</span>
+                        <Badge variant="outline" className="text-[10px]">
+                          {viewingAmbulance.type}
+                        </Badge>
+                      </DialogTitle>
+                      <DialogDescription className="text-xs font-mono text-muted-foreground">
+                        Vehicle Identifier: {viewingAmbulance.id}
+                      </DialogDescription>
+                    </div>
+                  </div>
+                  <Badge className={`${STATUS_CONFIG[viewingAmbulance.status].bg} ${STATUS_CONFIG[viewingAmbulance.status].text} font-bold text-xs`}>
+                    {viewingAmbulance.status}
+                  </Badge>
+                </div>
+              </DialogHeader>
+
+              <div className="space-y-4 py-4 text-xs">
+                {/* Quick Metric Cards */}
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="p-2.5 rounded-lg border border-border bg-muted/20">
+                    <span className="text-[10px] text-muted-foreground uppercase font-bold">Base Location</span>
+                    <p className="font-semibold text-foreground mt-0.5 flex items-center gap-1">
+                      <MapPin className="h-3.5 w-3.5 text-primary shrink-0" />
+                      <span className="truncate">{viewingAmbulance.baseLocation}</span>
+                    </p>
+                  </div>
+
+                  <div className="p-2.5 rounded-lg border border-border bg-muted/20">
+                    <span className="text-[10px] text-muted-foreground uppercase font-bold">Telemetry State</span>
+                    <p className="font-semibold text-foreground mt-0.5 flex items-center gap-1">
+                      <Radio className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                      <span>{viewingAmbulance.telemetry.isGpsOnline ? `GPS Online (${viewingAmbulance.telemetry.speedKmH} km/h)` : "GPS Offline"}</span>
+                    </p>
+                  </div>
+
+                  <div className="p-2.5 rounded-lg border border-border bg-muted/20">
+                    <span className="text-[10px] text-muted-foreground uppercase font-bold">Active Mission</span>
+                    <p className="font-semibold text-foreground mt-0.5">
+                      {viewingAmbulance.currentCaseId ? (
+                        <Link
+                          href={`/emergency/${viewingAmbulance.currentCaseId}`}
+                          className="text-primary hover:underline flex items-center gap-1 font-bold"
+                        >
+                          <AlertTriangle className="h-3.5 w-3.5 text-destructive shrink-0" />
+                          <span>{viewingAmbulance.currentCaseId}</span>
+                        </Link>
+                      ) : (
+                        <span className="text-muted-foreground italic">Standby / Available</span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Assigned Driver & Crew Members */}
+                <div className="p-3.5 rounded-xl border border-border bg-muted/30 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                      <Users className="h-4 w-4 text-primary" />
+                      <span>Assigned Driver & On-Board Personnel</span>
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-[11px] gap-1 px-2.5"
+                      onClick={() => {
+                        setShowDetailsModal(false);
+                        openCrewModal(viewingAmbulance);
+                      }}
+                    >
+                      <Pencil className="h-3 w-3" /> Manage Crew
+                    </Button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-2.5 rounded-lg bg-background border border-border space-y-1">
+                      <span className="text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-1">
+                        <User className="h-3 w-3 text-primary" /> Primary Driver
+                      </span>
+                      {viewingAmbulance.driver ? (
+                        <div className="space-y-0.5">
+                          <p className="font-bold text-foreground text-sm">{viewingAmbulance.driver.name}</p>
+                          <p className="text-muted-foreground flex items-center gap-1">
+                            <Phone className="h-3 w-3" /> {viewingAmbulance.driver.phone}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground">
+                            License: <strong className="text-foreground">{viewingAmbulance.driver.licenseNo}</strong>
+                          </p>
+                          <p className="text-[10px] text-muted-foreground">
+                            Shift: <strong className="text-foreground">{viewingAmbulance.driver.shift}</strong>
+                          </p>
+                        </div>
+                      ) : (
+                        <p className="text-muted-foreground italic pt-1">No driver assigned to this vehicle.</p>
+                      )}
+                    </div>
+
+                    <div className="p-2.5 rounded-lg bg-background border border-border space-y-1">
+                      <span className="text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-1">
+                        <ShieldCheck className="h-3 w-3 text-primary" /> On-Board Paramedic & EMT Crew
+                      </span>
+                      {viewingAmbulance.crew && viewingAmbulance.crew.length > 0 ? (
+                        <div className="space-y-1.5 max-h-28 overflow-y-auto pr-1">
+                          {viewingAmbulance.crew.map((member, i) => (
+                            <div key={i} className="flex items-center justify-between text-[11px] border-b border-border/40 pb-1 last:border-0 last:pb-0">
+                              <div>
+                                <p className="font-semibold text-foreground">{member.name}</p>
+                                <p className="text-[10px] text-muted-foreground">{member.phone}</p>
+                              </div>
+                              <Badge variant="outline" className="text-[9px] h-5">
+                                {member.role}
+                              </Badge>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-muted-foreground italic pt-1">No paramedics or EMTs attached.</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Medical Equipment Readiness */}
+                <div className="p-3.5 rounded-xl border border-border bg-card space-y-2">
+                  <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <Shield className="h-4 w-4 text-primary" />
+                    <span>Certified On-Board Equipment & Medical Capabilities</span>
+                  </span>
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {viewingAmbulance.equipment.map((eq, i) => (
+                      <Badge key={i} variant="secondary" className="text-[11px] px-2 py-0.5 font-medium">
+                        ✓ {eq}
+                      </Badge>
+                    ))}
+                    {viewingAmbulance.equipment.length === 0 && (
+                      <span className="text-muted-foreground italic">Standard first aid kit only</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Maintenance & Service Notes */}
+                <div className="p-3.5 rounded-xl border border-border bg-muted/20 space-y-1.5">
+                  <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <Wrench className="h-4 w-4 text-warning" />
+                    <span>Maintenance & Inspection Service Notes</span>
+                  </span>
+                  <p className="text-foreground bg-background p-2.5 rounded-lg border border-border leading-relaxed">
+                    {viewingAmbulance.maintenanceNotes || "All routine vehicular and biomedical calibrations certified within operational parameters."}
+                  </p>
+                </div>
+              </div>
+
+              <DialogFooter className="border-t pt-3 flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="gap-1 text-xs"
+                    onClick={() => {
+                      setShowDetailsModal(false);
+                      openEditModal(viewingAmbulance);
+                    }}
+                  >
+                    <Pencil className="h-3.5 w-3.5" /> Edit Vehicle
+                  </Button>
+                  {viewingAmbulance.status === "Available" && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="gap-1 text-xs font-semibold"
+                      onClick={() => {
+                        setShowDetailsModal(false);
+                        setShowDispatchModal(true);
+                      }}
+                    >
+                      <Play className="h-3.5 w-3.5" /> Create Dispatch
+                    </Button>
+                  )}
+                </div>
+                <Button type="button" variant="secondary" size="sm" onClick={() => setShowDetailsModal(false)}>
+                  Close
+                </Button>
+              </DialogFooter>
+            </div>
           )}
         </DialogContent>
       </Dialog>
