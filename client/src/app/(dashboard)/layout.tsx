@@ -14,7 +14,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div className="flex min-h-screen bg-background print:bg-white print:min-h-0">
       <aside
-        className="hidden shrink-0 border-r border-sidebar-border lg:block transition-[width] duration-300 ease-out print:hidden"
+        className="hidden shrink-0  border-r border-sidebar-border lg:block transition-[width] duration-300 ease-out print:hidden"
         style={{ width: collapsed ? 78 : 248 }}
         onMouseEnter={() => !isPinned && setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
