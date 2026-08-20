@@ -1,331 +1,975 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { AmbulanceIcon, Plus, Play, Navigation, MapPin } from "lucide-react";
 import Link from "next/link";
+import {
+  AlertTriangle,
+  Ambulance as AmbulanceIcon,
+  CheckCircle2,
+  Clock,
+  Edit,
+  Kanban,
+  LayoutList,
+  MapPin,
+  MoreHorizontal,
+  Navigation,
+  Pencil,
+  Phone,
+  Play,
+  Plus,
+  Radio,
+  RefreshCw,
+  Search,
+  Shield,
+  ShieldCheck,
+  Trash2,
+  User,
+  Users,
+  Wrench,
+} from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/shared/page-header";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { RootState } from "@/store/store";
-import { updateAmbulanceStatus, freeAmbulance, type AmbulanceStatus } from "@/store/slices/ambulanceSlice";
-import { updateCaseStatus } from "@/store/slices/emergencySlice";
-import { DispatchCreationModal } from "@/components/ambulance/DispatchCreationModal";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { RootState } from "@/store/store";
+import {
+  Ambulance,
+  AmbulanceStatus,
+  AmbulanceType,
+  CrewMember,
+  assignDriverCrew,
+  freeAmbulance,
+  registerAmbulance,
+  updateAmbulanceRegistry,
+  updateAmbulanceStatus,
+} from "@/store/slices/ambulanceSlice";
+import { updateCaseStatus } from "@/store/slices/emergencySlice";
+import { DispatchCreationModal } from "@/components/ambulance/DispatchCreationModal";
 import { useToast } from "@/hooks/use-toast";
 
-const STATUS_COLORS: Record<AmbulanceStatus, string> = {
-  'Available': 'bg-success/20 text-success',
-  'Dispatched': 'bg-warning/20 text-warning-foreground',
-  'En Route': 'bg-info/20 text-info',
-  'At Scene': 'bg-destructive/20 text-destructive',
-  'Transporting': 'bg-info/20 text-info',
-  'At Hospital': 'bg-success/20 text-success',
-  'Maintenance/Offline': 'bg-muted text-muted-foreground',
+const DELEGATION_STRING = "Performed by Hospital Admin • acting within Ambulance Dispatch workflow";
+
+export const STATUS_CONFIG: Record<
+  AmbulanceStatus,
+  { label: string; bg: string; text: string; border: string; badgeVariant: "default" | "secondary" | "destructive" | "outline" }
+> = {
+  Available: { label: "Available", bg: "bg-emerald-500/10 dark:bg-emerald-500/20", text: "text-emerald-700 dark:text-emerald-300", border: "border-emerald-500/30", badgeVariant: "default" },
+  Dispatched: { label: "Dispatched", bg: "bg-amber-500/10 dark:bg-amber-500/20", text: "text-amber-700 dark:text-amber-300", border: "border-amber-500/30", badgeVariant: "secondary" },
+  "En Route": { label: "En Route", bg: "bg-blue-500/10 dark:bg-blue-500/20", text: "text-blue-700 dark:text-blue-300", border: "border-blue-500/30", badgeVariant: "outline" },
+  "At Scene": { label: "At Scene", bg: "bg-orange-500/10 dark:bg-orange-500/20", text: "text-orange-700 dark:text-orange-300", border: "border-orange-500/30", badgeVariant: "destructive" },
+  Transporting: { label: "Transporting", bg: "bg-indigo-500/10 dark:bg-indigo-500/20", text: "text-indigo-700 dark:text-indigo-300", border: "border-indigo-500/30", badgeVariant: "outline" },
+  "At Hospital": { label: "At Hospital", bg: "bg-teal-500/10 dark:bg-teal-500/20", text: "text-teal-700 dark:text-teal-300", border: "border-teal-500/30", badgeVariant: "secondary" },
+  "Maintenance/Offline": { label: "Maintenance / Offline", bg: "bg-slate-500/10 dark:bg-slate-500/20", text: "text-slate-700 dark:text-slate-300", border: "border-slate-500/30", badgeVariant: "secondary" },
 };
+
+const ALL_STATUSES: AmbulanceStatus[] = [
+  "Available",
+  "Dispatched",
+  "En Route",
+  "At Scene",
+  "Transporting",
+  "At Hospital",
+  "Maintenance/Offline",
+];
+
+const STANDARD_EQUIPMENT = [
+  "Defibrillator",
+  "Transport Ventilator",
+  "Oxygen Tank",
+  "Cardiac Monitor",
+  "Suction Unit",
+  "Infusion Pump",
+  "Spine Board",
+  "First Aid Kit",
+  "Neonatal Incubator",
+];
 
 export default function AmbulancePage() {
   const dispatch = useDispatch();
   const { toast } = useToast();
   const ambulances = useSelector((state: RootState) => state.ambulance.fleet);
-  
+
+  const [activeTab, setActiveTab] = useState<"registry" | "kanban">("registry");
+  const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState("All");
   const [filterStatus, setFilterStatus] = useState("All");
   const [filterLocation, setFilterLocation] = useState("All");
+
+  // Modals
   const [showDispatchModal, setShowDispatchModal] = useState(false);
-  const [editVehicleId, setEditVehicleId] = useState<string | null>(null);
-  const [showAddVehicleModal, setShowAddVehicleModal] = useState(false);
-  
-  // Crew Assignment Modal State
-  const [crewModalAmb, setCrewModalAmb] = useState<string | null>(null);
+  const [showVehicleModal, setShowVehicleModal] = useState(false);
+  const [editingAmbulance, setEditingAmbulance] = useState<Ambulance | null>(null);
+  const [crewModalAmb, setCrewModalAmb] = useState<Ambulance | null>(null);
+
+  // Form states for vehicle registration/edit
+  const [vehicleNo, setVehicleNo] = useState("");
+  const [vehicleType, setVehicleType] = useState<AmbulanceType>("ALS");
+  const [baseLocation, setBaseLocation] = useState("Qlyno Main Campus");
+  const [selectedEquipment, setSelectedEquipment] = useState<string[]>([]);
+  const [maintenanceNotes, setMaintenanceNotes] = useState("");
+
+  // Form states for driver & crew
   const [driverName, setDriverName] = useState("");
-  const [crewMembers, setCrewMembers] = useState("");
-  const [contactDetails, setContactDetails] = useState("");
+  const [driverPhone, setDriverPhone] = useState("");
+  const [driverLicense, setDriverLicense] = useState("");
+  const [driverShift, setDriverShift] = useState("Day Shift (08:00 - 16:00)");
+  const [crewList, setCrewList] = useState<CrewMember[]>([]);
 
-  const filteredAmbulances = ambulances.filter(a => {
-    if (filterType !== "All" && a.type !== filterType) return false;
-    if (filterStatus !== "All" && a.status !== filterStatus) return false;
-    if (filterLocation !== "All" && a.baseLocation !== filterLocation) return false;
-    return true;
-  });
+  // Derived counts for fleet overview
+  const availableCount = ambulances.filter((a) => a.status === "Available").length;
+  const activeDispatchesCount = ambulances.filter((a) =>
+    ["Dispatched", "En Route", "At Scene", "Transporting", "At Hospital"].includes(a.status)
+  ).length;
+  const maintenanceCount = ambulances.filter((a) => a.status === "Maintenance/Offline").length;
 
-  const handleStatusChange = (ambId: string, newStatus: AmbulanceStatus, currentCaseId?: string) => {
-    if (newStatus === 'Available') {
-      dispatch(freeAmbulance(ambId));
+  // Filtered list
+  const filteredAmbulances = useMemo(() => {
+    return ambulances.filter((a) => {
+      const matchSearch =
+        a.vehicleNo.toLowerCase().includes(search.toLowerCase()) ||
+        a.driver?.name.toLowerCase().includes(search.toLowerCase()) ||
+        a.driverName?.toLowerCase().includes(search.toLowerCase()) ||
+        a.equipment.some((eq) => eq.toLowerCase().includes(search.toLowerCase()));
+
+      const matchType = filterType === "All" || a.type === filterType;
+      const matchStatus = filterStatus === "All" || a.status === filterStatus;
+      const matchLocation = filterLocation === "All" || a.baseLocation === filterLocation;
+
+      return matchSearch && matchType && matchStatus && matchLocation;
+    });
+  }, [ambulances, search, filterType, filterStatus, filterLocation]);
+
+  // Handlers for Status Transitions (Rules CAN #6-12)
+  const handleStatusChange = (amb: Ambulance, newStatus: AmbulanceStatus) => {
+    if (newStatus === "Available") {
+      dispatch(freeAmbulance(amb.id));
     } else {
-      dispatch(updateAmbulanceStatus({ id: ambId, status: newStatus }));
+      dispatch(updateAmbulanceStatus({ id: amb.id, status: newStatus }));
     }
-    
-    // Auto-sync status to Emergency Case if linked
-    if (currentCaseId) {
-      // Map ambulance status to emergency case status
-      let caseStatus = undefined;
-      if (newStatus === 'En Route') caseStatus = 'Ambulance Dispatched';
-      if (newStatus === 'At Hospital') caseStatus = 'Arrived';
-      
-      if (caseStatus) {
-        dispatch(updateCaseStatus({ id: currentCaseId, status: caseStatus as any, actor: 'System (Ambulance Update)' }));
+
+    // Auto-sync status to Emergency Case if linked (Module 08 Sync)
+    if (amb.currentCaseId) {
+      let emergencyStatus: any = undefined;
+      if (newStatus === "En Route") emergencyStatus = "Ambulance Dispatched";
+      if (newStatus === "At Hospital") emergencyStatus = "Arrived";
+      if (newStatus === "Available") emergencyStatus = "Resolved";
+
+      if (emergencyStatus) {
+        dispatch(
+          updateCaseStatus({
+            id: amb.currentCaseId,
+            status: emergencyStatus,
+            actor: `Hospital Admin (Ambulance Update: ${newStatus})`,
+          })
+        );
       }
     }
+
+    toast({
+      title: "Ambulance Status Updated",
+      description: `Vehicle ${amb.vehicleNo} transitioned to "${newStatus}". • ${DELEGATION_STRING}`,
+    });
   };
 
-  const handleAssignCrew = (e: React.FormEvent) => {
+  // Open Add Modal
+  const openAddModal = () => {
+    setEditingAmbulance(null);
+    setVehicleNo("");
+    setVehicleType("ALS");
+    setBaseLocation("Qlyno Main Campus");
+    setSelectedEquipment(["Defibrillator", "Oxygen Tank", "Transport Ventilator"]);
+    setMaintenanceNotes("");
+    setShowVehicleModal(true);
+  };
+
+  // Open Edit Modal
+  const openEditModal = (amb: Ambulance) => {
+    setEditingAmbulance(amb);
+    setVehicleNo(amb.vehicleNo);
+    setVehicleType(amb.type);
+    setBaseLocation(amb.baseLocation);
+    setSelectedEquipment(amb.equipment);
+    setMaintenanceNotes(amb.maintenanceNotes || "");
+    setShowVehicleModal(true);
+  };
+
+  // Handle Save Vehicle (Register or Edit)
+  const handleSaveVehicle = (e: React.FormEvent) => {
     e.preventDefault();
-    toast({ title: "Crew Assigned", description: `Updated driver and crew for vehicle.` });
+    if (!vehicleNo.trim()) return;
+
+    if (editingAmbulance) {
+      dispatch(
+        updateAmbulanceRegistry({
+          id: editingAmbulance.id,
+          vehicleNo: vehicleNo.trim(),
+          type: vehicleType,
+          equipment: selectedEquipment,
+          baseLocation: baseLocation,
+          maintenanceNotes: maintenanceNotes.trim() || undefined,
+        })
+      );
+      toast({
+        title: "Ambulance Registry Updated",
+        description: `Configuration updated for ${vehicleNo}. • ${DELEGATION_STRING}`,
+      });
+    } else {
+      dispatch(
+        registerAmbulance({
+          vehicleNo: vehicleNo.trim(),
+          type: vehicleType,
+          equipment: selectedEquipment,
+          baseLocation: baseLocation,
+          maintenanceNotes: maintenanceNotes.trim() || undefined,
+        })
+      );
+      toast({
+        title: "New Ambulance Registered",
+        description: `Vehicle ${vehicleNo} added to hospital fleet. • ${DELEGATION_STRING}`,
+      });
+    }
+
+    setShowVehicleModal(false);
+  };
+
+  // Open Crew Modal
+  const openCrewModal = (amb: Ambulance) => {
+    setCrewModalAmb(amb);
+    setDriverName(amb.driver?.name || amb.driverName || "");
+    setDriverPhone(amb.driver?.phone || "+91 98220 00000");
+    setDriverLicense(amb.driver?.licenseNo || "DL-MH-2022-XXXX");
+    setDriverShift(amb.driver?.shift || "Day Shift (08:00 - 16:00)");
+    setCrewList(amb.crew && amb.crew.length > 0 ? [...amb.crew] : [{ name: "", role: "Paramedic", phone: "" }]);
+  };
+
+  // Handle Save Crew
+  const handleSaveCrew = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!crewModalAmb) return;
+
+    const validCrew = crewList.filter((c) => c.name.trim().length > 0);
+
+    dispatch(
+      assignDriverCrew({
+        ambulanceId: crewModalAmb.id,
+        driver: {
+          name: driverName.trim(),
+          phone: driverPhone.trim(),
+          licenseNo: driverLicense.trim(),
+          shift: driverShift,
+        },
+        crew: validCrew,
+      })
+    );
+
+    toast({
+      title: "Driver & Crew Assignment Saved",
+      description: `Personnel assigned to ${crewModalAmb.vehicleNo} per hospital policy. • ${DELEGATION_STRING}`,
+    });
+
     setCrewModalAmb(null);
   };
 
   return (
     <div className="space-y-6">
+      {/* Top Header */}
       <PageHeader
-        title="Ambulance Dispatch & Fleet Registry"
-        description="Hospital transport availability, live state, and standalone dispatch."
-        crumbs={[{ label: "Hospital Operations" }, { label: "Ambulance Dispatch" }]}
+        title="Ambulance Dispatch & Fleet Management"
+        description="Hospital transport availability, 7-state lifecycle tracking, driver/crew deployment, and emergency dispatch coordination."
+        crumbs={[{ label: "Hospital Operations" }, { label: "Ambulance Management" }]}
         actions={
-          <div className="flex gap-3">
+          <div className="flex flex-wrap items-center gap-2.5">
             <Link href="/ambulance/live-tracking">
-              <Button variant="outline">
-                <MapPin className="mr-2 h-4 w-4" /> Live Map
+              <Button variant="outline" size="sm" className="gap-1.5 h-9">
+                <MapPin className="h-4 w-4 text-primary" />
+                <span>Live GPS Map</span>
               </Button>
             </Link>
             <Link href="/ambulance/history">
-              <Button variant="outline">
-                <Navigation className="mr-2 h-4 w-4" /> History
+              <Button variant="outline" size="sm" className="gap-1.5 h-9">
+                <Navigation className="h-4 w-4 text-muted-foreground" />
+                <span>Dispatch History</span>
               </Button>
             </Link>
-            <Button onClick={() => setShowDispatchModal(true)}>
-              <Play className="mr-2 h-4 w-4" /> Standalone Dispatch
+            <Button size="sm" className="gap-1.5 h-9 font-semibold" onClick={() => setShowDispatchModal(true)}>
+              <Play className="h-4 w-4" />
+              <span>Create Dispatch</span>
             </Button>
           </div>
         }
       />
 
-      <div className="bg-card border border-border rounded-xl p-4">
-        {/* Filters */}
-        <div className="flex flex-wrap items-center gap-4 mb-6">
-          <div className="grid gap-1.5 w-48">
-            <Label className="text-xs text-muted-foreground">Vehicle Type</Label>
-            <Select value={filterType} onValueChange={setFilterType}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="All">All Types</SelectItem>
-                <SelectItem value="ALS">ALS</SelectItem>
-                <SelectItem value="BLS">BLS</SelectItem>
-              </SelectContent>
-            </Select>
+      {/* Fleet Overview Stat Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <Card className="border-border bg-card p-3 flex items-center justify-between">
+          <div>
+            <span className="text-xs text-muted-foreground">Total Fleet Units</span>
+            <p className="text-xl font-bold text-foreground mt-0.5">{ambulances.length}</p>
           </div>
-          <div className="grid gap-1.5 w-48">
-            <Label className="text-xs text-muted-foreground">Status</Label>
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="All">All Statuses</SelectItem>
-                <SelectItem value="Available">Available</SelectItem>
-                <SelectItem value="Dispatched">Dispatched</SelectItem>
-                <SelectItem value="En Route">En Route</SelectItem>
-                <SelectItem value="Maintenance/Offline">Offline</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="h-9 w-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold">
+            <AmbulanceIcon className="h-5 w-5" />
           </div>
-          <div className="grid gap-1.5 w-48">
-            <Label className="text-xs text-muted-foreground">Base Location</Label>
-            <Select value={filterLocation} onValueChange={setFilterLocation}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="All">All Locations</SelectItem>
-                <SelectItem value="Qlyno Main Campus">Main Campus</SelectItem>
-                <SelectItem value="Qlyno City Center">City Center</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="ml-auto mt-4">
-            <Button variant="outline" size="sm" onClick={() => setShowAddVehicleModal(true)}>
-              <Plus className="mr-2 h-4 w-4" /> Add Vehicle
-            </Button>
-          </div>
-        </div>
+        </Card>
 
-        {/* Registry & Status Board Table */}
-        <div className="border rounded-md overflow-hidden">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Vehicle</TableHead>
-                <TableHead>Equipment</TableHead>
-                <TableHead>Base Location</TableHead>
-                <TableHead>Driver & Crew</TableHead>
-                <TableHead>Current Case</TableHead>
-                <TableHead className="w-[200px]">Live Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredAmbulances.map(amb => (
-                <TableRow key={amb.id}>
-                  <TableCell>
-                    <div className="font-medium flex items-center gap-2">
-                      <AmbulanceIcon className="h-4 w-4 text-muted-foreground" />
-                      {amb.vehicleNo}
-                    </div>
-                    <div className="text-xs text-muted-foreground mt-0.5">{amb.type}</div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {amb.equipment.map(eq => (
-                        <Badge key={eq} variant="outline" className="text-[10px]">{eq}</Badge>
-                      ))}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-sm">{amb.baseLocation}</TableCell>
-                  <TableCell>
-                    <div className="text-sm font-medium">{amb.driverName || 'Unassigned'}</div>
-                    <div className="text-xs text-muted-foreground mt-0.5">
-                      {amb.crew?.join(', ') || 'No crew'}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {amb.currentCaseId ? (
-                      <Link href={`/emergency/${amb.currentCaseId}`} className="text-sm font-medium text-primary hover:underline">
-                        {amb.currentCaseId}
-                      </Link>
-                    ) : (
-                      <span className="text-sm text-muted-foreground">-</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Select 
-                      value={amb.status} 
-                      onValueChange={(val) => handleStatusChange(amb.id, val as AmbulanceStatus, amb.currentCaseId)}
-                    >
-                      <SelectTrigger className={`h-8 text-xs font-medium border-0 ${STATUS_COLORS[amb.status]}`}>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Available">Available</SelectItem>
-                        <SelectItem value="Dispatched" disabled>Dispatched</SelectItem>
-                        <SelectItem value="En Route" disabled={!amb.currentCaseId}>En Route</SelectItem>
-                        <SelectItem value="At Scene" disabled={!amb.currentCaseId}>At Scene</SelectItem>
-                        <SelectItem value="Transporting" disabled={!amb.currentCaseId}>Transporting</SelectItem>
-                        <SelectItem value="At Hospital" disabled={!amb.currentCaseId}>At Hospital</SelectItem>
-                        <SelectItem value="Maintenance/Offline">Maintenance/Offline</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button variant="ghost" size="sm" onClick={() => setEditVehicleId(amb.id)}>
-                      Edit
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => setCrewModalAmb(amb.id)}>
-                      Assign Crew
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {filteredAmbulances.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
-                    No vehicles match your filters.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
+        <Card className="border-emerald-500/20 bg-emerald-500/5 p-3 flex items-center justify-between">
+          <div>
+            <span className="text-xs text-emerald-700 dark:text-emerald-300 font-medium">Available for Dispatch</span>
+            <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">{availableCount}</p>
+          </div>
+          <div className="h-9 w-9 rounded-lg bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold">
+            <CheckCircle2 className="h-5 w-5" />
+          </div>
+        </Card>
+
+        <Card className="border-blue-500/20 bg-blue-500/5 p-3 flex items-center justify-between">
+          <div>
+            <span className="text-xs text-blue-700 dark:text-blue-300 font-medium">Active In Transit / Scene</span>
+            <p className="text-xl font-bold text-blue-600 dark:text-blue-400 mt-0.5">{activeDispatchesCount}</p>
+          </div>
+          <div className="h-9 w-9 rounded-lg bg-blue-500/10 text-blue-600 flex items-center justify-center font-bold">
+            <Radio className="h-5 w-5" />
+          </div>
+        </Card>
+
+        <Card className="border-slate-500/20 bg-slate-500/5 p-3 flex items-center justify-between">
+          <div>
+            <span className="text-xs text-slate-700 dark:text-slate-300 font-medium">Maintenance / Offline</span>
+            <p className="text-xl font-bold text-slate-600 dark:text-slate-400 mt-0.5">{maintenanceCount}</p>
+          </div>
+          <div className="h-9 w-9 rounded-lg bg-slate-500/10 text-slate-600 flex items-center justify-center font-bold">
+            <Wrench className="h-5 w-5" />
+          </div>
+        </Card>
       </div>
 
-      <DispatchCreationModal 
-        open={showDispatchModal} 
-        onOpenChange={setShowDispatchModal} 
-      />
+      {/* Main Hub: Table Registry vs. Availability Kanban Board */}
+      <div className="bg-card border border-border rounded-xl p-4 space-y-4">
+        {/* Top Controls: View Switcher & Filters */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-2 border-b border-border">
+          {/* View Mode Tabs */}
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant={activeTab === "registry" ? "default" : "outline"}
+              className="gap-1.5 h-8 text-xs font-medium"
+              onClick={() => setActiveTab("registry")}
+            >
+              <LayoutList className="h-3.5 w-3.5" />
+              <span>Fleet Registry (Table View)</span>
+            </Button>
+            <Button
+              size="sm"
+              variant={activeTab === "kanban" ? "default" : "outline"}
+              className="gap-1.5 h-8 text-xs font-medium"
+              onClick={() => setActiveTab("kanban")}
+            >
+              <Kanban className="h-3.5 w-3.5" />
+              <span>Availability Board (Kanban View)</span>
+            </Button>
+          </div>
 
-      {/* Crew Assignment Modal */}
-      <Dialog open={!!crewModalAmb} onOpenChange={(open) => !open && setCrewModalAmb(null)}>
-        <DialogContent>
-          <form onSubmit={handleAssignCrew}>
-            <DialogHeader>
-              <DialogTitle>Assign Driver & Crew</DialogTitle>
-              <DialogDescription>Assign personnel to vehicle {ambulances.find(a => a.id === crewModalAmb)?.vehicleNo}</DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-1.5">
-                <Label>Driver Name</Label>
-                <Input required value={driverName} onChange={e => setDriverName(e.target.value)} placeholder="e.g. Ramesh Patel" />
-              </div>
-              <div className="grid gap-1.5">
-                <Label>Crew Members (Comma separated)</Label>
-                <Input value={crewMembers} onChange={e => setCrewMembers(e.target.value)} placeholder="e.g. Sunita (Paramedic), Amit (EMT)" />
-              </div>
-              <div className="grid gap-1.5">
-                <Label>Primary Contact Details</Label>
-                <Input value={contactDetails} onChange={e => setContactDetails(e.target.value)} placeholder="e.g. +91 90000 00000" />
-              </div>
+          {/* Action to Register Ambulance */}
+          <Button size="sm" variant="outline" className="gap-1.5 h-8 text-xs font-medium self-start lg:self-auto" onClick={openAddModal}>
+            <Plus className="h-3.5 w-3.5" />
+            <span>Register New Ambulance</span>
+          </Button>
+        </div>
+
+        {/* Filter Bar */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+          <div className="relative">
+            <Search className="h-4 w-4 text-muted-foreground absolute left-3 top-2.5" />
+            <Input
+              placeholder="Search vehicle, driver, equipment..."
+              className="pl-9 h-9 text-xs"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <Select value={filterType} onValueChange={setFilterType}>
+              <SelectTrigger className="h-9 text-xs">
+                <SelectValue placeholder="Ambulance Type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="All">All Vehicle Types</SelectItem>
+                <SelectItem value="ALS">Advanced Life Support (ALS)</SelectItem>
+                <SelectItem value="BLS">Basic Life Support (BLS)</SelectItem>
+                <SelectItem value="Neonatal ICU">Neonatal ICU Transport</SelectItem>
+                <SelectItem value="Patient Transport">Patient Transport Vehicle</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Select value={filterStatus} onValueChange={setFilterStatus}>
+              <SelectTrigger className="h-9 text-xs">
+                <SelectValue placeholder="Availability Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="All">All Availability States</SelectItem>
+                {ALL_STATUSES.map((st) => (
+                  <SelectItem key={st} value={st}>
+                    {st}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Select value={filterLocation} onValueChange={setFilterLocation}>
+              <SelectTrigger className="h-9 text-xs">
+                <SelectValue placeholder="Base Campus Location" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="All">All Base Locations</SelectItem>
+                <SelectItem value="Qlyno Main Campus">Qlyno Main Campus (Andheri)</SelectItem>
+                <SelectItem value="Qlyno City Center">Qlyno City Center (BKC)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* TAB 1: FLEET REGISTRY TABLE VIEW */}
+        {activeTab === "registry" && (
+          <div className="border border-border rounded-lg overflow-hidden">
+            <Table>
+              <TableHeader className="bg-muted/30">
+                <TableRow>
+                  <TableHead className="font-semibold text-xs">Vehicle Registration</TableHead>
+                  <TableHead className="font-semibold text-xs">Type & Equipment</TableHead>
+                  <TableHead className="font-semibold text-xs">Base Location</TableHead>
+                  <TableHead className="font-semibold text-xs">Driver & Crew</TableHead>
+                  <TableHead className="font-semibold text-xs">Active Case</TableHead>
+                  <TableHead className="font-semibold text-xs w-[180px]">Availability State</TableHead>
+                  <TableHead className="text-right font-semibold text-xs">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredAmbulances.map((amb) => {
+                  const cfg = STATUS_CONFIG[amb.status];
+                  return (
+                    <TableRow key={amb.id} className="hover:bg-muted/30 transition-colors">
+                      <TableCell>
+                        <div className="font-bold text-sm text-foreground flex items-center gap-2">
+                          <AmbulanceIcon className="h-4 w-4 text-primary" />
+                          <span>{amb.vehicleNo}</span>
+                        </div>
+                        <span className="text-[11px] font-mono text-muted-foreground">{amb.id}</span>
+                      </TableCell>
+
+                      <TableCell>
+                        <Badge variant="secondary" className="text-[10px] mb-1 font-semibold">
+                          {amb.type}
+                        </Badge>
+                        <div className="flex flex-wrap gap-1 max-w-xs">
+                          {amb.equipment.slice(0, 3).map((eq, i) => (
+                            <Badge key={i} variant="outline" className="text-[9px] bg-background">
+                              {eq}
+                            </Badge>
+                          ))}
+                          {amb.equipment.length > 3 && (
+                            <span className="text-[10px] text-muted-foreground">+{amb.equipment.length - 3} more</span>
+                          )}
+                        </div>
+                      </TableCell>
+
+                      <TableCell className="text-xs text-muted-foreground">
+                        <div className="flex items-center gap-1">
+                          <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                          <span>{amb.baseLocation}</span>
+                        </div>
+                      </TableCell>
+
+                      <TableCell className="text-xs">
+                        {amb.driver ? (
+                          <div>
+                            <p className="font-semibold text-foreground">{amb.driver.name}</p>
+                            <p className="text-[11px] text-muted-foreground">{amb.driver.phone}</p>
+                            {amb.crew && amb.crew.length > 0 && (
+                              <p className="text-[10px] text-primary mt-0.5">
+                                Crew: {amb.crew.map((c) => `${c.name} (${c.role})`).join(", ")}
+                              </p>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground italic">No crew assigned</span>
+                        )}
+                      </TableCell>
+
+                      <TableCell className="text-xs">
+                        {amb.currentCaseId ? (
+                          <Link
+                            href={`/emergency/${amb.currentCaseId}`}
+                            className="font-bold text-primary hover:underline flex items-center gap-1"
+                          >
+                            <AlertTriangle className="h-3.5 w-3.5 text-destructive" />
+                            <span>{amb.currentCaseId}</span>
+                          </Link>
+                        ) : (
+                          <span className="text-muted-foreground text-[11px]">Standby</span>
+                        )}
+                      </TableCell>
+
+                      <TableCell>
+                        <Select
+                          value={amb.status}
+                          onValueChange={(val: AmbulanceStatus) => handleStatusChange(amb, val)}
+                        >
+                          <SelectTrigger className={`h-8 text-xs font-semibold border ${cfg.bg} ${cfg.text} ${cfg.border}`}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {ALL_STATUSES.map((st) => (
+                              <SelectItem key={st} value={st}>
+                                {st}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="text-xs">
+                            <DropdownMenuLabel>Vehicle Controls</DropdownMenuLabel>
+                            <DropdownMenuItem onClick={() => openEditModal(amb)}>
+                              <Pencil className="mr-2 h-3.5 w-3.5" /> Edit Registry Info
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => openCrewModal(amb)}>
+                              <Users className="mr-2 h-3.5 w-3.5 text-primary" /> Assign Driver & Crew
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            {amb.status === "Available" ? (
+                              <DropdownMenuItem onClick={() => handleStatusChange(amb, "Maintenance/Offline")}>
+                                <Wrench className="mr-2 h-3.5 w-3.5 text-warning" /> Mark as Maintenance
+                              </DropdownMenuItem>
+                            ) : amb.status === "Maintenance/Offline" ? (
+                              <DropdownMenuItem onClick={() => handleStatusChange(amb, "Available")}>
+                                <CheckCircle2 className="mr-2 h-3.5 w-3.5 text-success" /> Restore to Available
+                              </DropdownMenuItem>
+                            ) : (
+                              <DropdownMenuItem onClick={() => handleStatusChange(amb, "Available")}>
+                                <RefreshCw className="mr-2 h-3.5 w-3.5 text-success" /> Clear / Free Ambulance
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+
+                {filteredAmbulances.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
+                      <AmbulanceIcon className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                      <p className="font-semibold text-sm">No ambulances found</p>
+                      <p className="text-xs mt-0.5">Try clearing filters or search query.</p>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+
+        {/* TAB 2: AVAILABILITY STATUS KANBAN BOARD */}
+        {activeTab === "kanban" && (
+          <div className="overflow-x-auto pb-4 scrollbar-thin">
+            <div className="grid grid-cols-7 gap-3 min-w-[1200px]">
+              {ALL_STATUSES.map((statusKey) => {
+                const cfg = STATUS_CONFIG[statusKey];
+                const list = ambulances.filter((a) => a.status === statusKey);
+
+                return (
+                  <div
+                    key={statusKey}
+                    className="flex flex-col bg-muted/20 border border-border rounded-xl p-3 min-h-[480px]"
+                  >
+                    {/* Column Header */}
+                    <div className="flex items-center justify-between mb-3 pb-2 border-b border-border">
+                      <span className="text-xs font-bold text-foreground truncate">{statusKey}</span>
+                      <Badge variant="secondary" className="text-[10px] font-mono h-5 px-1.5">
+                        {list.length}
+                      </Badge>
+                    </div>
+
+                    {/* Cards List */}
+                    <div className="space-y-2.5 flex-1">
+                      {list.map((amb) => (
+                        <div
+                          key={amb.id}
+                          className="bg-card border border-border rounded-lg p-3 shadow-sm hover:border-primary/50 transition-all space-y-2 text-xs"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-foreground flex items-center gap-1.5">
+                              <AmbulanceIcon className="h-3.5 w-3.5 text-primary" />
+                              {amb.vehicleNo}
+                            </span>
+                            <Badge variant="outline" className="text-[9px]">
+                              {amb.type}
+                            </Badge>
+                          </div>
+
+                          <div className="text-[11px] text-muted-foreground space-y-0.5">
+                            <p>Base: <strong className="text-foreground">{amb.baseLocation}</strong></p>
+                            <p>Driver: <strong className="text-foreground">{amb.driver?.name || "Unassigned"}</strong></p>
+                            {amb.currentCaseId && (
+                              <p className="text-destructive font-semibold">Case: {amb.currentCaseId}</p>
+                            )}
+                          </div>
+
+                          {/* Quick Status Progression Selector */}
+                          <div className="pt-2 border-t border-border/60">
+                            <Select
+                              value={amb.status}
+                              onValueChange={(val: AmbulanceStatus) => handleStatusChange(amb, val)}
+                            >
+                              <SelectTrigger className="h-7 text-[11px] font-medium">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {ALL_STATUSES.map((st) => (
+                                  <SelectItem key={st} value={st} className="text-xs">
+                                    Move to: {st}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      ))}
+
+                      {list.length === 0 && (
+                        <div className="h-32 border border-dashed border-border/80 rounded-lg flex items-center justify-center text-[11px] text-muted-foreground text-center p-2">
+                          No ambulances in {statusKey}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setCrewModalAmb(null)}>Cancel</Button>
-              <Button type="submit">Assign</Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-      <Dialog open={showAddVehicleModal || !!editVehicleId} onOpenChange={(open) => {
-        if (!open) {
-          setShowAddVehicleModal(false);
-          setEditVehicleId(null);
-        }
-      }}>
-        <DialogContent>
-          <form onSubmit={e => { 
-            e.preventDefault(); 
-            toast({ title: editVehicleId ? "Vehicle Updated" : "Vehicle Registered", description: editVehicleId ? "Changes saved." : "New ambulance added to fleet."}); 
-            setShowAddVehicleModal(false); 
-            setEditVehicleId(null);
-          }}>
+          </div>
+        )}
+      </div>
+
+      {/* DISPATCH CREATION MODAL */}
+      <DispatchCreationModal open={showDispatchModal} onOpenChange={setShowDispatchModal} />
+
+      {/* REGISTER / EDIT AMBULANCE MODAL */}
+      <Dialog open={showVehicleModal} onOpenChange={setShowVehicleModal}>
+        <DialogContent className="max-w-lg">
+          <form onSubmit={handleSaveVehicle}>
             <DialogHeader>
-              <DialogTitle>{editVehicleId ? "Edit Ambulance" : "Register New Ambulance"}</DialogTitle>
-              <DialogDescription>{editVehicleId ? "Update vehicle configuration." : "Add a new vehicle to the hospital fleet."}</DialogDescription>
+              <DialogTitle className="text-base flex items-center gap-2">
+                <AmbulanceIcon className="h-5 w-5 text-primary" />
+                <span>{editingAmbulance ? "Edit Ambulance Details" : "Register New Fleet Ambulance"}</span>
+              </DialogTitle>
+              <DialogDescription className="text-xs">
+                {editingAmbulance
+                  ? `Update registration, equipment capabilities and base facility for ${editingAmbulance.vehicleNo}.`
+                  : "Add a new certified ambulance vehicle to the hospital fleet registry."}
+              </DialogDescription>
             </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
+
+            <div className="grid gap-3.5 py-3 text-xs">
+              <div className="grid grid-cols-2 gap-3">
                 <div className="grid gap-1.5">
-                  <Label>Vehicle Registration ID</Label>
-                  <Input required defaultValue={editVehicleId ? ambulances.find(a => a.id === editVehicleId)?.vehicleNo : ""} placeholder="e.g. MH-12-XX-0000" />
+                  <Label className="text-xs font-semibold">Vehicle Registration No <span className="text-destructive">*</span></Label>
+                  <Input
+                    required
+                    placeholder="e.g. MH-12-AB-1234"
+                    value={vehicleNo}
+                    onChange={(e) => setVehicleNo(e.target.value)}
+                  />
                 </div>
+
                 <div className="grid gap-1.5">
-                  <Label>Type</Label>
-                  <Select defaultValue={editVehicleId ? ambulances.find(a => a.id === editVehicleId)?.type : "ALS"}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                  <Label className="text-xs font-semibold">Ambulance Type</Label>
+                  <Select value={vehicleType} onValueChange={(val: AmbulanceType) => setVehicleType(val)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="ALS">ALS</SelectItem>
-                      <SelectItem value="BLS">BLS</SelectItem>
+                      <SelectItem value="ALS">Advanced Life Support (ALS)</SelectItem>
+                      <SelectItem value="BLS">Basic Life Support (BLS)</SelectItem>
+                      <SelectItem value="Neonatal ICU">Neonatal ICU Transport</SelectItem>
+                      <SelectItem value="Patient Transport">Patient Transport Vehicle</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
+
               <div className="grid gap-1.5">
-                <Label>Equipment Capabilities (Comma separated)</Label>
-                <Input required defaultValue={editVehicleId ? ambulances.find(a => a.id === editVehicleId)?.equipment.join(', ') : ""} placeholder="e.g. Defibrillator, Ventilator, O2" />
-              </div>
-              <div className="grid gap-1.5">
-                <Label>Base Location</Label>
-                <Select defaultValue={editVehicleId ? ambulances.find(a => a.id === editVehicleId)?.baseLocation : "Qlyno Main Campus"}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                <Label className="text-xs font-semibold">Base Campus Location</Label>
+                <Select value={baseLocation} onValueChange={setBaseLocation}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Qlyno Main Campus">Qlyno Main Campus</SelectItem>
-                    <SelectItem value="Qlyno City Center">Qlyno City Center</SelectItem>
+                    <SelectItem value="Qlyno Main Campus">Qlyno Main Campus (Andheri West)</SelectItem>
+                    <SelectItem value="Qlyno City Center">Qlyno City Center (BKC Complex)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* Equipment Capabilities Checkbox Chips */}
+              <div className="grid gap-1.5">
+                <Label className="text-xs font-semibold">Equipment Capabilities & Facilities</Label>
+                <div className="flex flex-wrap gap-1.5 p-2.5 rounded-lg border border-border bg-muted/20">
+                  {STANDARD_EQUIPMENT.map((eq) => {
+                    const isSelected = selectedEquipment.includes(eq);
+                    return (
+                      <button
+                        key={eq}
+                        type="button"
+                        onClick={() => {
+                          if (isSelected) {
+                            setSelectedEquipment(selectedEquipment.filter((item) => item !== eq));
+                          } else {
+                            setSelectedEquipment([...selectedEquipment, eq]);
+                          }
+                        }}
+                        className={`text-[11px] px-2.5 py-1 rounded-full font-medium transition-all ${
+                          isSelected
+                            ? "bg-primary text-primary-foreground font-semibold"
+                            : "bg-background border border-border text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        {isSelected ? "✓ " : "+ "}
+                        {eq}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Maintenance Notes */}
+              <div className="grid gap-1.5">
+                <Label className="text-xs font-semibold">Maintenance & Service Log Notes</Label>
+                <Textarea
+                  placeholder="e.g. Next inspection due in 30 days, O2 cylinder pressure verified."
+                  value={maintenanceNotes}
+                  onChange={(e) => setMaintenanceNotes(e.target.value)}
+                  rows={2}
+                  className="text-xs"
+                />
+              </div>
             </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => { setShowAddVehicleModal(false); setEditVehicleId(null); }}>Cancel</Button>
-              <Button type="submit">{editVehicleId ? "Save Changes" : "Register Vehicle"}</Button>
+
+            <DialogFooter className="border-t pt-3">
+              <Button type="button" variant="outline" onClick={() => setShowVehicleModal(false)}>
+                Cancel
+              </Button>
+              <Button type="submit">
+                {editingAmbulance ? "Save Changes" : "Register Ambulance"}
+              </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* DRIVER & CREW ASSIGNMENT MODAL (Rule CAN #3-5) */}
+      <Dialog open={!!crewModalAmb} onOpenChange={(open) => !open && setCrewModalAmb(null)}>
+        <DialogContent className="max-w-lg">
+          {crewModalAmb && (
+            <form onSubmit={handleSaveCrew}>
+              <DialogHeader>
+                <DialogTitle className="text-base flex items-center gap-2">
+                  <Users className="h-5 w-5 text-primary" />
+                  <span>Assign Driver & Crew — {crewModalAmb.vehicleNo}</span>
+                </DialogTitle>
+                <DialogDescription className="text-xs">
+                  Assign licensed ambulance driver, emergency paramedics, and EMT specialists per hospital policy.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-3.5 py-3 text-xs">
+                {/* Driver Details */}
+                <div className="p-3 rounded-lg border border-border bg-muted/20 space-y-2.5">
+                  <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <User className="h-3.5 w-3.5 text-primary" /> Primary Driver Assignment
+                  </span>
+
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <div className="grid gap-1">
+                      <Label className="text-[11px]">Driver Full Name *</Label>
+                      <Input
+                        required
+                        placeholder="e.g. Ramesh Patel"
+                        value={driverName}
+                        onChange={(e) => setDriverName(e.target.value)}
+                        className="h-8 text-xs bg-background"
+                      />
+                    </div>
+                    <div className="grid gap-1">
+                      <Label className="text-[11px]">Driver Phone *</Label>
+                      <Input
+                        required
+                        placeholder="+91 98220 11921"
+                        value={driverPhone}
+                        onChange={(e) => setDriverPhone(e.target.value)}
+                        className="h-8 text-xs bg-background"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <div className="grid gap-1">
+                      <Label className="text-[11px]">Commercial License / Badge No</Label>
+                      <Input
+                        placeholder="DL-MH-2018-9921"
+                        value={driverLicense}
+                        onChange={(e) => setDriverLicense(e.target.value)}
+                        className="h-8 text-xs bg-background"
+                      />
+                    </div>
+                    <div className="grid gap-1">
+                      <Label className="text-[11px]">Duty Shift</Label>
+                      <Select value={driverShift} onValueChange={setDriverShift}>
+                        <SelectTrigger className="h-8 text-xs bg-background">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Day Shift (08:00 - 16:00)">Day Shift (08:00 - 16:00)</SelectItem>
+                          <SelectItem value="Evening Shift (16:00 - 00:00)">Evening Shift (16:00 - 00:00)</SelectItem>
+                          <SelectItem value="Night Shift (00:00 - 08:00)">Night Shift (00:00 - 08:00)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Crew Members List */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                      <ShieldCheck className="h-3.5 w-3.5 text-primary" /> On-Board Paramedic & EMT Crew
+                    </span>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-6 text-[10px] px-2"
+                      onClick={() =>
+                        setCrewList([...crewList, { name: "", role: "Paramedic", phone: "" }])
+                      }
+                    >
+                      + Add Member
+                    </Button>
+                  </div>
+
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {crewList.map((crewItem, idx) => (
+                      <div key={idx} className="grid grid-cols-12 gap-2 items-center bg-muted/30 p-2 rounded-lg border border-border">
+                        <div className="col-span-5">
+                          <Input
+                            placeholder="Crew member name"
+                            value={crewItem.name}
+                            onChange={(e) => {
+                              const updated = [...crewList];
+                              updated[idx].name = e.target.value;
+                              setCrewList(updated);
+                            }}
+                            className="h-8 text-xs bg-background"
+                          />
+                        </div>
+                        <div className="col-span-3">
+                          <Select
+                            value={crewItem.role}
+                            onValueChange={(val: any) => {
+                              const updated = [...crewList];
+                              updated[idx].role = val;
+                              setCrewList(updated);
+                            }}
+                          >
+                            <SelectTrigger className="h-8 text-[11px] bg-background">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Paramedic">Paramedic</SelectItem>
+                              <SelectItem value="EMT">EMT</SelectItem>
+                              <SelectItem value="Emergency Nurse">Nurse</SelectItem>
+                              <SelectItem value="Triage Specialist">Triage</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="col-span-3">
+                          <Input
+                            placeholder="Phone number"
+                            value={crewItem.phone}
+                            onChange={(e) => {
+                              const updated = [...crewList];
+                              updated[idx].phone = e.target.value;
+                              setCrewList(updated);
+                            }}
+                            className="h-8 text-xs bg-background"
+                          />
+                        </div>
+                        <div className="col-span-1 text-center">
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7 text-destructive"
+                            onClick={() => setCrewList(crewList.filter((_, i) => i !== idx))}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <DialogFooter className="border-t pt-3">
+                <Button type="button" variant="outline" onClick={() => setCrewModalAmb(null)}>
+                  Cancel
+                </Button>
+                <Button type="submit">Assign Driver & Crew</Button>
+              </DialogFooter>
+            </form>
+          )}
         </DialogContent>
       </Dialog>
     </div>
