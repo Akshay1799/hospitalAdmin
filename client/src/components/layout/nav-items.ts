@@ -53,17 +53,17 @@ export interface NavGroup {
 }
 
 export const navGroups: NavGroup[] = [
-  // 1. OVERVIEW
+  // OVERVIEW
   {
-    title: "1. Overview",
+    title: "Overview",
     items: [
       { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     ],
   },
 
-  // 2. PATIENT CARE
+  // PATIENT CARE
   {
-    title: "2. Patient Care",
+    title: "Patient Care",
     items: [
       { label: "Patients", href: "/patients", icon: Users },
       { label: "Appointments", href: "/appointments", icon: CalendarClock },
@@ -74,9 +74,9 @@ export const navGroups: NavGroup[] = [
     ],
   },
 
-  // 3. CLINICAL OPERATIONS
+  // CLINICAL OPERATIONS
   {
-    title: "3. Clinical Operations",
+    title: "Clinical Operations",
     items: [
       { label: "Doctors", href: "/doctors", icon: Stethoscope },
       { label: "Departments", href: "/departments", icon: Building2 },
@@ -89,9 +89,9 @@ export const navGroups: NavGroup[] = [
     ],
   },
 
-  // 4. PEOPLE & STAFF
+  // PEOPLE & STAFF
   {
-    title: "4. People & Staff",
+    title: "People & Staff",
     items: [
       { label: "Reception", href: "/staff/receptionists", icon: ClipboardList },
       { label: "Nurses", href: "/nurses", icon: HeartPulse },
@@ -102,9 +102,9 @@ export const navGroups: NavGroup[] = [
     ],
   },
 
-  // 5. CARE COORDINATION
+  // CARE COORDINATION
   {
-    title: "5. Care Coordination",
+    title: "Care Coordination",
     items: [
       { label: "Patient Journey", href: "/care-coordination/patient-journey", icon: Milestone },
       { label: "Reports Awaiting Review", href: "/care-coordination/reports-review", icon: FileCheck },
@@ -112,9 +112,9 @@ export const navGroups: NavGroup[] = [
     ],
   },
 
-  // 6. FINANCE
+  // FINANCE
   {
-    title: "6. Finance",
+    title: "Finance",
     items: [
       { label: "Billing & Invoices", href: "/billing", icon: Receipt },
       { label: "Payments", href: "/payments", icon: CreditCard },
@@ -123,9 +123,9 @@ export const navGroups: NavGroup[] = [
     ],
   },
 
-  // 7. SUPPLY & ASSETS
+  // SUPPLY & ASSETS
   {
-    title: "7. Supply & Assets",
+    title: "Supply & Assets",
     items: [
       { label: "Inventory", href: "/inventory", icon: Boxes },
       { label: "Procurement", href: "/procurement", icon: ShoppingCart },
@@ -135,9 +135,9 @@ export const navGroups: NavGroup[] = [
     ],
   },
 
-  // 8. HOSPITAL GROWTH
+  // HOSPITAL GROWTH
   {
-    title: "8. Hospital Growth",
+    title: "Hospital Growth",
     items: [
       { label: "Hospital Profile", href: "/hospital-profile", icon: Building2 },
       { label: "Content & Resources", href: "/content-resources", icon: BookOpen },
@@ -146,9 +146,9 @@ export const navGroups: NavGroup[] = [
     ],
   },
 
-  // 9. ADMINISTRATION
+  // ADMINISTRATION
   {
-    title: "9. Administration",
+    title: "Administration",
     items: [
       { label: "Reports", href: "/reports", icon: Gauge },
       { label: "Roles & Permissions", href: "/roles", icon: ShieldCheck },
