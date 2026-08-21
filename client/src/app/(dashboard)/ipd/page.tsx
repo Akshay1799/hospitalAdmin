@@ -334,10 +334,19 @@ export default function IPDPage() {
   const handleTransferSubmit = () => {
     if (!selectedPatientForTransfer) return;
 
+    if (!targetWard || !targetBed.trim() || !transferReason.trim()) {
+      toast({
+        title: "Transfer Incomplete",
+        description: "Destination ward, new bed number, and transfer reason are required to transfer an inpatient.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setInpatients((prev) =>
       prev.map((p) => {
         if (p.ipdId === selectedPatientForTransfer.ipdId) {
-          return { ...p, ward: targetWard, bedNumber: targetBed, status: `Transferred to ${targetBed}` };
+          return { ...p, ward: targetWard, bedNumber: targetBed.trim(), status: `Transferred to ${targetBed.trim()}` };
         }
         return p;
       })
@@ -346,7 +355,39 @@ export default function IPDPage() {
     setTransferOpen(false);
     toast({
       title: "Patient Transferred Successfully",
-      description: `${selectedPatientForTransfer.patientName} shifted to ${targetWard} (${targetBed}).`,
+      description: `${selectedPatientForTransfer.patientName} shifted to ${targetWard} (${targetBed}). Reason: ${transferReason}.`,
+    });
+  };
+
+  const handleExportIpdRegister = () => {
+    const csvRows = [
+      ["IPD ID", "UHID", "Patient Name", "Admit Date", "Discharge Date", "LOS (Days)", "Doctor", "Ward", "Diagnosis", "Outcome", "Settled Bill"],
+      ...history.map((h) => [
+        h.ipdId,
+        h.uhid,
+        `"${h.patientName}"`,
+        h.admitDate,
+        h.dischargeDate,
+        h.los,
+        `"${h.doctorName}"`,
+        `"${h.ward}"`,
+        `"${h.diagnosis}"`,
+        `"${h.outcome}"`,
+        h.totalBill,
+      ]),
+    ];
+    const csvContent = "data:text/csv;charset=utf-8," + csvRows.map((e) => e.join(",")).join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `ipd_history_register_${new Date().toISOString().split("T")[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    toast({
+      title: "IPD Register Exported",
+      description: "Downloaded CSV report of past inpatient discharge records.",
     });
   };
 
@@ -704,6 +745,17 @@ export default function IPDPage() {
                           setAdmitWard(w.name);
                           setAdmitBed(b.id);
                           setAdmitOpen(true);
+                        } else if (b.status === "occupied") {
+                          toast({
+                            title: `Bed ${b.id} is Occupied`,
+                            description: `Currently occupied by ${b.patient}. Select an available green bed.`,
+                            variant: "destructive",
+                          });
+                        } else {
+                          toast({
+                            title: `Bed ${b.id} is Sanitizing`,
+                            description: "Bed is undergoing terminal sanitization. Cannot admit patient.",
+                          });
                         }
                       }}
                     >
@@ -794,7 +846,7 @@ export default function IPDPage() {
                 <CardTitle className="text-sm font-bold">Historical Inpatient Admissions Archive</CardTitle>
                 <CardDescription className="text-xs">Past discharges, lengths of stay &amp; final hospitalization outcomes</CardDescription>
               </div>
-              <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5">
+              <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={handleExportIpdRegister}>
                 <Download className="h-3.5 w-3.5" /> Export Register
               </Button>
             </CardHeader>
