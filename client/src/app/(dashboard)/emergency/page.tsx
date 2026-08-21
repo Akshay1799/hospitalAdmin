@@ -177,6 +177,16 @@ export default function EmergencyPage() {
       return;
     }
 
+    const targetBay = erBays.find((b) => b.id === walkinBay);
+    if (!targetBay || targetBay.status !== "available") {
+      toast({
+        title: "Bay Unavailable",
+        description: `Bay ${walkinBay} is currently ${targetBay?.status || "occupied"}. Please select an available green bay.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     const newCase: EmergencyCase = {
       id: `SOS-${Math.floor(100 + Math.random() * 900)}`,
       patientName: walkinName.trim(),
@@ -323,11 +333,15 @@ export default function EmergencyPage() {
                           <SelectValue placeholder="Select Bay" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="BAY-01">BAY-01 (Resuscitation)</SelectItem>
-                          <SelectItem value="BAY-02">BAY-02 (Resuscitation)</SelectItem>
-                          <SelectItem value="BAY-05">BAY-05 (Trauma Acute)</SelectItem>
-                          <SelectItem value="BAY-09">BAY-09 (Observation)</SelectItem>
-                          <SelectItem value="BAY-12">BAY-12 (Isolation)</SelectItem>
+                          {erBays.map((b) => (
+                            <SelectItem
+                              key={b.id}
+                              value={b.id}
+                              disabled={b.status !== "available"}
+                            >
+                              {b.id} ({b.type}) — {b.status === "available" ? "AVAILABLE" : b.status.toUpperCase()}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
@@ -568,6 +582,17 @@ export default function EmergencyPage() {
                     if (bay.status === "available") {
                       setWalkinBay(bay.id);
                       setNewEmergencyOpen(true);
+                    } else if (bay.status === "occupied") {
+                      toast({
+                        title: `${bay.id} is Occupied`,
+                        description: `Occupied by ${bay.patient}. Select an available green bay for intake.`,
+                        variant: "destructive",
+                      });
+                    } else {
+                      toast({
+                        title: `${bay.id} Under Terminal Cleaning`,
+                        description: "Bay is currently undergoing sanitation. Cannot admit patient.",
+                      });
                     }
                   }}
                 >
