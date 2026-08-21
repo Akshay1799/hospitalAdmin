@@ -5,18 +5,24 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   Activity,
+  AlertTriangle,
   ArrowLeft,
   ArrowRight,
   Baby,
   Brain,
   Building2,
   Calendar,
+  CheckCircle2,
   ChevronRight,
   Clock,
+  Edit2,
   Eye,
+  FolderPlus,
   HeartPulse,
   Layers,
   MapPin,
+  MoreVertical,
+  Palette,
   Plus,
   Scissors,
   Search,
@@ -25,6 +31,8 @@ import {
   ShieldCheck,
   Sparkles,
   Stethoscope,
+  Tag,
+  Trash2,
   UserCheck,
   Users,
 } from "lucide-react";
@@ -42,8 +50,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -65,8 +81,31 @@ import { cn, getInitials } from "@/lib/utils";
 
 const DELEGATION_STRING = "Performed by Hospital Admin • acting within Department Management workflow";
 
-// Category icon helper
-function getCategoryIcon(iconName: DepartmentCategory["iconName"], className = "h-5 w-5") {
+// Theme presets for categories
+const THEME_OPTIONS = [
+  { id: "blue", label: "Blue / Indigo (Clinical & Medical)", themeColor: "text-blue-600 bg-blue-500/10 border-blue-500/20", gradient: "from-blue-600 to-indigo-600" },
+  { id: "rose", label: "Rose / Pink (Surgical Specialties)", themeColor: "text-rose-600 bg-rose-500/10 border-rose-500/20", gradient: "from-rose-600 to-pink-600" },
+  { id: "amber", label: "Amber / Orange (Maternal & Child)", themeColor: "text-amber-600 bg-amber-500/10 border-amber-500/20", gradient: "from-amber-600 to-orange-600" },
+  { id: "emerald", label: "Emerald / Teal (Head, Neck & Sensory)", themeColor: "text-emerald-600 bg-emerald-500/10 border-emerald-500/20", gradient: "from-emerald-600 to-teal-600" },
+  { id: "purple", label: "Purple / Violet (Mental Health & Rehab)", themeColor: "text-purple-600 bg-purple-500/10 border-purple-500/20", gradient: "from-purple-600 to-violet-600" },
+  { id: "cyan", label: "Cyan / Sky (Ancillary & Preventive)", themeColor: "text-cyan-600 bg-cyan-500/10 border-cyan-500/20", gradient: "from-cyan-600 to-sky-600" },
+  { id: "red", label: "Red / Crimson (Emergency & Critical Care)", themeColor: "text-red-600 bg-red-500/10 border-red-500/20", gradient: "from-red-600 to-rose-600" },
+  { id: "teal", label: "Teal / Emerald (Diagnostic & Imaging)", themeColor: "text-teal-600 bg-teal-500/10 border-teal-500/20", gradient: "from-teal-600 to-emerald-600" },
+];
+
+const ICON_OPTIONS = [
+  { id: "Stethoscope", label: "Stethoscope (Internal Medicine & Clinics)", icon: Stethoscope },
+  { id: "Scissors", label: "Scissors (Surgical & OT Specialties)", icon: Scissors },
+  { id: "Baby", label: "Baby (Women, OB-GYN & Pediatrics)", icon: Baby },
+  { id: "Eye", label: "Eye (Sensory, Ophthalmology & ENT)", icon: Eye },
+  { id: "Brain", label: "Brain (Mental Health & Neurology)", icon: Brain },
+  { id: "ShieldCheck", label: "ShieldCheck (Preventive & Wellness)", icon: ShieldCheck },
+  { id: "HeartPulse", label: "HeartPulse (Cardiology & Critical Care)", icon: HeartPulse },
+  { id: "Activity", label: "Activity (Emergency & Acute Care)", icon: Activity },
+  { id: "Building2", label: "Building (General Division)", icon: Building2 },
+];
+
+function getCategoryIcon(iconName: string, className = "h-5 w-5") {
   switch (iconName) {
     case "Stethoscope":
       return <Stethoscope className={className} />;
@@ -80,6 +119,10 @@ function getCategoryIcon(iconName: DepartmentCategory["iconName"], className = "
       return <Brain className={className} />;
     case "ShieldCheck":
       return <ShieldCheck className={className} />;
+    case "HeartPulse":
+      return <HeartPulse className={className} />;
+    case "Activity":
+      return <Activity className={className} />;
     default:
       return <Building2 className={className} />;
   }
@@ -88,33 +131,54 @@ function getCategoryIcon(iconName: DepartmentCategory["iconName"], className = "
 export default function DepartmentsPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const [categoriesList, setCategoriesList] = useState<DepartmentCategory[]>(DEPARTMENT_CATEGORIES);
   const [departmentsList, setDepartmentsList] = useState<DepartmentData[]>(detailedDepartments);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
-  // Modals
+  // Modals state
+  const [categoryModalOpen, setCategoryModalOpen] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<DepartmentCategory | null>(null);
+  const [deleteCatConfirmOpen, setDeleteCatConfirmOpen] = useState(false);
+  const [categoryToDelete, setCategoryToDelete] = useState<DepartmentCategory | null>(null);
+
+  const [deptModalOpen, setDeptModalOpen] = useState(false);
+  const [editingDept, setEditingDept] = useState<DepartmentData | null>(null);
+  const [deleteDeptConfirmOpen, setDeleteDeptConfirmOpen] = useState(false);
+  const [deptToDelete, setDeptToDelete] = useState<DepartmentData | null>(null);
+
   const [selectedScopeDept, setSelectedScopeDept] = useState<DepartmentData | null>(null);
   const [scopeModalOpen, setScopeModalOpen] = useState(false);
-  const [createModalOpen, setCreateModalOpen] = useState(false);
 
-  // Create Department Form State
-  const [newDeptName, setNewDeptName] = useState("");
-  const [newDeptCategory, setNewDeptCategory] = useState<string>("cat_medicine");
-  const [newDeptFloor, setNewDeptFloor] = useState("2nd Floor · Wing A");
-  const [newDeptHead, setNewDeptHead] = useState("Dr. Sunita Patel");
-  const [newDeptDescription, setNewDeptDescription] = useState("");
+  // Form State: Add/Edit Department Category
+  const [catName, setCatName] = useState("");
+  const [catShortName, setCatShortName] = useState("");
+  const [catDescription, setCatDescription] = useState("");
+  const [catIcon, setCatIcon] = useState<string>("Stethoscope");
+  const [catThemeId, setCatThemeId] = useState<string>("blue");
+  const [catKeySpecialties, setCatKeySpecialties] = useState("");
+
+  // Form State: Add/Edit Department (Sub-department)
+  const [deptName, setDeptName] = useState("");
+  const [deptCategory, setDeptCategory] = useState<string>("cat_medicine");
+  const [deptFloor, setDeptFloor] = useState("2nd Floor · Wing A");
+  const [deptHead, setDeptHead] = useState("Dr. Sunita Patel");
+  const [deptDescription, setDeptDescription] = useState("");
+  const [deptHours, setDeptHours] = useState("08:30 AM – 06:30 PM (Mon–Sat)");
+  const [deptBeds, setDeptBeds] = useState("12");
+  const [deptStatus, setDeptStatus] = useState<DepartmentData["status"]>("active");
 
   // Active Category Data
   const activeCategory = useMemo(() => {
     if (!selectedCategoryId) return null;
-    return DEPARTMENT_CATEGORIES.find((c) => c.id === selectedCategoryId) || null;
-  }, [selectedCategoryId]);
+    return categoriesList.find((c) => c.id === selectedCategoryId) || null;
+  }, [categoriesList, selectedCategoryId]);
 
   // Matching Categories for Level 1 Search
   const matchingCategories = useMemo(() => {
-    if (!search.trim()) return DEPARTMENT_CATEGORIES;
+    if (!search.trim()) return categoriesList;
     const q = search.toLowerCase();
-    return DEPARTMENT_CATEGORIES.filter((cat) => {
+    return categoriesList.filter((cat) => {
       const catMatches =
         cat.name.toLowerCase().includes(q) ||
         cat.description.toLowerCase().includes(q) ||
@@ -129,7 +193,7 @@ export default function DepartmentsPage() {
       );
       return catMatches || hasMatchingDepts;
     });
-  }, [departmentsList, search]);
+  }, [categoriesList, departmentsList, search]);
 
   // Global search results across all departments when searching on Level 1
   const globalMatchingDepartments = useMemo(() => {
@@ -164,52 +228,235 @@ export default function DepartmentsPage() {
     return list;
   }, [departmentsList, selectedCategoryId, search]);
 
-  const handleCreateDepartment = (e: React.FormEvent) => {
+  // -------------------------------------------------------------
+  // OPEN MODAL HANDLERS FOR CATEGORY
+  // -------------------------------------------------------------
+  const handleOpenAddCategory = () => {
+    setEditingCategory(null);
+    setCatName("");
+    setCatShortName("");
+    setCatDescription("");
+    setCatIcon("Stethoscope");
+    setCatThemeId("blue");
+    setCatKeySpecialties("");
+    setCategoryModalOpen(true);
+  };
+
+  const handleOpenEditCategory = (cat: DepartmentCategory, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setEditingCategory(cat);
+    setCatName(cat.name);
+    setCatShortName(cat.shortName);
+    setCatDescription(cat.description);
+    setCatIcon(cat.iconName);
+    const matchedTheme = THEME_OPTIONS.find((t) => t.themeColor === cat.themeColor) || THEME_OPTIONS[0];
+    setCatThemeId(matchedTheme.id);
+    setCatKeySpecialties(cat.keySpecialties ? cat.keySpecialties.join(", ") : "");
+    setCategoryModalOpen(true);
+  };
+
+  const handleSaveCategorySubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newDeptName.trim()) {
+    if (!catName.trim()) {
+      toast({ title: "Validation Error", description: "Category full name is required.", variant: "destructive" });
+      return;
+    }
+    if (!catDescription.trim()) {
+      toast({ title: "Validation Error", description: "Clinical overview description is required.", variant: "destructive" });
+      return;
+    }
+
+    const selectedTheme = THEME_OPTIONS.find((t) => t.id === catThemeId) || THEME_OPTIONS[0];
+    const keySpecsList = catKeySpecialties
+      .split(",")
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+
+    if (editingCategory) {
+      // Edit existing category
+      setCategoriesList((prev) =>
+        prev.map((c) =>
+          c.id === editingCategory.id
+            ? {
+                ...c,
+                name: catName.trim(),
+                shortName: catShortName.trim() || catName.trim().split(" ")[0],
+                description: catDescription.trim(),
+                iconName: catIcon,
+                themeColor: selectedTheme.themeColor,
+                gradient: selectedTheme.gradient,
+                keySpecialties: keySpecsList.length > 0 ? keySpecsList : undefined,
+              }
+            : c
+        )
+      );
+      // Update category names on existing sub-departments
+      setDepartmentsList((prev) =>
+        prev.map((d) =>
+          d.categoryId === editingCategory.id
+            ? { ...d, categoryName: catName.trim(), type: catShortName.trim() || catName.trim().split(" ")[0] }
+            : d
+        )
+      );
+      toast({
+        title: "Category Updated",
+        description: `Category "${catName.trim()}" has been updated successfully.`,
+      });
+    } else {
+      // Add new category
+      const newCategory: DepartmentCategory = {
+        id: `cat_custom_${Date.now()}`,
+        name: catName.trim(),
+        shortName: catShortName.trim() || catName.trim().split(" ")[0],
+        description: catDescription.trim(),
+        iconName: catIcon,
+        themeColor: selectedTheme.themeColor,
+        gradient: selectedTheme.gradient,
+        departmentCount: 0,
+        departments: [],
+        keySpecialties: keySpecsList.length > 0 ? keySpecsList : undefined,
+      };
+      setCategoriesList((prev) => [...prev, newCategory]);
+      toast({
+        title: "Department Category Created",
+        description: `Category "${newCategory.name}" has been registered successfully.`,
+      });
+    }
+
+    setCategoryModalOpen(false);
+  };
+
+  const handleDeleteCategoryConfirm = () => {
+    if (!categoryToDelete) return;
+    const catId = categoryToDelete.id;
+    setCategoriesList((prev) => prev.filter((c) => c.id !== catId));
+    setDepartmentsList((prev) => prev.filter((d) => d.categoryId !== catId));
+    if (selectedCategoryId === catId) {
+      setSelectedCategoryId(null);
+    }
+    setDeleteCatConfirmOpen(false);
+    toast({
+      title: "Category Removed",
+      description: `Category "${categoryToDelete.name}" and its sub-departments have been removed.`,
+    });
+  };
+
+  // -------------------------------------------------------------
+  // OPEN MODAL HANDLERS FOR DEPARTMENT
+  // -------------------------------------------------------------
+  const handleOpenAddDepartment = () => {
+    setEditingDept(null);
+    setDeptName("");
+    setDeptCategory(selectedCategoryId || categoriesList[0]?.id || "cat_medicine");
+    setDeptFloor("2nd Floor · Wing A");
+    setDeptHead("Dr. Sunita Patel");
+    setDeptDescription("");
+    setDeptHours("08:30 AM – 06:30 PM (Mon–Sat)");
+    setDeptBeds("12");
+    setDeptStatus("active");
+    setDeptModalOpen(true);
+  };
+
+  const handleOpenEditDepartment = (dept: DepartmentData, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setEditingDept(dept);
+    setDeptName(dept.name);
+    setDeptCategory(dept.categoryId || "cat_medicine");
+    setDeptFloor(dept.floor);
+    setDeptHead(dept.headName);
+    setDeptDescription(dept.description || "");
+    setDeptHours(dept.operatingHours);
+    setDeptBeds(String(dept.bedCapacity || 12));
+    setDeptStatus(dept.status);
+    setDeptModalOpen(true);
+  };
+
+  const handleSaveDepartmentSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!deptName.trim()) {
       toast({ title: "Validation Error", description: "Department name is required.", variant: "destructive" });
       return;
     }
 
-    const cat = DEPARTMENT_CATEGORIES.find((c) => c.id === newDeptCategory) || DEPARTMENT_CATEGORIES[0];
-    const newDept: DepartmentData = {
-      id: `dep_custom_${Date.now()}`,
-      name: newDeptName.trim(),
-      type: cat.shortName,
-      categoryId: cat.id,
-      categoryName: cat.name,
-      description: newDeptDescription.trim() || `Specialized clinical outpatient services under ${cat.name}.`,
-      location: "Qlyno Multispecialty Hospital - Main Campus",
-      floor: newDeptFloor,
-      headName: newDeptHead,
-      headTitle: `Head of ${newDeptName.trim()}`,
-      activePatients: 0,
-      bedCapacity: 10,
-      occupiedBeds: 0,
-      status: "active",
-      operatingHours: "08:30 AM – 06:30 PM (Mon–Sat)",
-      shiftModel: "General OPD Shifts",
-      nurseStations: [`Station ${newDeptName.slice(0, 4).toUpperCase()}-1`],
-      scope: {
-        clinicalProcedures: ["Specialist Clinical Consultations", "Diagnostic Evaluations", "Outpatient Follow-ups"],
-        bedAllocationRights: "Day-care consultation and observation rooms",
-        equipmentReady: ["Vital Sign Monitors", "Diagnostic Console", "Mobile Emergency Cart"],
-        supervisionLevel: "Attending Consultant Level",
-        delegationLimits: "Hospital Admin coordinates token queues, nurse assignment, and scheduling.",
-      },
-      activePatientsList: [],
-      activeDoctorsList: [{ id: `doc_${Date.now()}`, name: newDeptHead, specialty: newDeptName.trim(), qualification: "MBBS, MD", experience: "10 yrs", availability: "Consulting", rating: 4.8 }],
-      activeNursesList: [{ id: `nur_${Date.now()}`, name: "Staff Nurse Lead", station: "Station 1", role: "Specialty Nurse", shift: "Morning", status: "On-Duty" }],
-      supportStaffList: [{ id: `sup_${Date.now()}`, name: "Clinic Coordinator", role: "Assistant", taskScope: "General support", shift: "Morning", status: "Active" }],
-    };
+    const targetCatId = deptCategory || selectedCategoryId || categoriesList[0].id;
+    const cat = categoriesList.find((c) => c.id === targetCatId) || categoriesList[0];
 
-    setDepartmentsList((prev) => [newDept, ...prev]);
-    setCreateModalOpen(false);
-    setNewDeptName("");
-    setNewDeptDescription("");
+    if (editingDept) {
+      // Edit existing department
+      setDepartmentsList((prev) =>
+        prev.map((d) =>
+          d.id === editingDept.id
+            ? {
+                ...d,
+                name: deptName.trim(),
+                type: cat.shortName,
+                categoryId: cat.id,
+                categoryName: cat.name,
+                description: deptDescription.trim(),
+                floor: deptFloor,
+                headName: deptHead,
+                headTitle: `Head of ${deptName.trim()}`,
+                bedCapacity: Number(deptBeds) || 12,
+                operatingHours: deptHours,
+                status: deptStatus,
+              }
+            : d
+        )
+      );
+      toast({
+        title: "Department Updated",
+        description: `Department "${deptName.trim()}" has been updated.`,
+      });
+    } else {
+      // Add new department
+      const newDept: DepartmentData = {
+        id: `dep_custom_${Date.now()}`,
+        name: deptName.trim(),
+        type: cat.shortName,
+        categoryId: cat.id,
+        categoryName: cat.name,
+        description: deptDescription.trim() || `Specialized clinical outpatient services under ${cat.name}.`,
+        location: "Qlyno Multispecialty Hospital - Main Campus",
+        floor: deptFloor,
+        headName: deptHead,
+        headTitle: `Head of ${deptName.trim()}`,
+        activePatients: 0,
+        bedCapacity: Number(deptBeds) || 12,
+        occupiedBeds: 0,
+        status: deptStatus,
+        operatingHours: deptHours,
+        shiftModel: "General OPD Shifts",
+        nurseStations: [`Station ${deptName.slice(0, 4).toUpperCase()}-1`],
+        scope: {
+          clinicalProcedures: ["Specialist Clinical Consultations", "Diagnostic Evaluations", "Outpatient Follow-ups"],
+          bedAllocationRights: "Day-care consultation and observation rooms",
+          equipmentReady: ["Vital Sign Monitors", "Diagnostic Console", "Mobile Emergency Cart"],
+          supervisionLevel: "Attending Consultant Level",
+          delegationLimits: "Hospital Admin coordinates token queues, nurse assignment, and scheduling.",
+        },
+        activePatientsList: [],
+        activeDoctorsList: [{ id: `doc_${Date.now()}`, name: deptHead, specialty: deptName.trim(), qualification: "MBBS, MD", experience: "10 yrs", availability: "Consulting", rating: 4.8 }],
+        activeNursesList: [{ id: `nur_${Date.now()}`, name: "Staff Nurse Lead", station: "Station 1", role: "Specialty Nurse", shift: "Morning", status: "On-Duty" }],
+        supportStaffList: [{ id: `sup_${Date.now()}`, name: "Clinic Coordinator", role: "Assistant", taskScope: "General support", shift: "Morning", status: "Active" }],
+      };
+
+      setDepartmentsList((prev) => [newDept, ...prev]);
+      toast({
+        title: "Department Created Successfully",
+        description: `${newDept.name} added under ${cat.name}.`,
+      });
+    }
+
+    setDeptModalOpen(false);
+  };
+
+  const handleDeleteDeptConfirm = () => {
+    if (!deptToDelete) return;
+    setDepartmentsList((prev) => prev.filter((d) => d.id !== deptToDelete.id));
+    setDeleteDeptConfirmOpen(false);
     toast({
-      title: "Department Created Successfully",
-      description: `${newDept.name} added under ${cat.name}.`,
+      title: "Department Removed",
+      description: `Department "${deptToDelete.name}" has been deleted.`,
     });
   };
 
@@ -221,7 +468,7 @@ export default function DepartmentsPage() {
 
   return (
     <div className="space-y-4 animate-fade-in pb-12">
-      {/* Level 1 / Level 2 Page Header with dynamic breadcrumbs */}
+      {/* Level 1 / Level 2 Page Header with dynamic breadcrumbs & Actions */}
       <PageHeader
         title={
           selectedCategoryId && activeCategory
@@ -244,90 +491,46 @@ export default function DepartmentsPage() {
         }
         actions={
           <div className="flex items-center gap-2">
-            {selectedCategoryId && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1.5 text-xs font-semibold"
-                onClick={() => {
-                  setSelectedCategoryId(null);
-                  setSearch("");
-                }}
-              >
-                <ArrowLeft className="h-4 w-4" /> All Categories
-              </Button>
-            )}
-            <Dialog open={createModalOpen} onOpenChange={setCreateModalOpen}>
-              <DialogTrigger asChild>
-                <Button size="sm" className="gap-1.5 font-semibold">
+            {selectedCategoryId ? (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 text-xs font-semibold"
+                  onClick={() => {
+                    setSelectedCategoryId(null);
+                    setSearch("");
+                  }}
+                >
+                  <ArrowLeft className="h-4 w-4" /> All Categories
+                </Button>
+                <Button
+                  size="sm"
+                  className="gap-1.5 font-semibold"
+                  onClick={handleOpenAddDepartment}
+                >
                   <Plus className="h-4 w-4" /> Add Department
                 </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[500px]">
-                <DialogHeader>
-                  <DialogTitle>Add Clinical Department</DialogTitle>
-                  <DialogDescription>
-                    Configure a new clinical department and assign to a clinical category.
-                  </DialogDescription>
-                </DialogHeader>
-                <form onSubmit={handleCreateDepartment} className="space-y-3.5 py-2">
-                  <div className="space-y-1.5">
-                    <Label>Department Name</Label>
-                    <Input
-                      placeholder="e.g. Pediatric Cardiology"
-                      value={newDeptName}
-                      onChange={(e) => setNewDeptName(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Clinical Category</Label>
-                    <Select value={newDeptCategory} onValueChange={setNewDeptCategory}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select Category" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {DEPARTMENT_CATEGORIES.map((c) => (
-                          <SelectItem key={c.id} value={c.id}>
-                            {c.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Clinical Function / Description</Label>
-                    <Input
-                      placeholder="e.g. Consultations for congenital and pediatric heart defects"
-                      value={newDeptDescription}
-                      onChange={(e) => setNewDeptDescription(e.target.value)}
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
-                      <Label>Floor / Location</Label>
-                      <Input
-                        value={newDeptFloor}
-                        onChange={(e) => setNewDeptFloor(e.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label>Head of Department</Label>
-                      <Input
-                        value={newDeptHead}
-                        onChange={(e) => setNewDeptHead(e.target.value)}
-                      />
-                    </div>
-                  </div>
-                  <DialogFooter className="pt-2">
-                    <Button type="button" variant="outline" onClick={() => setCreateModalOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button type="submit">Create Department</Button>
-                  </DialogFooter>
-                </form>
-              </DialogContent>
-            </Dialog>
+              </>
+            ) : (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 text-xs font-semibold"
+                  onClick={handleOpenAddCategory}
+                >
+                  <FolderPlus className="h-4 w-4 text-primary" /> Add Category
+                </Button>
+                <Button
+                  size="sm"
+                  className="gap-1.5 font-semibold"
+                  onClick={handleOpenAddDepartment}
+                >
+                  <Plus className="h-4 w-4" /> Add Department
+                </Button>
+              </>
+            )}
           </div>
         }
       />
@@ -336,7 +539,7 @@ export default function DepartmentsPage() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <Card className="p-3.5 border-border bg-card shadow-xs">
           <span className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider">Categories</span>
-          <p className="text-xl font-bold font-mono text-primary mt-0.5">{DEPARTMENT_CATEGORIES.length} Divisions</p>
+          <p className="text-xl font-bold font-mono text-primary mt-0.5">{categoriesList.length} Divisions</p>
           <span className="text-[10px] text-muted-foreground">Standard OPD Structure</span>
         </Card>
         <Card className="p-3.5 border-border bg-card shadow-xs">
@@ -460,6 +663,11 @@ export default function DepartmentsPage() {
                 : catDepts.length;
               const totalPatients = catDepts.reduce((acc, d) => acc + d.activePatients, 0);
 
+              // Sub-specialties pills preview
+              const keySpecialtiesList =
+                category.keySpecialties ||
+                catDepts.map((d) => d.name.split("/")[0].trim());
+
               return (
                 <Card
                   key={category.id}
@@ -474,9 +682,34 @@ export default function DepartmentsPage() {
                       <div className={cn("p-2.5 rounded-xl border flex items-center justify-center shadow-xs", category.themeColor)}>
                         {getCategoryIcon(category.iconName, "h-6 w-6")}
                       </div>
-                      <Badge variant="secondary" className="font-mono text-xs font-bold px-2 py-0.5">
-                        {search.trim() ? `${matchingInCat} matching` : `${catDepts.length} Departments`}
-                      </Badge>
+                      <div className="flex items-center gap-1.5">
+                        <Badge variant="secondary" className="font-mono text-xs font-bold px-2 py-0.5">
+                          {search.trim() ? `${matchingInCat} matching` : `${catDepts.length} Departments`}
+                        </Badge>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="text-xs">
+                            <DropdownMenuItem onClick={(e) => handleOpenEditCategory(category, e)}>
+                              <Edit2 className="h-3.5 w-3.5 mr-2 text-primary" /> Edit Category
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              className="text-destructive focus:text-destructive"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setCategoryToDelete(category);
+                                setDeleteCatConfirmOpen(true);
+                              }}
+                            >
+                              <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete Category
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
                     </div>
                     <CardTitle className="text-base font-bold text-foreground group-hover:text-primary transition-colors mt-3">
                       {category.name}
@@ -493,18 +726,21 @@ export default function DepartmentsPage() {
                         Key Specialties:
                       </span>
                       <div className="flex flex-wrap gap-1">
-                        {catDepts.slice(0, 4).map((d) => (
+                        {keySpecialtiesList.slice(0, 4).map((spec, i) => (
                           <span
-                            key={d.id}
+                            key={i}
                             className="text-[11px] px-2 py-0.5 rounded-md bg-muted/60 text-muted-foreground font-medium truncate max-w-[140px]"
                           >
-                            {d.name.split("/")[0].trim()}
+                            {spec}
                           </span>
                         ))}
-                        {catDepts.length > 4 && (
+                        {keySpecialtiesList.length > 4 && (
                           <span className="text-[11px] px-2 py-0.5 rounded-md bg-primary/10 text-primary font-bold">
-                            +{catDepts.length - 4} more
+                            +{keySpecialtiesList.length - 4} more
                           </span>
+                        )}
+                        {keySpecialtiesList.length === 0 && (
+                          <span className="text-[11px] text-muted-foreground italic">No sub-departments yet</span>
                         )}
                       </div>
                     </div>
@@ -554,7 +790,7 @@ export default function DepartmentsPage() {
               <Building2 className="h-3.5 w-3.5 mr-1.5" /> All Categories
             </Button>
             <div className="h-4 w-px bg-border shrink-0" />
-            {DEPARTMENT_CATEGORIES.map((cat) => (
+            {categoriesList.map((cat) => (
               <button
                 key={cat.id}
                 type="button"
@@ -607,7 +843,7 @@ export default function DepartmentsPage() {
               </div>
 
               {/* Search Bar within Category */}
-              <div className="relative w-full sm:w-64">
+              <div className="relative w-full sm:w-72">
                 <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
                 <Input
                   placeholder={`Search in ${activeCategory.shortName}...`}
@@ -615,6 +851,15 @@ export default function DepartmentsPage() {
                   onChange={(e) => setSearch(e.target.value)}
                   className="pl-8 h-8 text-xs bg-background"
                 />
+                {search && (
+                  <button
+                    type="button"
+                    onClick={() => setSearch("")}
+                    className="absolute right-2.5 top-2 text-[10px] text-muted-foreground hover:text-foreground"
+                  >
+                    Clear
+                  </button>
+                )}
               </div>
             </CardHeader>
           </Card>
@@ -637,9 +882,34 @@ export default function DepartmentsPage() {
                         <MapPin className="h-3 w-3 text-primary" /> {dept.floor}
                       </span>
                     </div>
-                    <Badge variant="outline" className="text-[10px] font-semibold shrink-0">
-                      {dept.type}
-                    </Badge>
+                    <div className="flex items-center gap-1">
+                      <Badge variant="outline" className="text-[10px] font-semibold shrink-0">
+                        {dept.type}
+                      </Badge>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                          <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-foreground">
+                            <MoreVertical className="h-3.5 w-3.5" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="text-xs">
+                          <DropdownMenuItem onClick={(e) => handleOpenEditDepartment(dept, e)}>
+                            <Edit2 className="h-3.5 w-3.5 mr-2 text-primary" /> Edit Department
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeptToDelete(dept);
+                              setDeleteDeptConfirmOpen(true);
+                            }}
+                          >
+                            <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete Department
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </div>
                 </CardHeader>
 
@@ -721,6 +991,295 @@ export default function DepartmentsPage() {
           )}
         </div>
       )}
+
+      {/* ========================================================================= */}
+      {/* MODAL: ADD / EDIT DEPARTMENT CATEGORY                                     */}
+      {/* ========================================================================= */}
+      <Dialog open={categoryModalOpen} onOpenChange={setCategoryModalOpen}>
+        <DialogContent className="sm:max-w-[540px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FolderPlus className="h-5 w-5 text-primary" />
+              {editingCategory ? "Edit Department Category" : "Add Department Category"}
+            </DialogTitle>
+            <DialogDescription>
+              {editingCategory
+                ? "Update clinical category details, icon branding, and specialty overview."
+                : "Create a major hospital clinical division to group specialized outpatient clinics."}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSaveCategorySubmit} className="space-y-4 py-2">
+            {/* Category Full Name */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Category Full Name *</Label>
+              <Input
+                placeholder="e.g. Critical Care & Emergency Specialties"
+                value={catName}
+                onChange={(e) => setCatName(e.target.value)}
+                required
+              />
+            </div>
+
+            {/* Short Name & Icon Selection */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">Short Name / Pill Badge *</Label>
+                <Input
+                  placeholder="e.g. Critical Care"
+                  value={catShortName}
+                  onChange={(e) => setCatShortName(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">Category Icon</Label>
+                <Select value={catIcon} onValueChange={setCatIcon}>
+                  <SelectTrigger className="h-9 text-xs">
+                    <SelectValue placeholder="Select Icon" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ICON_OPTIONS.map((opt) => {
+                      const IconCmp = opt.icon;
+                      return (
+                        <SelectItem key={opt.id} value={opt.id} className="text-xs">
+                          <div className="flex items-center gap-2">
+                            <IconCmp className="h-3.5 w-3.5 text-primary" />
+                            <span>{opt.label}</span>
+                          </div>
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Color Accent & Theme Gradient */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Color Theme &amp; Gradient Accent</Label>
+              <Select value={catThemeId} onValueChange={setCatThemeId}>
+                <SelectTrigger className="h-9 text-xs">
+                  <SelectValue placeholder="Select Color Theme" />
+                </SelectTrigger>
+                <SelectContent>
+                  {THEME_OPTIONS.map((t) => (
+                    <SelectItem key={t.id} value={t.id} className="text-xs">
+                      <div className="flex items-center gap-2">
+                        <div className={cn("h-3 w-6 rounded border", t.themeColor)} />
+                        <span>{t.label}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Clinical Overview Description */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Clinical Description &amp; Scope Overview *</Label>
+              <Textarea
+                placeholder="e.g. Comprehensive intensive care units, trauma resuscitation, high-dependency recovery and acute medical stabilization..."
+                value={catDescription}
+                onChange={(e) => setCatDescription(e.target.value)}
+                rows={3}
+                className="text-xs leading-relaxed"
+                required
+              />
+            </div>
+
+            {/* Key Specialties Preview */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">
+                Key Specialties / Sub-specialties (Comma Separated)
+              </Label>
+              <Input
+                placeholder="e.g. Medical ICU, Surgical ICU, Acute Resuscitation, Trauma Bay"
+                value={catKeySpecialties}
+                onChange={(e) => setCatKeySpecialties(e.target.value)}
+              />
+              <p className="text-[11px] text-muted-foreground">
+                These tags will appear directly on the Category Card as key specialties preview.
+              </p>
+            </div>
+
+            <DialogFooter className="pt-2">
+              <Button type="button" variant="outline" onClick={() => setCategoryModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit">
+                {editingCategory ? "Save Changes" : "Create Category Card"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ========================================================================= */}
+      {/* MODAL: DELETE CATEGORY CONFIRMATION                                       */}
+      {/* ========================================================================= */}
+      <Dialog open={deleteCatConfirmOpen} onOpenChange={setDeleteCatConfirmOpen}>
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-5 w-5" /> Remove Category Division
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete category <strong>{categoryToDelete?.name}</strong>? All associated sub-departments will also be removed.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="pt-2">
+            <Button variant="outline" onClick={() => setDeleteCatConfirmOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteCategoryConfirm}>
+              Yes, Delete Category
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ========================================================================= */}
+      {/* MODAL: ADD / EDIT CLINICAL DEPARTMENT (Sub-department)                    */}
+      {/* ========================================================================= */}
+      <Dialog open={deptModalOpen} onOpenChange={setDeptModalOpen}>
+        <DialogContent className="sm:max-w-[540px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Plus className="h-5 w-5 text-primary" />
+              {editingDept ? "Edit Clinical Department" : "Add Clinical Department"}
+            </DialogTitle>
+            <DialogDescription>
+              {editingDept
+                ? "Update outpatient department details, HOD, and location parameters."
+                : "Register a new outpatient clinical department under a parent category."}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSaveDepartmentSubmit} className="space-y-3.5 py-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Department Name *</Label>
+              <Input
+                placeholder="e.g. Pediatric Cardiology"
+                value={deptName}
+                onChange={(e) => setDeptName(e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Parent Clinical Category *</Label>
+              <Select
+                value={deptCategory}
+                onValueChange={setDeptCategory}
+              >
+                <SelectTrigger className="h-9 text-xs">
+                  <SelectValue placeholder="Select Category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categoriesList.map((c) => (
+                    <SelectItem key={c.id} value={c.id} className="text-xs">
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Clinical Function &amp; OPD Role *</Label>
+              <Input
+                placeholder="e.g. Consultations for congenital and pediatric heart defects, routine pediatric echo follow-ups"
+                value={deptDescription}
+                onChange={(e) => setDeptDescription(e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">Floor / Location</Label>
+                <Input
+                  value={deptFloor}
+                  onChange={(e) => setDeptFloor(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">Head of Department / Lead</Label>
+                <Input
+                  value={deptHead}
+                  onChange={(e) => setDeptHead(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">Operating Hours</Label>
+                <Input
+                  value={deptHours}
+                  onChange={(e) => setDeptHours(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">Bed / Rooms</Label>
+                <Input
+                  type="number"
+                  value={deptBeds}
+                  onChange={(e) => setDeptBeds(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">Operational Status</Label>
+                <Select
+                  value={deptStatus}
+                  onValueChange={(val: any) => setDeptStatus(val)}
+                >
+                  <SelectTrigger className="h-9 text-xs">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="warning">Warning</SelectItem>
+                    <SelectItem value="critical">Critical</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <DialogFooter className="pt-2">
+              <Button type="button" variant="outline" onClick={() => setDeptModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit">
+                {editingDept ? "Save Department" : "Add Department"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ========================================================================= */}
+      {/* MODAL: DELETE DEPARTMENT CONFIRMATION                                     */}
+      {/* ========================================================================= */}
+      <Dialog open={deleteDeptConfirmOpen} onOpenChange={setDeleteDeptConfirmOpen}>
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-5 w-5" /> Remove Clinical Department
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete department <strong>{deptToDelete?.name}</strong>? Active patient and doctor allocations will be unassigned.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="pt-2">
+            <Button variant="outline" onClick={() => setDeleteDeptConfirmOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteDeptConfirm}>
+              Yes, Delete Department
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ========================================================================= */}
       {/* MODAL: CLINICAL SCOPE & DELEGATION LIMITS                                 */}

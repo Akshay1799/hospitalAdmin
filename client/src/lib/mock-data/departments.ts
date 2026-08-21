@@ -67,11 +67,12 @@ export interface DepartmentCategory {
   name: string;
   shortName: string;
   description: string;
-  iconName: "Stethoscope" | "Scissors" | "Baby" | "Eye" | "Brain" | "ShieldCheck";
+  iconName: "Stethoscope" | "Scissors" | "Baby" | "Eye" | "Brain" | "ShieldCheck" | "HeartPulse" | "Building2" | "Activity" | string;
   themeColor: string;
   gradient: string;
   departmentCount: number;
   departments: DepartmentData[];
+  keySpecialties?: string[];
 }
 
 export const detailedDepartments: DepartmentData[] = [
