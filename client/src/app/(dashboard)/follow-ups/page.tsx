@@ -211,14 +211,46 @@ export default function FollowUpsPage() {
   const handleLogResponseSubmit = () => {
     if (!selectedFollowup) return;
 
+    if (responseOutcome === "Requested Reschedule" && !rescheduleDate) {
+      toast({
+        title: "Reschedule Date Required",
+        description: "Please select a valid new follow-up date via the date picker.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setFollowups((prev) =>
       prev.map((item) => {
         if (item.id === selectedFollowup.id) {
-          return {
-            ...item,
-            lastResponse: `${responseOutcome} (${responseNotes || "Logged by Reception"})`,
-            responseStatus: responseOutcome.includes("Confirmed") ? "Confirmed" : "Rescheduled",
-          };
+          if (responseOutcome === "Requested Reschedule") {
+            return {
+              ...item,
+              dueDate: rescheduleDate,
+              type: "Upcoming",
+              lastResponse: `Rescheduled to ${rescheduleDate} (${responseNotes || "Patient request"})`,
+              responseStatus: "Rescheduled",
+            };
+          } else if (responseOutcome === "Confirmed Attendance") {
+            return {
+              ...item,
+              lastResponse: `Confirmed Attendance (${responseNotes || "Logged by desk"})`,
+              responseStatus: "Confirmed",
+            };
+          } else if (responseOutcome.includes("Unreachable")) {
+            return {
+              ...item,
+              retryCount: (item.retryCount || 0) + 1,
+              lastResponse: `Unreachable (${responseNotes || `Attempt #${(item.retryCount || 0) + 1}`})`,
+              responseStatus: "Unreachable",
+            };
+          } else {
+            return {
+              ...item,
+              lastResponse: `Refused (${responseNotes || "Patient declined review"})`,
+              responseStatus: "Refused",
+            };
+          }
         }
         return item;
       })
@@ -226,8 +258,8 @@ export default function FollowUpsPage() {
 
     setResponseModalOpen(false);
     toast({
-      title: "Patient Communication Logged",
-      description: `Response recorded for ${selectedFollowup.patientName}: ${responseOutcome}.`,
+      title: "Patient Outreach Recorded",
+      description: `Response successfully logged for ${selectedFollowup.patientName}: ${responseOutcome}.`,
     });
   };
 
