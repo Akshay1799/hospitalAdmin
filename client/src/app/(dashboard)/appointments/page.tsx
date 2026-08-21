@@ -98,16 +98,27 @@ export default function AppointmentsPage() {
   const [newType, setNewType] = useState<"In-person" | "Video" | "Follow-up">("In-person");
   const [newReason, setNewReason] = useState("");
 
+  const docMap = useMemo(() => new Map(doctors.map((d) => [d.id, d])), []);
+
   // Filtered Appointments
-  const filteredAppointments = appointmentsList.filter((a) => {
-    const matchesSearch =
-      a.patientName.toLowerCase().includes(search.toLowerCase()) ||
-      a.doctorName.toLowerCase().includes(search.toLowerCase()) ||
-      a.reason.toLowerCase().includes(search.toLowerCase());
-    const matchesDoctor = selectedDoctor === "all" || a.doctorId === selectedDoctor;
-    const matchesStatus = selectedStatus === "all" || a.status === selectedStatus;
-    return matchesSearch && matchesDoctor && matchesStatus;
-  });
+  const filteredAppointments = useMemo(() => {
+    return appointmentsList.filter((a) => {
+      const doc = docMap.get(a.doctorId);
+      const docDept = doc?.department || "";
+      const docSpecialty = doc?.specialty || "";
+      const matchesSearch =
+        a.patientName.toLowerCase().includes(search.toLowerCase()) ||
+        a.doctorName.toLowerCase().includes(search.toLowerCase()) ||
+        a.reason.toLowerCase().includes(search.toLowerCase());
+      const matchesDoctor = selectedDoctor === "all" || a.doctorId === selectedDoctor;
+      const matchesStatus = selectedStatus === "all" || a.status === selectedStatus;
+      const matchesDepartment =
+        selectedDepartment === "All Departments" ||
+        docDept.toLowerCase() === selectedDepartment.toLowerCase() ||
+        docSpecialty.toLowerCase() === selectedDepartment.toLowerCase();
+      return matchesSearch && matchesDoctor && matchesStatus && matchesDepartment;
+    });
+  }, [appointmentsList, search, selectedDoctor, selectedStatus, selectedDepartment, docMap]);
 
   const handleBookAppointment = (e: React.FormEvent) => {
     e.preventDefault();
@@ -397,21 +408,49 @@ export default function AppointmentsPage() {
         {/* Department Tabs Bar */}
         <div className="mt-3 pt-3 border-t border-border/60 flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
           <span className="text-muted-foreground font-semibold text-[11px] mr-1 uppercase">Department:</span>
-          {DEPARTMENTS.map((dept) => (
-            <button
-              key={dept}
-              type="button"
-              onClick={() => setSelectedDepartment(dept)}
-              className={cn(
-                "px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-colors",
-                selectedDepartment === dept
-                  ? "bg-primary text-primary-foreground font-semibold"
-                  : "bg-muted/40 text-muted-foreground hover:bg-muted"
-              )}
-            >
-              {dept}
-            </button>
-          ))}
+          {DEPARTMENTS.map((dept) => {
+            const count =
+              dept === "All Departments"
+                ? appointmentsList.length
+                : appointmentsList.filter((a) => {
+                    const doc = docMap.get(a.doctorId);
+                    return (
+                      doc?.department?.toLowerCase() === dept.toLowerCase() ||
+                      doc?.specialty?.toLowerCase() === dept.toLowerCase()
+                    );
+                  }).length;
+
+            return (
+              <button
+                key={dept}
+                type="button"
+                onClick={() => {
+                  setSelectedDepartment(dept);
+                  if (selectedDoctor !== "all") {
+                    setSelectedDoctor("all");
+                  }
+                }}
+                className={cn(
+                  "px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-colors flex items-center gap-1.5",
+                  selectedDepartment === dept
+                    ? "bg-primary text-primary-foreground font-semibold"
+                    : "bg-muted/40 text-muted-foreground hover:bg-muted"
+                )}
+              >
+                <span>{dept}</span>
+                <span
+                  className={cn(
+                    "text-[10px] px-1.5 py-0.2 rounded-full",
+                    selectedDepartment === dept
+                      ? "bg-primary-foreground/20 text-primary-foreground font-mono font-bold"
+                      : "bg-muted text-muted-foreground"
+                  )}
+                >
+                  {count}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </Card>
 
@@ -641,15 +680,47 @@ export default function AppointmentsPage() {
       {/* VIEW 2: DOCTOR-WISE SIDE-BY-SIDE SCHEDULE VIEW                            */}
       {/* ========================================================================= */}
       {viewMode === "doctor-wise" && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="space-y-4">
           {doctors
             .filter((d) => selectedDoctor === "all" || d.id === selectedDoctor)
-            .map((doc) => {
-              const docAppointments = filteredAppointments.filter((a) => a.doctorId === doc.id);
+            .filter(
+              (d) =>
+                selectedDepartment === "All Departments" ||
+                d.department.toLowerCase() === selectedDepartment.toLowerCase() ||
+                d.specialty.toLowerCase() === selectedDepartment.toLowerCase()
+            ).length === 0 ? (
+            <Card className="p-8 text-center border-dashed bg-muted/20">
+              <p className="text-sm font-semibold text-foreground">
+                No doctors registered under {selectedDepartment}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Switch to &quot;All Departments&quot; to view all doctor schedules.
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-3 text-xs"
+                onClick={() => setSelectedDepartment("All Departments")}
+              >
+                Reset Department Filter
+              </Button>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {doctors
+                .filter((d) => selectedDoctor === "all" || d.id === selectedDoctor)
+                .filter(
+                  (d) =>
+                    selectedDepartment === "All Departments" ||
+                    d.department.toLowerCase() === selectedDepartment.toLowerCase() ||
+                    d.specialty.toLowerCase() === selectedDepartment.toLowerCase()
+                )
+                .map((doc) => {
+                  const docAppointments = filteredAppointments.filter((a) => a.doctorId === doc.id);
 
-              return (
-                <Card key={doc.id} className="border-border bg-card shadow-sm flex flex-col justify-between">
-                  <CardHeader className="p-4 pb-3 border-b border-border">
+                  return (
+                    <Card key={doc.id} className="border-border bg-card shadow-sm flex flex-col justify-between">
+                      <CardHeader className="p-4 pb-3 border-b border-border">
                     <div className="flex items-center gap-3">
                       <Avatar className="h-9 w-9">
                         <AvatarFallback>{getInitials(doc.name)}</AvatarFallback>
@@ -699,6 +770,8 @@ export default function AppointmentsPage() {
                 </Card>
               );
             })}
+            </div>
+          )}
         </div>
       )}
 
@@ -771,10 +844,13 @@ export default function AppointmentsPage() {
                       <Button
                         size="sm"
                         variant={a.status === "in-consultation" ? "default" : "outline"}
+                        disabled={a.status === "completed"}
                         className={cn(
                           "h-7 text-xs font-semibold",
                           a.status === "in-consultation"
                             ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                            : a.status === "completed"
+                            ? "opacity-60 cursor-not-allowed text-muted-foreground"
                             : "text-primary"
                         )}
                         onClick={() => handleCallPatient(a.id, a.patientName)}

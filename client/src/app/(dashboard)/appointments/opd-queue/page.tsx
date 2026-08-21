@@ -232,7 +232,16 @@ export default function OPDQueuePage() {
   const handleCheckInSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!checkInName.trim()) {
-      toast({ title: "Validation Error", description: "Patient name is required", variant: "destructive" });
+      toast({ title: "Validation Error", description: "Patient name is required.", variant: "destructive" });
+      return;
+    }
+
+    if (!checkInBP.trim() || !checkInPulse.trim() || !checkInTemp.trim() || !checkInSpO2.trim()) {
+      toast({
+        title: "Triage Vitals Mandatory",
+        description: "BP, Pulse, Temperature, and SpO2 must be recorded before issuing an OPD queue token.",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -252,7 +261,7 @@ export default function OPDQueuePage() {
       department: doc.department,
       time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       waitTime: "0 mins",
-      vitals: { bp: checkInBP, pulse: Number(checkInPulse) || 72, temp: checkInTemp, spo2: checkInSpO2 },
+      vitals: { bp: checkInBP.trim(), pulse: Number(checkInPulse) || 72, temp: checkInTemp.trim(), spo2: checkInSpO2.trim() },
       status: "waiting" as const,
       complaint: checkInComplaint.trim() || "OPD Consultation",
     };
@@ -277,8 +286,39 @@ export default function OPDQueuePage() {
       })
     );
     toast({
-      title: `Token ${token} Updated`,
-      description: `Status changed to ${newStatus.replace("-", " ").toUpperCase()}.`,
+      title: `Token ${token} Status Updated`,
+      description: `Progressed to ${newStatus.replace("-", " ").toUpperCase()}.`,
+    });
+  };
+
+  const handleExportRegister = () => {
+    const csvRows = [
+      ["Visit ID", "Date", "Patient Name", "UHID", "Doctor", "Department", "Diagnosis", "Prescriptions", "Fee", "Status"],
+      ...history.map((h) => [
+        h.visitId,
+        h.date,
+        `"${h.patientName}"`,
+        h.uhid,
+        `"${h.doctorName}"`,
+        h.department,
+        `"${h.diagnosis}"`,
+        `"${h.prescriptions}"`,
+        h.fee,
+        h.status,
+      ]),
+    ];
+    const csvContent = "data:text/csv;charset=utf-8," + csvRows.map((e) => e.join(",")).join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `opd_history_register_${new Date().toISOString().split("T")[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    toast({
+      title: "OPD Register Exported",
+      description: "Downloaded CSV report of past outpatient consultations.",
     });
   };
 
@@ -372,35 +412,43 @@ export default function OPDQueuePage() {
                     </span>
                     <div className="grid grid-cols-4 gap-2">
                       <div>
-                        <Label className="text-[10px] text-muted-foreground">BP (mmHg)</Label>
+                        <Label className="text-[10px] text-muted-foreground">BP (mmHg) *</Label>
                         <Input
                           className="h-8 text-xs font-mono"
                           value={checkInBP}
                           onChange={(e) => setCheckInBP(e.target.value)}
+                          placeholder="120/80"
+                          required
                         />
                       </div>
                       <div>
-                        <Label className="text-[10px] text-muted-foreground">Pulse (bpm)</Label>
+                        <Label className="text-[10px] text-muted-foreground">Pulse (bpm) *</Label>
                         <Input
                           className="h-8 text-xs font-mono"
                           value={checkInPulse}
                           onChange={(e) => setCheckInPulse(e.target.value)}
+                          placeholder="72"
+                          required
                         />
                       </div>
                       <div>
-                        <Label className="text-[10px] text-muted-foreground">Temp (°F)</Label>
+                        <Label className="text-[10px] text-muted-foreground">Temp (°F) *</Label>
                         <Input
                           className="h-8 text-xs font-mono"
                           value={checkInTemp}
                           onChange={(e) => setCheckInTemp(e.target.value)}
+                          placeholder="98.6°F"
+                          required
                         />
                       </div>
                       <div>
-                        <Label className="text-[10px] text-muted-foreground">SpO2 (%)</Label>
+                        <Label className="text-[10px] text-muted-foreground">SpO2 (%) *</Label>
                         <Input
                           className="h-8 text-xs font-mono"
                           value={checkInSpO2}
                           onChange={(e) => setCheckInSpO2(e.target.value)}
+                          placeholder="99%"
+                          required
                         />
                       </div>
                     </div>
@@ -630,15 +678,26 @@ export default function OPDQueuePage() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="text-xs">
-                            <DropdownMenuItem onClick={() => updateStatus(item.token, "called")}>
-                              📢 Call to Room
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => updateStatus(item.token, "in-consultation")}>
-                              🩺 Start Consultation
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => updateStatus(item.token, "completed")}>
-                              ✓ Mark Completed
-                            </DropdownMenuItem>
+                            {item.status === "waiting" && (
+                              <DropdownMenuItem onClick={() => updateStatus(item.token, "called")}>
+                                📢 Call to Room
+                              </DropdownMenuItem>
+                            )}
+                            {item.status === "called" && (
+                              <DropdownMenuItem onClick={() => updateStatus(item.token, "in-consultation")}>
+                                🩺 Start Consultation
+                              </DropdownMenuItem>
+                            )}
+                            {item.status === "in-consultation" && (
+                              <DropdownMenuItem onClick={() => updateStatus(item.token, "completed")}>
+                                ✓ Mark Completed
+                              </DropdownMenuItem>
+                            )}
+                            {item.status === "completed" && (
+                              <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                                ✓ Visit Completed (Archived)
+                              </div>
+                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
@@ -720,12 +779,20 @@ export default function OPDQueuePage() {
                     <Button
                       size="sm"
                       className="w-full text-xs font-semibold"
-                      disabled={waitingList.length === 0}
+                      disabled={Boolean(activePatient) || waitingList.length === 0}
                       onClick={() => {
+                        if (activePatient) {
+                          toast({
+                            title: "Room Occupied",
+                            description: `Dr. ${doc.name} is currently with ${activePatient.patientName}. Complete active visit before calling next patient.`,
+                            variant: "destructive",
+                          });
+                          return;
+                        }
                         if (waitingList[0]) updateStatus(waitingList[0].token, "in-consultation");
                       }}
                     >
-                      Call Next Patient
+                      {activePatient ? "Room Occupied" : waitingList.length === 0 ? "Queue Clear" : "Call Next Patient"}
                     </Button>
                   </div>
                 </Card>
@@ -744,7 +811,7 @@ export default function OPDQueuePage() {
                 <CardTitle className="text-sm font-bold">Past OPD Consultations Log</CardTitle>
                 <CardDescription className="text-xs">Archive of outpatient visits, diagnoses &amp; issued prescriptions</CardDescription>
               </div>
-              <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5">
+              <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={handleExportRegister}>
                 <Download className="h-3.5 w-3.5" /> Export Register
               </Button>
             </CardHeader>
