@@ -14,7 +14,9 @@ import { allocateOT } from "@/store/slices/surgicalSlice";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
 import { format, addDays } from "date-fns";
-import { Calendar as CalendarIcon, Clock, AlertCircle, Building, Users } from "lucide-react";
+import { Calendar as CalendarIcon, Clock, AlertCircle, Building, Users, Zap, Plus } from "lucide-react";
+import { PageHeader } from "@/components/shared/page-header";
+import { SurgicalNav } from "@/components/surgical/surgical-nav";
 
 export default function OTSchedulingPage() {
   const dispatch = useDispatch();
@@ -31,7 +33,6 @@ export default function OTSchedulingPage() {
     resources: ""
   });
 
-  // Display a simplified grid: Rows are Rooms, Columns are Cases scheduled for the selected date
   const selectedDateStart = new Date(`${date}T00:00:00Z`).getTime();
   const selectedDateEnd = new Date(`${date}T23:59:59Z`).getTime();
 
@@ -43,7 +44,7 @@ export default function OTSchedulingPage() {
     if (c.status !== 'Ready') {
       toast({
         title: "Warning: Case Not Ready",
-        description: "OT scheduled, but case still has blockers.",
+        description: "OT scheduled, but case still has pre-op blockers. Rule F6-1 Acknowledged.",
         variant: "destructive"
       });
     }
@@ -65,162 +66,175 @@ export default function OTSchedulingPage() {
   };
 
   const getSurgeonName = (caseData: any) => {
+    if (caseData.assignedSurgeonName) return caseData.assignedSurgeonName;
     if (!caseData.assignedSurgeonId) return "Unassigned";
     const surgeon = surgeons.find(s => s.id === caseData.assignedSurgeonId);
     return surgeon ? surgeon.name : caseData.assignedSurgeonId;
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Surgical Control View (OT Scheduling)</h1>
-          <p className="text-muted-foreground">Manage OT slots. Case readiness and surgeon availability are fully visible here.</p>
-        </div>
-        <div className="flex gap-2">
-          <Input 
-            type="date" 
-            value={date} 
-            onChange={(e) => setDate(e.target.value)} 
-            className="w-auto"
-          />
-          <Dialog open={allocModalOpen} onOpenChange={setAllocModalOpen}>
-            <DialogTrigger asChild>
-              <Button>Allocate OT Slot</Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Allocate OT Slot</DialogTitle>
-                <DialogDescription>Assign a room and time for a case on {format(new Date(date), "MMM d, yyyy")}.</DialogDescription>
-              </DialogHeader>
-              <form onSubmit={handleAllocate} className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label>Select Case</Label>
-                  <Select onValueChange={(val) => setFormData(p => ({ ...p, caseId: val }))} required>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select case to schedule" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {cases.filter(c => !c.allocatedOT).map(c => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.id} - {c.patientName} ({c.readinessPercent}% Ready)
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                {formData.caseId && cases.find(c => c.id === formData.caseId)?.status !== 'Ready' && (
-                  <div className="bg-destructive/10 text-destructive p-3 rounded-md text-sm flex gap-2 items-start">
-                    <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-                    <div>
-                      <strong>Warning:</strong> This case is not yet 100% Ready. Scheduling is allowed, but strongly discouraged until all blockers are resolved.
-                    </div>
-                  </div>
-                )}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Team (comma separated)</Label>
-                      <Input placeholder="e.g. Dr. Iyer, Nurse Kamala" value={formData.team} onChange={(e) => setFormData(p => ({ ...p, team: e.target.value }))} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Resources (comma separated)</Label>
-                      <Input placeholder="e.g. C-Arm, Ventilator" value={formData.resources} onChange={(e) => setFormData(p => ({ ...p, resources: e.target.value }))} />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Operating Room</Label>
-                    <Select onValueChange={(val) => setFormData(p => ({ ...p, roomId: val }))} required>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select OT Room" />
+    <div className="space-y-4 animate-fade-in pb-12">
+      <PageHeader
+        title="Surgical Control View &amp; OT Allocator"
+        description="Room-by-room surgical control grid with pre-op readiness validation and surgical team assignments."
+        crumbs={[{ label: "OT & Surgeries" }, { label: "OT Scheduling" }]}
+        actions={
+          <div className="flex items-center gap-2">
+            <Input 
+              type="date" 
+              value={date} 
+              onChange={(e) => setDate(e.target.value)} 
+              className="w-auto h-9 text-xs"
+            />
+            <Dialog open={allocModalOpen} onOpenChange={setAllocModalOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm" className="gap-1.5 font-semibold text-xs">
+                  <Plus className="h-4 w-4" /> Allocate OT Slot
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[480px]">
+                <DialogHeader>
+                  <DialogTitle>Allocate OT Slot</DialogTitle>
+                  <DialogDescription>Assign a room and time for a case on {format(new Date(date), "MMM d, yyyy")}.</DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleAllocate} className="space-y-3.5 py-2">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold">Select Case *</Label>
+                    <Select onValueChange={(val) => setFormData(p => ({ ...p, caseId: val }))} required>
+                      <SelectTrigger className="h-9 text-xs">
+                        <SelectValue placeholder="Select a case" />
                       </SelectTrigger>
                       <SelectContent>
-                        {otRooms.filter(r => r.status !== 'Maintenance').map(r => (
-                          <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                        {cases.map(c => (
+                          <SelectItem key={c.id} value={c.id} className="text-xs">
+                            {c.id} - {c.patientName} ({c.procedureType}) - {c.status}
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-2">
-                    <Label>Start Time</Label>
-                    <Input type="time" value={formData.time} onChange={(e) => setFormData(p => ({ ...p, time: e.target.value }))} required />
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold">Select OT Room *</Label>
+                    <Select onValueChange={(val) => setFormData(p => ({ ...p, roomId: val }))} required>
+                      <SelectTrigger className="h-9 text-xs">
+                        <SelectValue placeholder="Select a room" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {otRooms.filter(r => r.status !== 'Maintenance' && r.status !== 'Decommissioned').map(r => (
+                          <SelectItem key={r.id} value={r.id} className="text-xs">
+                            {r.name} ({r.department})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                </div>
-                <Button type="submit" className="w-full">Confirm Slot</Button>
-              </form>
-            </DialogContent>
-          </Dialog>
-        </div>
-      </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold">Start Time *</Label>
+                    <Input 
+                      type="time" 
+                      value={formData.time} 
+                      onChange={(e) => setFormData(p => ({ ...p, time: e.target.value }))} 
+                      className="h-9 text-xs"
+                      required 
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold">Assigned Team (Comma Separated)</Label>
+                    <Input 
+                      placeholder="e.g. Dr. A (Lead), Dr. B (Anesth), Nurse C" 
+                      value={formData.team} 
+                      onChange={(e) => setFormData(p => ({ ...p, team: e.target.value }))}
+                      className="h-9 text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold">Required Equipment (Comma Separated)</Label>
+                    <Input 
+                      placeholder="e.g. C-Arm, Laparoscopy Tower" 
+                      value={formData.resources} 
+                      onChange={(e) => setFormData(p => ({ ...p, resources: e.target.value }))}
+                      className="h-9 text-xs"
+                    />
+                  </div>
+                  <Button type="submit" className="w-full mt-2">Confirm Allocation</Button>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </div>
+        }
+      />
 
-      <div className="grid grid-cols-1 gap-6">
+      <SurgicalNav />
+
+      {/* Grid of rooms */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {otRooms.map(room => {
           const roomCases = cases.filter(c => {
-            if (!c.allocatedOT) return false;
-            if (c.allocatedOT.roomId !== room.id) return false;
-            const t = new Date(c.allocatedOT.startDateTime).getTime();
-            return t >= selectedDateStart && t <= selectedDateEnd;
-          }).sort((a, b) => new Date(a.allocatedOT!.startDateTime).getTime() - new Date(b.allocatedOT!.startDateTime).getTime());
+            if (!c.allocatedOT || c.allocatedOT.roomId !== room.id) return false;
+            const start = new Date(c.allocatedOT.startDateTime).getTime();
+            return start >= selectedDateStart && start <= selectedDateEnd;
+          });
 
           return (
-            <Card key={room.id} className={room.status === 'Maintenance' ? 'opacity-50' : ''}>
-              <CardHeader className="py-4 bg-muted/50 border-b flex flex-row items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Building className="w-5 h-5 text-primary" />
-                  <CardTitle className="text-lg">{room.name}</CardTitle>
+            <Card key={room.id} className="flex flex-col border-border shadow-xs">
+              <CardHeader className="pb-3 border-b">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <CardTitle className="text-base">{room.name}</CardTitle>
+                    <CardDescription>{room.department}</CardDescription>
+                  </div>
+                  <Badge variant={room.status === 'Available' ? 'success' : room.status === 'Occupied' ? 'destructive' : 'warning'}>
+                    {room.status}
+                  </Badge>
                 </div>
-                <Badge variant={room.status === 'Available' ? 'default' : 'secondary'}>{room.status}</Badge>
               </CardHeader>
-              <CardContent className="p-0">
+              <CardContent className="flex-1 flex flex-col pt-4">
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                  Scheduled Cases ({roomCases.length})
+                </h4>
+
                 {roomCases.length === 0 ? (
-                  <div className="p-6 text-center text-muted-foreground text-sm">
-                    No cases scheduled in this room for {format(new Date(date), "MMM d")}.
+                  <div className="flex-1 flex items-center justify-center p-6 border border-dashed rounded-lg text-muted-foreground text-xs">
+                    No cases scheduled for this date.
                   </div>
                 ) : (
-                  <div className="divide-y">
+                  <div className="space-y-3 flex-1">
                     {roomCases.map(c => (
-                      <div key={c.id} className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-muted/30">
-                        <div className="flex items-center gap-4">
-                          <div className="bg-primary/10 text-primary p-3 rounded-md text-center min-w-[100px]">
-                            <div className="text-sm font-bold">{format(new Date(c.allocatedOT?.startDateTime || new Date()), "HH:mm")}</div>
-                            <div className="text-xs">{format(new Date(c.allocatedOT?.endDateTime || new Date()), "HH:mm")}</div>
-                          </div>
+                      <div key={c.id} className="p-3 border rounded-lg bg-muted/40 space-y-2">
+                        <div className="flex justify-between items-start">
                           <div>
-                            <Link href={`/surgical-cases/${c.id}`} className="font-semibold text-primary hover:underline block">
-                              {c.id} - {c.procedureType}
+                            <Link href={`/surgical-cases/${c.id}`} className="font-semibold text-xs hover:underline flex items-center gap-1">
+                              {c.patientName} ({c.id})
                             </Link>
-                            <div className="text-sm text-muted-foreground mt-1">Patient: {c.patientName}</div>
+                            <div className="text-[11px] text-muted-foreground">{c.procedureType}</div>
                           </div>
+                          <Badge variant={c.status === 'Ready' ? 'success' : c.status === 'Blocked' ? 'destructive' : 'outline'} className="text-[9px]">
+                            {c.status}
+                          </Badge>
                         </div>
-                        
-                        <div className="flex flex-wrap items-center gap-6">
-                          <div>
-                            <div className="text-xs text-muted-foreground mb-1">Surgeon Availability</div>
-                            <div className="flex items-center gap-2 text-sm">
-                              <Users className="w-4 h-4" />
-                              <span className="font-medium">{getSurgeonName(c)}</span>
-                              {c.isExternalSurgeon && <Badge variant="outline" className="text-xs scale-90">Ext</Badge>}
-                            </div>
-                          </div>
-                          
-                          <div>
-                            <div className="text-xs text-muted-foreground mb-1">Case Readiness</div>
-                            <Badge variant="outline" className={c.readinessPercent === 100 ? "text-green-600 border-green-200 bg-green-50" : "text-destructive border-destructive bg-destructive/10"}>
-                              {c.readinessPercent}% Ready
-                            </Badge>
-                          </div>
 
-                          {((c.allocatedOT?.team?.length ?? 0) > 0 || (c.allocatedOT?.resources?.length ?? 0) > 0) && (
-                            <div className="text-sm">
-                              {(c.allocatedOT?.team?.length ?? 0) > 0 && (
-                                <div className="text-muted-foreground"><span className="font-semibold text-foreground">Team:</span> {c.allocatedOT?.team?.join(", ")}</div>
-                              )}
-                              {(c.allocatedOT?.resources?.length ?? 0) > 0 && (
-                                <div className="text-muted-foreground"><span className="font-semibold text-foreground">Resources:</span> {c.allocatedOT?.resources?.join(", ")}</div>
-                              )}
-                            </div>
-                          )}
+                        <div className="text-[11px] space-y-1 text-muted-foreground">
+                          <div className="flex items-center gap-1.5">
+                            <Clock className="h-3.5 w-3.5 text-primary" />
+                            <span>
+                              {format(new Date(c.allocatedOT!.startDateTime), "HH:mm")} - {format(new Date(c.allocatedOT!.endDateTime), "HH:mm")}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <Users className="h-3.5 w-3.5 text-primary" />
+                            <span>Surgeon: {getSurgeonName(c)}</span>
+                          </div>
                         </div>
+
+                        {c.allocatedOT!.team.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {c.allocatedOT!.team.map((t, idx) => (
+                              <Badge key={idx} variant="secondary" className="text-[9px]">
+                                {t}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>

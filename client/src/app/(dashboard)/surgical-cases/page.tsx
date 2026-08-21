@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -9,19 +9,24 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Plus, Filter, Calendar as CalendarIcon, Clock, Users, CheckCircle2, AlertCircle } from "lucide-react";
+import { Search, Plus, Filter, Calendar as CalendarIcon, Clock, Users, CheckCircle2, AlertCircle, Zap, Scissors } from "lucide-react";
 import Link from "next/link";
 import { format } from "date-fns";
-import { SurgicalCaseStatus } from "@/store/slices/surgicalSlice";
-import { StatusBadge } from "@/components/shared/StatusBadge";
+import { PageHeader } from "@/components/shared/page-header";
+import { SurgicalNav } from "@/components/surgical/surgical-nav";
 
 export default function SurgicalCasesPage() {
+  const [mounted, setMounted] = useState(false);
   const { cases, surgeons, otRooms } = useSelector((state: RootState) => state.surgical);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [readinessFilter, setReadinessFilter] = useState("ALL");
   const [departmentFilter, setDepartmentFilter] = useState("ALL");
   const [dateFilter, setDateFilter] = useState("");
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const filteredCases = cases.filter((c) => {
     const matchesSearch = c.patientName.toLowerCase().includes(searchTerm.toLowerCase()) || c.id.toLowerCase().includes(searchTerm.toLowerCase());
@@ -37,12 +42,13 @@ export default function SurgicalCasesPage() {
   });
 
   const getReadinessColor = (percent: number) => {
-    if (percent === 100) return "text-green-600 bg-green-50 border-green-200";
-    if (percent >= 50) return "text-yellow-600 bg-yellow-50 border-yellow-200";
-    return "text-red-600 bg-red-50 border-red-200";
+    if (percent === 100) return "text-emerald-700 bg-emerald-500/10 border-emerald-500/30";
+    if (percent >= 50) return "text-amber-700 bg-amber-500/10 border-amber-500/30";
+    return "text-rose-700 bg-rose-500/10 border-rose-500/30";
   };
 
   const getSurgeonName = (caseData: any) => {
+    if (caseData.assignedSurgeonName) return caseData.assignedSurgeonName;
     if (!caseData.assignedSurgeonId) return "Unassigned";
     const surgeon = surgeons.find(s => s.id === caseData.assignedSurgeonId);
     return surgeon ? surgeon.name : caseData.assignedSurgeonId;
@@ -55,41 +61,88 @@ export default function SurgicalCasesPage() {
     return `${roomName} (${format(new Date(caseData.allocatedOT.startDateTime), "MMM d, HH:mm")})`;
   };
 
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Surgical Cases</h1>
-          <p className="text-muted-foreground">Manage pre-op readiness, scheduling, and surgeon assignments.</p>
-        </div>
-        <div className="flex gap-2">
-          <Link href="/ot-scheduling">
-            <Button variant="outline">
-              <CalendarIcon className="mr-2 h-4 w-4" />
-              Surgical Control
-            </Button>
-          </Link>
-          <Link href="/surgical-cases/create">
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              New Case
-            </Button>
-          </Link>
+  if (!mounted) {
+    return (
+      <div className="space-y-4 animate-fade-in pb-12">
+        <PageHeader
+          title="Surgical Cases Directory"
+          description="Unified roster of all elective and emergency surgeries with live pre-op readiness and OT slot tracking."
+          crumbs={[{ label: "OT & Surgeries" }, { label: "Surgical Cases" }]}
+        />
+        <SurgicalNav />
+        <div className="h-48 flex items-center justify-center text-xs text-muted-foreground">
+          Loading surgical directory...
         </div>
       </div>
+    );
+  }
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Case Directory</CardTitle>
-          <CardDescription>View and filter all planned and scheduled surgical cases.</CardDescription>
+  return (
+    <div className="space-y-4 animate-fade-in pb-12">
+      <PageHeader
+        title="Surgical Cases Directory"
+        description="Unified roster of all elective and emergency surgeries with live pre-op readiness and OT slot tracking."
+        crumbs={[{ label: "OT & Surgeries" }, { label: "Surgical Cases" }]}
+        actions={
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" asChild className="text-rose-600 hover:bg-rose-500/10 font-semibold gap-1.5 text-xs">
+              <Link href="/surgical-cases/emergency">
+                <Zap className="h-4 w-4" /> Emergency Fast-Track
+              </Link>
+            </Button>
+            <Button size="sm" asChild className="gap-1.5 font-semibold text-xs">
+              <Link href="/surgical-cases/create">
+                <Plus className="h-4 w-4" /> New Surgical Case
+              </Link>
+            </Button>
+          </div>
+        }
+      />
+
+      <SurgicalNav />
+
+      {/* KPI Overview */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <Card className="p-3.5 border-border bg-card shadow-xs">
+          <span className="text-[11px] text-muted-foreground uppercase font-bold">Total Active Roster</span>
+          <p className="text-xl font-bold font-mono text-primary mt-0.5">{cases.length} Cases</p>
+          <span className="text-[10px] text-muted-foreground">Elective &amp; Emergency</span>
+        </Card>
+        <Card className="p-3.5 border-border bg-card shadow-xs">
+          <span className="text-[11px] text-muted-foreground uppercase font-bold">100% Ready for OT</span>
+          <p className="text-xl font-bold font-mono text-emerald-600 mt-0.5">
+            {cases.filter((c) => c.readinessPercent === 100).length} Cases
+          </p>
+          <span className="text-[10px] text-emerald-600 font-medium">All clearances done</span>
+        </Card>
+        <Card className="p-3.5 border-border bg-card shadow-xs">
+          <span className="text-[11px] text-muted-foreground uppercase font-bold">Blocked by Dependencies</span>
+          <p className="text-xl font-bold font-mono text-rose-600 mt-0.5">
+            {cases.filter((c) => c.status === "Blocked").length} Cases
+          </p>
+          <span className="text-[10px] text-rose-600 font-medium">Missing blood/implants/PAC</span>
+        </Card>
+        <Card className="p-3.5 border-border bg-card shadow-xs">
+          <span className="text-[11px] text-muted-foreground uppercase font-bold">Scheduled in OR</span>
+          <p className="text-xl font-bold font-mono text-cyan-600 mt-0.5">
+            {cases.filter((c) => c.status === "Scheduled").length} Cases
+          </p>
+          <span className="text-[10px] text-cyan-600 font-medium">OT slot confirmed</span>
+        </Card>
+      </div>
+
+      <Card className="border-border shadow-xs">
+        <CardHeader className="p-4 pb-2">
+          <CardTitle className="text-sm font-bold">Active Cases Directory</CardTitle>
+          <CardDescription className="text-xs">Filter by department, urgency, readiness percentage, and operating date.</CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="flex flex-col sm:flex-row justify-between gap-4 mb-6">
+        <CardContent className="p-4 pt-2">
+          <div className="flex flex-col sm:flex-row justify-between gap-3 mb-4">
             <div className="relative w-full sm:max-w-xs">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search by ID or Patient Name..."
-                className="pl-8"
+                className="pl-8 h-9 text-xs"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -98,26 +151,11 @@ export default function SurgicalCasesPage() {
               <Input 
                 type="date" 
                 value={dateFilter} 
-                onChange={(e) => setDateFilter(e.target.value)} 
-                className="w-auto"
+                onChange={(e) => setDateFilter(e.target.value)}
+                className="w-auto h-9 text-xs"
               />
-              
-              <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
-                <SelectTrigger className="w-[150px]">
-                  <SelectValue placeholder="Department" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">All Depts</SelectItem>
-                  <SelectItem value="Orthopedics">Orthopedics</SelectItem>
-                  <SelectItem value="Neurology">Neurology</SelectItem>
-                  <SelectItem value="Cardiology">Cardiology</SelectItem>
-                  <SelectItem value="General Surgery">General Surgery</SelectItem>
-                </SelectContent>
-              </Select>
-
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[150px]">
-                  <Filter className="w-4 h-4 mr-2" />
+                <SelectTrigger className="w-[130px] h-9 text-xs">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -130,85 +168,76 @@ export default function SurgicalCasesPage() {
                   <SelectItem value="Completed">Completed</SelectItem>
                 </SelectContent>
               </Select>
-
-              <Select value={readinessFilter} onValueChange={setReadinessFilter}>
-                <SelectTrigger className="w-[150px]">
-                  <CheckCircle2 className="w-4 h-4 mr-2" />
-                  <SelectValue placeholder="Readiness" />
+              <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+                <SelectTrigger className="w-[140px] h-9 text-xs">
+                  <SelectValue placeholder="Department" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="ALL">Any Readiness</SelectItem>
-                  <SelectItem value="READY">100% Ready</SelectItem>
-                  <SelectItem value="BLOCKED">Has Blockers</SelectItem>
+                  <SelectItem value="ALL">All Depts</SelectItem>
+                  <SelectItem value="Orthopedics">Orthopedics</SelectItem>
+                  <SelectItem value="Neurology">Neurology</SelectItem>
+                  <SelectItem value="Cardiology">Cardiology</SelectItem>
+                  <SelectItem value="General Surgery">General Surgery</SelectItem>
+                  <SelectItem value="Emergency">Emergency</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
 
-          <div className="rounded-md border overflow-x-auto">
+          <div className="rounded-md border">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Case ID</TableHead>
-                  <TableHead>Patient / Procedure</TableHead>
-                  <TableHead>Surgeon</TableHead>
-                  <TableHead>OT Slot</TableHead>
-                  <TableHead>Readiness %</TableHead>
+                  <TableHead>Patient Details</TableHead>
+                  <TableHead>Procedure</TableHead>
+                  <TableHead>Department</TableHead>
+                  <TableHead>Target Date</TableHead>
+                  <TableHead>Readiness</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Surgeon</TableHead>
+                  <TableHead>OT Allocation</TableHead>
                   <TableHead className="text-right">Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredCases.map((c) => (
                   <TableRow key={c.id}>
-                    <TableCell className="font-medium">{c.id}</TableCell>
+                    <TableCell className="font-mono text-xs font-bold text-primary">{c.id}</TableCell>
                     <TableCell>
-                      <div>
-                        <div className="font-medium">{c.patientName}</div>
-                        <div className="text-xs text-muted-foreground">{c.procedureType}</div>
-                      </div>
+                      <div className="font-semibold text-xs text-foreground">{c.patientName}</div>
+                      <div className="text-[10px] text-muted-foreground font-mono">{c.patientId}</div>
+                    </TableCell>
+                    <TableCell className="text-xs font-medium text-foreground">{c.procedureType}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{c.department}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {format(new Date(c.preferredDateTime), "MMM d, yyyy")}
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Users className="w-4 h-4 text-muted-foreground" />
-                        <span className={!c.assignedSurgeonId ? "text-muted-foreground italic" : ""}>
-                          {getSurgeonName(c)}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Clock className="w-4 h-4 text-muted-foreground" />
-                        <span className={!c.allocatedOT ? "text-muted-foreground italic" : ""}>
-                          {getOTSlotInfo(c)}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={getReadinessColor(c.readinessPercent)}>
-                        {c.readinessPercent}%
+                      <Badge variant="outline" className={`text-[10px] ${getReadinessColor(c.readinessPercent)}`}>
+                        {c.readinessPercent}% Ready
                       </Badge>
-                      {c.status === 'Blocked' && (
-                        <Badge variant="destructive" className="ml-2">
-                          <AlertCircle className="w-3 h-3 mr-1" />
-                          Blocker
-                        </Badge>
-                      )}
                     </TableCell>
                     <TableCell>
-                      <StatusBadge status={c.status} />
+                      <Badge variant="outline" className="text-[10px]">
+                        {c.status}
+                      </Badge>
                     </TableCell>
+                    <TableCell className="text-xs">{getSurgeonName(c)}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{getOTSlotInfo(c)}</TableCell>
                     <TableCell className="text-right">
                       <Link href={`/surgical-cases/${c.id}`}>
-                        <Button variant="ghost" size="sm">View</Button>
+                        <Button variant="ghost" size="sm" className="h-7 text-xs text-primary">
+                          Manage
+                        </Button>
                       </Link>
                     </TableCell>
                   </TableRow>
                 ))}
                 {filteredCases.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                      No surgical cases found matching your criteria.
+                    <TableCell colSpan={10} className="h-32 text-center text-xs text-muted-foreground">
+                      No surgical cases match the selected filter criteria.
                     </TableCell>
                   </TableRow>
                 )}

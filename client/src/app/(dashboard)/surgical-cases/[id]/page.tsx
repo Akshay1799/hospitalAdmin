@@ -26,6 +26,7 @@ import { ArrowLeft, Clock, ShieldAlert, CheckCircle2, User, Building, Stethoscop
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { SurgicalNav } from "@/components/surgical/surgical-nav";
 
 export default function SurgicalCaseDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: caseId } = use(params);
@@ -114,6 +115,8 @@ export default function SurgicalCaseDetailPage({ params }: { params: Promise<{ i
         </div>
         <StatusBadge status={surgicalCase.status} />
       </div>
+
+      <SurgicalNav />
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <Card>

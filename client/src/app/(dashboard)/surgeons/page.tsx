@@ -6,17 +6,20 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusBadge } from "@/components/shared/status-badge";
+import { SurgicalNav } from "@/components/surgical/surgical-nav";
 import { surgeons } from "@/lib/mock-data/hospital-operations";
 import { getInitials } from "@/lib/utils";
 
 export default function SurgeonsPage() {
   return (
-    <div>
+    <div className="space-y-4 animate-fade-in pb-12">
       <PageHeader
-        title="Surgeons"
+        title="Surgeons Directory &amp; Credentialing"
         description="Internal and requested specialist coverage with case-specific access and staffing visibility."
-        crumbs={[{ label: "Care Delivery" }, { label: "Surgeons" }]}
+        crumbs={[{ label: "OT & Surgeries" }, { label: "Surgeons" }]}
       />
+
+      <SurgicalNav />
 
       <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-2">
         {surgeons.map((surgeon) => (

@@ -15,8 +15,9 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTr
 import { createSurgeonRequest, assignExternalSurgeonFromRequest, updateSurgeonResponse, SurgeonRequestStatus } from "@/store/slices/surgicalSlice";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
-import { format } from "date-fns";
 import { MessageSquare, Check, X, ShieldAlert, ArrowLeft, Send } from "lucide-react";
+import { PageHeader } from "@/components/shared/page-header";
+import { SurgicalNav } from "@/components/surgical/surgical-nav";
 
 export default function SurgeonRequestsPage() {
   const dispatch = useDispatch();
@@ -63,38 +64,46 @@ export default function SurgeonRequestsPage() {
     setCreateModalOpen(false);
   };
 
-  const handleAssign = (reqId: string, surgeonId: string) => {
-    dispatch(assignExternalSurgeonFromRequest({ reqId, surgeonId }));
+  const handleAssign = (requestId: string, surgeonId: string) => {
+    dispatch(
+      assignExternalSurgeonFromRequest({
+        requestId,
+        surgeonId,
+        expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7).toISOString(),
+      })
+    );
     toast({
       title: "Surgeon Assigned",
-      description: "External surgeon linked with auto-expiring access."
+      description: "External surgeon linked with auto-expiring access.",
     });
   };
 
   // Simulate a response for testing
-  const simulateResponse = (reqId: string, surgeonId: string, status: SurgeonRequestStatus) => {
-    dispatch(updateSurgeonResponse({ reqId, surgeonId, status, notes: status === 'Clarification Requested' ? "Can you provide the latest MRI scan?" : "" }));
+  const simulateResponse = (requestId: string, surgeonId: string, status: SurgeonRequestStatus) => {
+    dispatch(
+      updateSurgeonResponse({
+        requestId,
+        surgeonId,
+        status,
+        responseNotes: status === "Clarification Requested" ? "Can you provide the latest MRI scan?" : "",
+      })
+    );
     toast({ title: "Simulated Response Received", description: `Surgeon ${status}` });
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Link href="/surgical-cases">
-            <Button variant="outline" size="icon">
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-          </Link>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Surgeon Sourcing Requests</h1>
-            <p className="text-muted-foreground">Request-tracking ticket system for external network surgeons.</p>
-          </div>
-        </div>
-        <Dialog open={createModalOpen} onOpenChange={setCreateModalOpen}>
-          <DialogTrigger asChild>
-            <Button>Create Request</Button>
-          </DialogTrigger>
+    <div className="space-y-4 animate-fade-in pb-12">
+      <PageHeader
+        title="Surgeon Sourcing &amp; Dispatch Requests"
+        description="Broadcast case requirements to credentialed visiting specialists and track real-time acceptance."
+        crumbs={[{ label: "OT & Surgeries" }, { label: "Surgeon Requests" }]}
+        actions={
+          <Dialog open={createModalOpen} onOpenChange={setCreateModalOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm" className="gap-1.5 font-semibold text-xs">
+                <Send className="h-4 w-4" /> New Surgeon Request
+              </Button>
+            </DialogTrigger>
           <DialogContent className="max-w-xl">
             <DialogHeader>
               <DialogTitle>New External Surgeon Request</DialogTitle>
@@ -175,7 +184,10 @@ export default function SurgeonRequestsPage() {
             </form>
           </DialogContent>
         </Dialog>
-      </div>
+        }
+      />
+
+      <SurgicalNav />
 
       <Card>
         <CardContent className="p-0">
