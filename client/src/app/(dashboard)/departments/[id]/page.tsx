@@ -63,14 +63,22 @@ export default function DepartmentDetailPage({
 
       <PageHeader
         title={dept.name}
-        description={`Operational clinical unit • ${dept.location} (${dept.floor})`}
+        description={
+          dept.description
+            ? `${dept.description} • ${dept.location} (${dept.floor})`
+            : `Operational clinical unit • ${dept.location} (${dept.floor})`
+        }
         crumbs={[
           { label: "Care Delivery" },
           { label: "Departments", href: "/departments" },
+          ...(dept.categoryName ? [{ label: dept.categoryName }] : []),
           { label: dept.name },
         ]}
         actions={
           <div className="flex items-center gap-2">
+            <Badge variant="outline" className="text-xs font-semibold">
+              {dept.type}
+            </Badge>
             <StatusBadge status={dept.status} />
           </div>
         }
