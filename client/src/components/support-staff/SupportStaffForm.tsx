@@ -1,118 +1,171 @@
-import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { SupportStaff, mockStations } from '@/lib/mock/nursing';
-import { AdminOverrideLogBanner } from '@/components/shared/AdminOverrideLogBanner';
+"use client";
+
+import React, { useState, useEffect } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { mockStations } from "@/lib/mock/nursing";
+import { AdminOverrideLogBanner } from "@/components/shared/AdminOverrideLogBanner";
 
 interface SupportStaffFormProps {
   isOpen: boolean;
   onClose: () => void;
-  staff?: SupportStaff;
+  staff?: any;
+  onSave?: (data: any) => void;
 }
 
-export function SupportStaffForm({ isOpen, onClose, staff }: SupportStaffFormProps) {
+export function SupportStaffForm({ isOpen, onClose, staff, onSave }: SupportStaffFormProps) {
   const [formData, setFormData] = useState({
-    name: '',
-    type: 'Attendant',
-    status: 'On Duty',
-    stationId: 'none',
+    name: "",
+    category: "Support Staff",
+    department: "General Wards",
+    status: "active",
+    stationId: "none",
+    driverLicenseNumber: "",
+    assignedVehicleId: "none",
   });
 
   useEffect(() => {
     if (isOpen) {
       setFormData({
-        name: staff?.name || '',
-        type: staff?.type || 'Attendant',
-        status: staff?.status || 'On Duty',
-        stationId: staff?.stationId || 'none',
+        name: staff?.name || "",
+        category: staff?.category || "Support Staff",
+        department: staff?.department || "General Wards",
+        status: staff?.status || "active",
+        stationId: staff?.assignedStationId || "none",
+        driverLicenseNumber: staff?.driverLicenseNumber || "",
+        assignedVehicleId: staff?.assignedVehicleId || "none",
       });
     }
   }, [isOpen, staff]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (onSave) {
+      onSave(formData);
+    }
     onClose();
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[400px]">
+      <DialogContent className="sm:max-w-[450px]">
         <DialogHeader>
-          <DialogTitle>{staff ? 'Edit Support Staff' : 'Add Support Staff'}</DialogTitle>
+          <DialogTitle className="text-base font-bold">
+            {staff ? "Edit Staff Profile" : "Register Hospital Workforce Staff"}
+          </DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4 pt-4">
+        <form onSubmit={handleSubmit} className="space-y-3 pt-2 text-xs">
           <AdminOverrideLogBanner />
-          <div className="space-y-2">
+          <div className="space-y-1">
             <Label htmlFor="name">Full Name</Label>
-            <Input 
-              id="name" 
+            <Input
+              id="name"
+              className="text-xs"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              required 
+              required
             />
           </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="type">Staff Type</Label>
-            <Select 
-              value={formData.type}
-              onValueChange={(val: any) => setFormData({ ...formData, type: val })}
+
+          <div className="space-y-1">
+            <Label htmlFor="category">Staff Category (Mandatory Assignment)</Label>
+            <Select
+              value={formData.category}
+              onValueChange={(val: any) => setFormData({ ...formData, category: val })}
             >
-              <SelectTrigger>
-                <SelectValue placeholder="Select type" />
+              <SelectTrigger className="text-xs">
+                <SelectValue placeholder="Select category" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Attendant">Attendant</SelectItem>
-                <SelectItem value="Housekeeping">Housekeeping</SelectItem>
-                <SelectItem value="Assistant">Assistant</SelectItem>
+                <SelectItem value="Technician">Technicians (Lab / Radiology / OT)</SelectItem>
+                <SelectItem value="Housekeeping">Housekeeping &amp; Sanitation</SelectItem>
+                <SelectItem value="Security">Hospital Security</SelectItem>
+                <SelectItem value="Driver">Ambulance &amp; Transport Driver</SelectItem>
+                <SelectItem value="Support Staff">Ward Attendant &amp; Orderly</SelectItem>
+                <SelectItem value="Other Hospital Staff">Other Hospital Staff (Admin/IT/Biomed)</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="stationId">Assigned Station / Task Scope</Label>
-            <Select 
+          {formData.category === "Driver" && (
+            <>
+              <div className="space-y-1">
+                <Label htmlFor="license">Commercial Driving License Number</Label>
+                <Input
+                  id="license"
+                  className="text-xs font-mono"
+                  placeholder="e.g. MH-02-2018-9921"
+                  value={formData.driverLicenseNumber}
+                  onChange={(e) => setFormData({ ...formData, driverLicenseNumber: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="vehicle">Assigned Ambulance Fleet (Cross-Linked)</Label>
+                <Select
+                  value={formData.assignedVehicleId}
+                  onValueChange={(val) => setFormData({ ...formData, assignedVehicleId: val })}
+                >
+                  <SelectTrigger className="text-xs">
+                    <SelectValue placeholder="Select Ambulance" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Unassigned / Float Driver</SelectItem>
+                    <SelectItem value="AMB-01">AMB-01 (Advanced Life Support)</SelectItem>
+                    <SelectItem value="AMB-02">AMB-02 (Basic Life Support)</SelectItem>
+                    <SelectItem value="AMB-03">AMB-03 (Neonatal Critical Care)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </>
+          )}
+
+          <div className="space-y-1">
+            <Label htmlFor="stationId">Assigned Station / Inpatient Ward</Label>
+            <Select
               value={formData.stationId}
-              onValueChange={(val: any) => setFormData({ ...formData, stationId: val })}
+              onValueChange={(val) => setFormData({ ...formData, stationId: val })}
             >
-              <SelectTrigger>
+              <SelectTrigger className="text-xs">
                 <SelectValue placeholder="Select Station" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">Hospital-wide / Unassigned</SelectItem>
-                {mockStations.map(s => (
-                  <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                <SelectItem value="none">Hospital-wide / Campus Float</SelectItem>
+                {mockStations.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.name} ({s.department})
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="status">Current Status</Label>
-            <Select 
+          <div className="space-y-1">
+            <Label htmlFor="status">Duty Status</Label>
+            <Select
               value={formData.status}
-              onValueChange={(val: any) => setFormData({ ...formData, status: val })}
+              onValueChange={(val) => setFormData({ ...formData, status: val })}
             >
-              <SelectTrigger>
+              <SelectTrigger className="text-xs">
                 <SelectValue placeholder="Select status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="On Duty">On Duty</SelectItem>
-                <SelectItem value="Off Duty">Off Duty</SelectItem>
-                <SelectItem value="On Leave">On Leave</SelectItem>
-                <SelectItem value="Late">Late</SelectItem>
-                <SelectItem value="Absent">Absent</SelectItem>
-                <SelectItem value="Unassigned">Unassigned</SelectItem>
+                <SelectItem value="active">On Duty / Active</SelectItem>
+                <SelectItem value="off-duty">Off Duty</SelectItem>
+                <SelectItem value="on-leave">On Leave</SelectItem>
               </SelectContent>
             </Select>
           </div>
-          
-          <DialogFooter className="mt-6">
-            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-            <Button type="submit">Save</Button>
+
+          <DialogFooter className="pt-3">
+            <Button type="button" variant="outline" size="sm" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" size="sm">
+              Save Profile
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

@@ -121,27 +121,139 @@ export interface Nurse extends BaseStaff {
   assignedPatients: number;
   tasksPending: number;
   tasksOverdue: number;
+  councilRegistrationId?: string;
+  qualifications?: string[];
+  employmentHistory?: { period: string; role: string; hospital: string }[];
+  vitalsCompletionRate?: number;
+  medicationComplianceRate?: number;
+  avgOrderFulfillmentMins?: number;
+  punctualityScore?: number;
+  incidentCount?: number;
+}
+
+export interface BillingCounter {
+  id: string;
+  name: string;
+  type: "OPD Billing" | "IPD Billing" | "Insurance/TPA Desk" | "Refund Desk";
+  status: "Open" | "Closed" | "On Break";
+  assignedStaffId?: string;
+  assignedStaffName?: string;
+  location: string;
+  shift: "Morning" | "Evening" | "Night";
+}
+
+export interface BillingPermissions {
+  maxRefundLimit: number;
+  maxDiscountLimit: number;
+  permittedCategories: string[];
+  supervisorOverride: boolean;
+}
+
+export interface BillingTransaction {
+  id: string;
+  timestamp: string;
+  patientName: string;
+  patientId: string;
+  type: "Invoice" | "Payment" | "Refund" | "TPA Settlement";
+  amount: number;
+  paymentMode: "Cash" | "Card" | "UPI" | "Insurance";
+  status: "Created" | "Paid" | "Reconciled" | "Refunded";
+  counterId: string;
+  billingOfficerName: string;
+  notes?: string;
 }
 
 export interface BillingStaff extends BaseStaff {
   role: "Billing Staff";
   scopes: string[];
+  assignedCounterId?: string;
+  assignedCounterName?: string;
+  permissions?: BillingPermissions;
+  shift?: "Morning" | "Evening" | "Night";
   collectionsToday: number;
   pendingInvoices: number;
+  collectionsByMode?: {
+    cash: number;
+    card: number;
+    upi: number;
+    insurance: number;
+  };
+  discrepancyAmount?: number;
 }
 
+export type OtherStaffCategory =
+  | "Technician"
+  | "Housekeeping"
+  | "Security"
+  | "Driver"
+  | "Support Staff"
+  | "Other Hospital Staff";
+
 export interface SupportStaff extends BaseStaff {
-  role: "Support Staff" | "Attendant" | "Housekeeping" | "Assistant";
+  role: "Support Staff" | "Attendant" | "Housekeeping" | "Assistant" | "Technician" | "Security" | "Driver" | "Other Hospital Staff";
+  category?: OtherStaffCategory;
   department: string;
   taskScope: string[];
   assignment: string;
   availability: "available" | "assigned" | "off-duty";
+  driverLicenseNumber?: string;
+  assignedVehicleId?: string;
+  assignedStationId?: string;
 }
 
 export interface LabStaff extends BaseStaff {
   role: "Lab Technician" | "Pathologist" | "Lab Front Desk" | "Collection Agent";
   labLocation: string;
   ordersHandled: number;
+}
+
+/* ----------------------------- Duty, Shifts & Attendance ----------------------------- */
+
+export interface DoctorOnCall {
+  id: string;
+  doctorId: string;
+  doctorName: string;
+  specialty: string;
+  phone: string;
+  date: string;
+  shiftWindow: string;
+  status: "On Call" | "Consulting" | "Standby";
+  activeEmergencyCases: number;
+}
+
+export interface LeaveRequest {
+  id: string;
+  staffId: string;
+  staffName: string;
+  staffRole: string;
+  department: string;
+  leaveType: "Sick Leave" | "Casual Leave" | "Earned Leave" | "Compensatory Off";
+  startDate: string;
+  endDate: string;
+  reason: string;
+  status: "Pending" | "Approved" | "Rejected";
+  coverageGapDetected: boolean;
+  assignedBackupStaffId?: string;
+  assignedBackupStaffName?: string;
+  appliedOn: string;
+}
+
+export interface AttendanceRecord {
+  id: string;
+  staffId: string;
+  staffName: string;
+  staffRole: string;
+  department: string;
+  date: string;
+  scheduledShift: string;
+  punchIn?: string;
+  punchOut?: string;
+  status: "Present" | "Late" | "Early Departure" | "On Leave" | "Absent";
+  lateMinutes?: number;
+  earlyMinutes?: number;
+  overtimeMinutes?: number;
+  editedReason?: string;
+  editedBy?: string;
 }
 
 export type DepartmentType = "OPD" | "IPD" | "ICU" | "Emergency" | "OT" | "Radiology" | "Laboratory";
