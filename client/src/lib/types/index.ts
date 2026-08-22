@@ -849,14 +849,119 @@ export type LabOrderStatus =
 export interface LabOrder {
   id: string;
   orderNo: string;
+  patientId?: string;
   patientName: string;
+  uhid?: string;
+  age?: number;
+  gender?: "Male" | "Female" | "Other";
   test: string;
+  department?: string;
   orderingDoctor: string;
-  source: "Direct" | "Doctor Order" | "Clinic Referral" | "Hospital Order";
+  source: "Direct" | "Doctor Order" | "Clinic Referral" | "Hospital Order" | "OPD" | "IPD" | "Emergency" | "OT";
+  priority?: "Routine" | "Stat";
+  sampleType?: string;
+  sampleId?: string;
+  patientLocation?: string;
   status: LabOrderStatus;
   orderedOn: string;
   tat: string;
   critical?: boolean;
+  criticalDetails?: string;
+  assignedCollector?: string;
+  collectedAt?: string;
+  assignedAnalyzer?: string;
+  expectedCompletionTime?: string;
+  verifiedBy?: string;
+  verifiedAt?: string;
+  acknowledgedBy?: string;
+  acknowledgedAt?: string;
+  clinicianNotified?: boolean;
+  tariffId?: string;
+  price?: number;
+  isExternal?: boolean;
+  referenceLabName?: string;
+  reportUrl?: string;
+}
+
+export interface SampleCollectionTask {
+  taskId: string;
+  orderId: string;
+  patientName: string;
+  uhid: string;
+  patientLocation: string;
+  testName: string;
+  sampleType: string;
+  barcodeId: string;
+  priority: "Routine" | "Stat";
+  scheduledAt: string;
+  status: "Pending" | "Collected" | "Rejected";
+  assignedCollector?: string;
+  collectedAt?: string;
+  rejectionReason?: string;
+}
+
+export interface ExternalLabReport {
+  id: string;
+  orderId?: string;
+  patientId: string;
+  patientName: string;
+  uhid: string;
+  referenceLabName: string;
+  testName: string;
+  sampleType: string;
+  receivedAt: string;
+  reportFileUrl: string;
+  verifyingPathologist?: string;
+  verificationStatus: "Pending Verification" | "Verified" | "Rejected";
+  verificationNotes?: string;
+  verifiedAt?: string;
+}
+
+export interface LabTestCatalogItem {
+  id: string;
+  testCode: string;
+  testName: string;
+  department: string;
+  sampleType: string;
+  referenceRange: string;
+  unit: string;
+  turnaroundHours: number;
+  tariffId: string;
+  price: number;
+  criticalLow?: number;
+  criticalHigh?: number;
+}
+
+export interface AnalyzerRegistryItem {
+  id: string;
+  analyzerId: string;
+  name: string;
+  model: string;
+  department: string;
+  status: "Operational" | "Maintenance" | "Calibration Due";
+  dailyTestVolume: number;
+  lastCalibrationDate: string;
+  nextCalibrationDate: string;
+}
+
+export interface CriticalThresholdItem {
+  id: string;
+  testCode: string;
+  testName: string;
+  lowPanic: number;
+  highPanic: number;
+  unit: string;
+  appliesTo: "All" | "Adults" | "Pediatric" | "Neonates" | "Female Only" | "Male Only";
+  lastAuditedAt: string;
+  auditedBy: string;
+}
+
+export interface RejectionReasonItem {
+  id: string;
+  code: string;
+  reason: string;
+  category: "Specimen Quality" | "Identification" | "Volume" | "Transport";
+  standardAction: string;
 }
 
 /* --------------------------------- Notifications -------------------------------- */

@@ -1,20 +1,29 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
+  Activity,
   AlertOctagon,
+  CheckCircle2,
+  Clock,
+  Eye,
   FileText,
+  Filter,
   FlaskConical,
   MoreHorizontal,
+  Plus,
   RefreshCw,
+  Search,
   ShieldAlert,
+  TestTube,
+  Zap,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -23,12 +32,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -39,242 +42,564 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { EmptyState } from "@/components/shared/empty-state";
 import { PageHeader } from "@/components/shared/page-header";
-import { StatusBadge } from "@/components/shared/status-badge";
 import { ScopeIndicator } from "@/components/shared/ScopeIndicator";
-import { Toolbar } from "@/components/shared/toolbar";
+import { LabNav } from "@/components/lab/lab-nav";
 import { useToast } from "@/hooks/use-toast";
-import { labOrders } from "@/lib/mock-data/operations";
-import { LabOrder } from "@/lib/types";
-import { formatDate } from "@/lib/utils";
+import { mockExtendedLabOrders, mockRejectionReasons } from "@/lib/mock-data/lab-extended-operations";
+import { LabOrder, LabOrderStatus } from "@/lib/types";
 
 const DELEGATION_STRING = "Performed by Hospital Admin • acting within Lab Management workflow";
 
 export default function LabOrdersPage() {
   const router = useRouter();
-  const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("all");
+  const [mounted, setMounted] = useState(false);
   const { toast } = useToast();
 
+  const [orders, setOrders] = useState<LabOrder[]>(mockExtendedLabOrders);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [departmentFilter, setDepartmentFilter] = useState("all");
+  const [priorityFilter, setPriorityFilter] = useState("all");
+  const [sourceFilter, setSourceFilter] = useState("all");
+
   // Recollection Modal State
+  const [recollectionModalOpen, setRecollectionModalOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<LabOrder | null>(null);
-  const [recollectModalOpen, setRecollectModalOpen] = useState(false);
-  const [recollectReason, setRecollectReason] = useState("Hemolyzed sample during transit");
-  const [recollectNotes, setRecollectNotes] = useState("");
+  const [rejectionReason, setRejectionReason] = useState("HEM-01");
+  const [rejectionNotes, setRejectionNotes] = useState("");
 
-  const filtered = labOrders.filter((o) => {
-    const matchesSearch =
-      o.patientName.toLowerCase().includes(search.toLowerCase()) || o.test.toLowerCase().includes(search.toLowerCase());
-    const matchesStatus = status === "all" || o.status === status;
-    return matchesSearch && matchesStatus;
-  });
+  // New Order Modal State
+  const [orderModalOpen, setOrderModalOpen] = useState(false);
+  const [patientName, setPatientName] = useState("");
+  const [uhid, setUhid] = useState("");
+  const [testName, setTestName] = useState("Complete Blood Count (CBC)");
+  const [department, setDepartment] = useState("Hematology");
+  const [orderingDoctor, setOrderingDoctor] = useState("Dr. Arvind Swaminathan");
+  const [orderingSource, setOrderingSource] = useState<any>("OPD");
+  const [priority, setPriority] = useState<"Routine" | "Stat">("Routine");
+  const [sampleType, setSampleType] = useState("Whole Blood (EDTA)");
+  const [patientLocation, setPatientLocation] = useState("OPD Consultation Room 101");
 
-  const critical = labOrders.filter((o) => o.critical);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
-  const handleOpenReportPage = (orderId: string) => {
-    router.push(`/lab/${orderId}`);
-  };
+  const filteredOrders = useMemo(() => {
+    return orders.filter((o) => {
+      const matchesSearch =
+        o.orderNo.toLowerCase().includes(search.toLowerCase()) ||
+        o.patientName.toLowerCase().includes(search.toLowerCase()) ||
+        (o.uhid && o.uhid.toLowerCase().includes(search.toLowerCase())) ||
+        o.test.toLowerCase().includes(search.toLowerCase()) ||
+        o.orderingDoctor.toLowerCase().includes(search.toLowerCase());
+      const matchesStatus = statusFilter === "all" || o.status === statusFilter;
+      const matchesDept = departmentFilter === "all" || o.department === departmentFilter;
+      const matchesPriority = priorityFilter === "all" || o.priority === priorityFilter;
+      const matchesSource = sourceFilter === "all" || o.source === sourceFilter;
+      return matchesSearch && matchesStatus && matchesDept && matchesPriority && matchesSource;
+    });
+  }, [orders, search, statusFilter, departmentFilter, priorityFilter, sourceFilter]);
 
-  const handleOpenRecollect = (e: React.MouseEvent, order: LabOrder) => {
-    e.stopPropagation();
+  const criticalOrders = useMemo(() => orders.filter((o) => o.critical), [orders]);
+
+  const handleOpenRecollection = (order: LabOrder) => {
     setSelectedOrder(order);
-    setRecollectModalOpen(true);
+    setRecollectionModalOpen(true);
   };
 
   const handleConfirmRecollection = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedOrder) return;
+
+    setOrders((prev) =>
+      prev.map((o) =>
+        o.id === selectedOrder.id
+          ? {
+              ...o,
+              status: "rejected",
+              criticalDetails: `Sample rejected: ${rejectionReason}. Re-draw dispatched to nurse station.`,
+            }
+          : o
+      )
+    );
+
     toast({
-      title: "Recollection Requested",
-      description: `Dispatched recollection alert for ${selectedOrder.patientName} (${selectedOrder.test}) - Reason: ${recollectReason}. (${DELEGATION_STRING})`,
+      title: "Sample Rejected & Recollection Dispatched",
+      description: `${selectedOrder.orderNo} failed QC. Re-draw alert routed to ${selectedOrder.patientLocation || "Nurse Station"}. (${DELEGATION_STRING})`,
     });
-    setRecollectModalOpen(false);
+    setRecollectionModalOpen(false);
+    setSelectedOrder(null);
   };
 
+  const handleSaveOrder = (e: React.FormEvent) => {
+    e.preventDefault();
+    const newOrder: LabOrder = {
+      id: `lab_${Date.now()}`,
+      orderNo: `LAB-2026-${Math.floor(1000 + Math.random() * 9000)}`,
+      patientId: `P-${Math.floor(1000 + Math.random() * 9000)}`,
+      patientName,
+      uhid: uhid || `UHID-2026-${Math.floor(1000 + Math.random() * 9000)}`,
+      test: testName,
+      department,
+      orderingDoctor,
+      source: orderingSource,
+      priority,
+      sampleType,
+      sampleId: `SAMP-${Math.floor(10000 + Math.random() * 90000)}`,
+      patientLocation,
+      status: "sample-pending",
+      orderedOn: new Date().toISOString(),
+      tat: priority === "Stat" ? "45 mins SLA" : "2.5 hours SLA",
+      tariffId: "TAR-LAB-GEN",
+      price: 500,
+    };
+
+    setOrders((prev) => [newOrder, ...prev]);
+    toast({
+      title: "Diagnostic Investigation Ordered",
+      description: `${newOrder.orderNo} (${newOrder.test}) queued for sample collection. (${DELEGATION_STRING})`,
+    });
+    setOrderModalOpen(false);
+  };
+
+  if (!mounted) {
+    return (
+      <div className="space-y-4 animate-fade-in pb-12">
+        <PageHeader
+          title="Laboratory &amp; Diagnostics Management"
+          description="Central investigation registry, sample collection workflow, automated analyzer telemetry, and diagnostic reports."
+          crumbs={[{ label: "Clinical Operations" }, { label: "Laboratory" }]}
+        />
+        <div className="h-48 flex items-center justify-center text-xs text-muted-foreground">
+          Loading central lab orders...
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 animate-fade-in pb-12">
       <PageHeader
-        title="Lab Orders & Diagnostic Reports"
-        description="Central laboratory management network — clinical pathology, biochemistry, imaging and verified diagnostic reports."
-        crumbs={[{ label: "Care Delivery" }, { label: "Lab Orders" }]}
+        title="Laboratory &amp; Diagnostics Management"
+        description="Central investigation registry, sample collection workflow, automated analyzer telemetry, and diagnostic reports."
+        crumbs={[{ label: "Clinical Operations" }, { label: "Laboratory" }]}
+        actions={
+          <Button size="sm" className="gap-1.5 font-semibold text-xs" onClick={() => setOrderModalOpen(true)}>
+            <Plus className="h-4 w-4" /> New Test Order
+          </Button>
+        }
       />
 
+      <LabNav />
+
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-        <ScopeIndicator scope="Hospital Admin" stationName="Central Pathology & Diagnostics" />
+        <ScopeIndicator scope="Hospital Admin" stationName="Central Pathology &amp; Diagnostic Core" />
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/30 px-3 py-1.5 rounded-md border border-border">
-          <ShieldAlert className="h-3.5 w-3.5 text-warning" />
-          <span>Operational report tracking • Click any order to open full diagnostic report page</span>
+          <ShieldAlert className="h-3.5 w-3.5 text-amber-600" />
+          <span>Operational order workflow • Diagnostic interpretation certified by pathologists</span>
         </div>
       </div>
 
-      {critical.length > 0 && (
-        <Card className="border-destructive/40 bg-destructive/5">
-          <CardContent className="flex items-center justify-between gap-3 p-4">
+      {/* Critical Panic-Value Alert Banner (Rule F13-CANNOT-5) */}
+      {criticalOrders.length > 0 && (
+        <Card className="border-destructive/40 bg-destructive/5 shadow-xs">
+          <CardContent className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5">
             <div className="flex items-center gap-3">
               <AlertOctagon className="h-5 w-5 text-destructive shrink-0" />
-              <p className="text-sm text-foreground">
-                <span className="font-semibold text-destructive">{critical.length} Critical Result(s)</span> awaiting immediate clinician
-                acknowledgement — {critical.map((c) => `${c.patientName} (${c.test})`).join(", ")}.
-              </p>
+              <div>
+                <p className="text-xs font-bold text-destructive">
+                  {criticalOrders.length} Critical Panic-Value Result(s) Detected
+                </p>
+                <p className="text-[11px] text-foreground mt-0.5">
+                  {criticalOrders[0].patientName} ({criticalOrders[0].test}) — {criticalOrders[0].criticalDetails || "Life-threatening panic value."}
+                </p>
+              </div>
             </div>
-            <Button
-              size="sm"
-              variant="destructive"
-              onClick={() => handleOpenReportPage(critical[0].id)}
-            >
-              View Critical Report
+            <Button size="sm" variant="destructive" asChild className="text-xs shrink-0">
+              <Link href="/lab/critical">
+                <AlertOctagon className="h-3.5 w-3.5 mr-1" /> View Critical Reports Log
+              </Link>
             </Button>
           </CardContent>
         </Card>
       )}
 
-      <Toolbar searchValue={search} onSearchChange={setSearch} placeholder="Search by patient name, test or order number...">
-        <Select value={status} onValueChange={setStatus}>
-          <SelectTrigger className="w-[190px]">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All statuses</SelectItem>
-            <SelectItem value="scheduled">Scheduled</SelectItem>
-            <SelectItem value="sample-pending">Sample Pending</SelectItem>
-            <SelectItem value="processing">Processing</SelectItem>
-            <SelectItem value="awaiting-validation">Awaiting Validation</SelectItem>
-            <SelectItem value="released">Released</SelectItem>
-            <SelectItem value="rejected">Rejected</SelectItem>
-          </SelectContent>
-        </Select>
-      </Toolbar>
-
-      <div className="overflow-hidden rounded-xl border border-border bg-card">
-        {filtered.length === 0 ? (
-          <EmptyState icon={FlaskConical} title="No lab orders found" />
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Order No</TableHead>
-                <TableHead>Patient Name</TableHead>
-                <TableHead>Diagnostic Test</TableHead>
-                <TableHead>Ordering Doctor</TableHead>
-                <TableHead>Source</TableHead>
-                <TableHead>TAT</TableHead>
-                <TableHead>Ordered On</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((o) => (
-                <TableRow
-                  key={o.id}
-                  className="hover:bg-muted/50 cursor-pointer transition-colors"
-                  onClick={() => handleOpenReportPage(o.id)}
-                >
-                  <TableCell className="font-mono text-xs font-semibold text-primary">{o.orderNo}</TableCell>
-                  <TableCell className="text-sm font-medium">
-                    {o.patientName}
-                    {o.critical && (
-                      <Badge variant="destructive" className="ml-2 text-[10px]">
-                        Critical
-                      </Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-sm font-medium">{o.test}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{o.orderingDoctor}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{o.source}</TableCell>
-                  <TableCell className="text-sm font-mono text-xs">{o.tat}</TableCell>
-                  <TableCell className="text-sm">{formatDate(o.orderedOn)}</TableCell>
-                  <TableCell>
-                    <StatusBadge status={o.status} />
-                  </TableCell>
-                  <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem asChild>
-                          <Link href={`/lab/${o.id}`} className="flex items-center cursor-pointer">
-                            <FileText className="mr-2 h-4 w-4 text-primary" />
-                            View report
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={(e) => handleOpenRecollect(e, o)}>
-                          <RefreshCw className="mr-2 h-4 w-4 text-warning" />
-                          Request recollection
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
+      {/* KPI Ribbon */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <Card className="p-3.5 border-border bg-card shadow-xs">
+          <span className="text-[11px] text-muted-foreground uppercase font-bold">Total Active Orders</span>
+          <p className="text-xl font-bold font-mono text-primary mt-0.5">{orders.length} Orders</p>
+          <span className="text-[10px] text-muted-foreground">Today's total workload</span>
+        </Card>
+        <Card className="p-3.5 border-border bg-card shadow-xs">
+          <span className="text-[11px] text-muted-foreground uppercase font-bold">Sample Pending</span>
+          <p className="text-xl font-bold font-mono text-amber-600 mt-0.5">
+            {orders.filter((o) => o.status === "sample-pending").length} Phlebotomy
+          </p>
+          <span className="text-[10px] text-amber-600 font-medium">Awaiting ward/OPD collection</span>
+        </Card>
+        <Card className="p-3.5 border-border bg-card shadow-xs">
+          <span className="text-[11px] text-muted-foreground uppercase font-bold">On Analyzers</span>
+          <p className="text-xl font-bold font-mono text-cyan-600 mt-0.5">
+            {orders.filter((o) => o.status === "processing").length} Processing
+          </p>
+          <span className="text-[10px] text-cyan-600 font-medium">Running in biochemistry/hematology</span>
+        </Card>
+        <Card className="p-3.5 border-border bg-card shadow-xs">
+          <span className="text-[11px] text-muted-foreground uppercase font-bold">Awaiting Pathologist</span>
+          <p className="text-xl font-bold font-mono text-emerald-600 mt-0.5">
+            {orders.filter((o) => o.status === "awaiting-validation").length} Sign-Off
+          </p>
+          <span className="text-[10px] text-emerald-600 font-medium">Ready for authorization</span>
+        </Card>
       </div>
 
-      {/* REQUEST RECOLLECTION MODAL */}
-      <Dialog open={recollectModalOpen} onOpenChange={setRecollectModalOpen}>
-        <DialogContent className="max-w-md">
-          {selectedOrder && (
-            <form onSubmit={handleConfirmRecollection}>
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
-                  <RefreshCw className="h-5 w-5 text-warning" /> Request Sample Recollection
-                </DialogTitle>
-                <DialogDescription>
-                  Trigger immediate notification to phlebotomy & collection station for {selectedOrder.patientName}.
-                </DialogDescription>
-              </DialogHeader>
+      {/* Main Table */}
+      <Card className="border-border shadow-xs">
+        <CardHeader className="p-4 pb-2">
+          <CardTitle className="text-sm font-bold">Central Investigation Registry</CardTitle>
+          <CardDescription className="text-xs">
+            Single source of truth tracking outpatient, inpatient, emergency, and surgical pre-op diagnostic orders.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-4 pt-2 space-y-4">
+          <div className="flex flex-col sm:flex-row justify-between gap-3">
+            <div className="relative w-full sm:max-w-xs">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search order #, patient, UHID, test..."
+                className="pl-8 text-xs h-9"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
+              <Select value={sourceFilter} onValueChange={setSourceFilter}>
+                <SelectTrigger className="w-[120px] text-xs h-9">
+                  <SelectValue placeholder="Source" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Sources</SelectItem>
+                  <SelectItem value="OPD">OPD</SelectItem>
+                  <SelectItem value="IPD">IPD</SelectItem>
+                  <SelectItem value="Emergency">Emergency</SelectItem>
+                  <SelectItem value="OT">OT Pre-Op</SelectItem>
+                </SelectContent>
+              </Select>
 
-              <div className="space-y-3 py-3 text-xs">
-                <div className="p-2.5 rounded bg-muted/40 border border-border">
-                  <p><strong>Order No:</strong> {selectedOrder.orderNo}</p>
-                  <p><strong>Test:</strong> {selectedOrder.test}</p>
-                  <p><strong>Ordering Doctor:</strong> {selectedOrder.orderingDoctor}</p>
+              <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+                <SelectTrigger className="w-[120px] text-xs h-9">
+                  <SelectValue placeholder="Priority" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Priorities</SelectItem>
+                  <SelectItem value="Routine">Routine</SelectItem>
+                  <SelectItem value="Stat">Stat Emergency</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+                <SelectTrigger className="w-[140px] text-xs h-9">
+                  <SelectValue placeholder="Department" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Departments</SelectItem>
+                  <SelectItem value="Hematology">Hematology</SelectItem>
+                  <SelectItem value="Biochemistry">Biochemistry</SelectItem>
+                  <SelectItem value="Immunoassay">Immunoassay</SelectItem>
+                  <SelectItem value="Hematology & Coagulation">Coagulation</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-[140px] text-xs h-9">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="sample-pending">Sample Pending</SelectItem>
+                  <SelectItem value="processing">Processing</SelectItem>
+                  <SelectItem value="awaiting-validation">Awaiting Validation</SelectItem>
+                  <SelectItem value="released">Released</SelectItem>
+                  <SelectItem value="rejected">Rejected</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="rounded-md border border-border overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/40">
+                  <TableHead className="text-xs font-bold">Order #</TableHead>
+                  <TableHead className="text-xs font-bold">Patient Details &amp; Location</TableHead>
+                  <TableHead className="text-xs font-bold">Investigation / Panel</TableHead>
+                  <TableHead className="text-xs font-bold">Source &amp; Priority</TableHead>
+                  <TableHead className="text-xs font-bold">Sample Barcode</TableHead>
+                  <TableHead className="text-xs font-bold">Ordering Doctor</TableHead>
+                  <TableHead className="text-xs font-bold">Status</TableHead>
+                  <TableHead className="text-xs font-bold text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredOrders.map((order) => (
+                  <TableRow key={order.id} className="hover:bg-muted/30 transition-colors">
+                    <TableCell className="font-mono text-xs font-bold text-primary">
+                      {order.orderNo}
+                    </TableCell>
+                    <TableCell>
+                      <div className="font-semibold text-xs text-foreground flex items-center gap-1.5">
+                        {order.patientName}
+                        {order.critical && (
+                          <Badge variant="destructive" className="text-[9px] px-1 py-0 h-4">
+                            Critical
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="text-[10px] text-muted-foreground font-mono">
+                        {order.uhid} • <span className="text-primary font-sans">{order.patientLocation}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-xs font-medium text-foreground">{order.test}</div>
+                      <div className="text-[10px] text-muted-foreground">{order.department}</div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        <Badge variant="outline" className="text-[10px]">
+                          {order.source}
+                        </Badge>
+                        <Badge
+                          className={
+                            order.priority === "Stat"
+                              ? "bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30 text-[9px]"
+                              : "text-[9px]"
+                          }
+                        >
+                          {order.priority}
+                        </Badge>
+                      </div>
+                    </TableCell>
+                    <TableCell className="font-mono text-xs text-muted-foreground">
+                      {order.sampleId || "Awaiting Barcode"}
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground font-medium">
+                      {order.orderingDoctor}
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        className={
+                          order.status === "released"
+                            ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px]"
+                            : order.status === "processing"
+                            ? "bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border-cyan-500/30 text-[10px]"
+                            : order.status === "awaiting-validation"
+                            ? "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 text-[10px]"
+                            : order.status === "sample-pending"
+                            ? "bg-muted text-muted-foreground text-[10px]"
+                            : "bg-destructive/15 text-destructive border-destructive/30 text-[10px]"
+                        }
+                      >
+                        {order.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right space-x-1">
+                      {order.status === "released" ? (
+                        <Button size="sm" variant="ghost" asChild className="h-7 text-xs text-primary font-semibold">
+                          <Link href={`/lab/${order.id}`}>
+                            <FileText className="h-3.5 w-3.5 mr-1" /> View PDF
+                          </Link>
+                        </Button>
+                      ) : order.status === "processing" ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs font-semibold text-destructive border-destructive/30"
+                          onClick={() => handleOpenRecollection(order)}
+                        >
+                          <RefreshCw className="h-3 w-3 mr-1" /> Reject QC
+                        </Button>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          asChild
+                          className="h-7 text-xs font-semibold text-primary"
+                        >
+                          <Link href="/lab/sample-collection">
+                            <TestTube className="h-3 w-3 mr-1" /> Collect
+                          </Link>
+                        </Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Recollection / Reject QC Modal */}
+      <Dialog open={recollectionModalOpen} onOpenChange={setRecollectionModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <form onSubmit={handleConfirmRecollection}>
+            <DialogHeader>
+              <DialogTitle className="text-base font-bold flex items-center gap-2 text-destructive">
+                <RefreshCw className="h-5 w-5 text-destructive" /> Reject Specimen &amp; Dispatch Recollection
+              </DialogTitle>
+              <DialogDescription className="text-xs">
+                Log specimen quality rejection for <strong>{selectedOrder?.orderNo}</strong> ({selectedOrder?.patientName}).
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3 py-3 text-xs">
+              <div className="grid gap-1">
+                <Label htmlFor="rej-code">Standardized Rejection Reason *</Label>
+                <Select value={rejectionReason} onValueChange={setRejectionReason}>
+                  <SelectTrigger id="rej-code" className="text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {mockRejectionReasons.map((r) => (
+                      <SelectItem key={r.id} value={r.code}>
+                        [{r.code}] {r.reason}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid gap-1">
+                <Label htmlFor="rej-notes">Laboratory Technical Notes</Label>
+                <Input
+                  id="rej-notes"
+                  placeholder="e.g. Clotted sample observed upon centrifuge"
+                  value={rejectionNotes}
+                  onChange={(e) => setRejectionNotes(e.target.value)}
+                />
+              </div>
+
+              <div className="p-2.5 rounded-md border border-amber-500/30 bg-amber-500/5 text-amber-800 dark:text-amber-200 text-[11px]">
+                An automated re-draw dispatch alert will be triggered directly to <strong>{selectedOrder?.patientLocation || "Nurse Station"}</strong>.
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" size="sm" onClick={() => setRecollectionModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" variant="destructive" size="sm">
+                Dispatch Recollection
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* New Test Order Modal */}
+      <Dialog open={orderModalOpen} onOpenChange={setOrderModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <form onSubmit={handleSaveOrder}>
+            <DialogHeader>
+              <DialogTitle className="text-base font-bold flex items-center gap-2">
+                <FlaskConical className="h-5 w-5 text-primary" /> Order Laboratory Investigation
+              </DialogTitle>
+              <DialogDescription className="text-xs">
+                Create a diagnostic requisition linked to patient EMR and billing tariff.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-3 py-3 text-xs">
+              <div className="grid gap-1">
+                <Label htmlFor="o-pat">Patient Full Name *</Label>
+                <Input
+                  id="o-pat"
+                  required
+                  placeholder="e.g. Shalini Deshmukh"
+                  value={patientName}
+                  onChange={(e) => setPatientName(e.target.value)}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="grid gap-1">
+                  <Label htmlFor="o-uhid">UHID</Label>
+                  <Input
+                    id="o-uhid"
+                    placeholder="e.g. UHID-2026-9921"
+                    value={uhid}
+                    onChange={(e) => setUhid(e.target.value)}
+                  />
                 </div>
-
-                <div className="grid gap-1.5">
-                  <Label htmlFor="recollect-reason">Primary Recollection Reason</Label>
-                  <Select value={recollectReason} onValueChange={setRecollectReason}>
-                    <SelectTrigger id="recollect-reason">
+                <div className="grid gap-1">
+                  <Label htmlFor="o-src">Ordering Source</Label>
+                  <Select value={orderingSource} onValueChange={(val: any) => setOrderingSource(val)}>
+                    <SelectTrigger id="o-src" className="text-xs">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Hemolyzed sample during transit">Hemolyzed sample during transit</SelectItem>
-                      <SelectItem value="Insufficient specimen volume (QNS)">Insufficient specimen volume (QNS)</SelectItem>
-                      <SelectItem value="Clotted blood specimen in EDTA tube">Clotted blood specimen in EDTA tube</SelectItem>
-                      <SelectItem value="Lipemic / Icteric interference">Lipemic / Icteric interference</SelectItem>
-                      <SelectItem value="Sample temperature breach during cold-chain">Sample temperature breach during cold-chain</SelectItem>
-                      <SelectItem value="Clinician requested repeat confirmation">Clinician requested repeat confirmation</SelectItem>
+                      <SelectItem value="OPD">OPD Consultation</SelectItem>
+                      <SelectItem value="IPD">Inpatient Ward</SelectItem>
+                      <SelectItem value="Emergency">Emergency / Trauma</SelectItem>
+                      <SelectItem value="OT">OT Pre-Op Clearance</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
 
-                <div className="grid gap-1.5">
-                  <Label htmlFor="recollect-notes">Additional Phlebotomy Instructions</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="grid gap-1">
+                  <Label htmlFor="o-test">Test / Panel Name</Label>
                   <Input
-                    id="recollect-notes"
-                    placeholder="e.g. Draw minimum 4ml in lavender EDTA tube and keep refrigerated"
-                    value={recollectNotes}
-                    onChange={(e) => setRecollectNotes(e.target.value)}
+                    id="o-test"
+                    required
+                    value={testName}
+                    onChange={(e) => setTestName(e.target.value)}
                   />
+                </div>
+                <div className="grid gap-1">
+                  <Label htmlFor="o-prio">Priority</Label>
+                  <Select value={priority} onValueChange={(val: any) => setPriority(val)}>
+                    <SelectTrigger id="o-prio" className="text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Routine">Routine</SelectItem>
+                      <SelectItem value="Stat">Stat Emergency (45m SLA)</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setRecollectModalOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" variant="destructive">
-                  Send Recollection Request
-                </Button>
-              </DialogFooter>
-            </form>
-          )}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="grid gap-1">
+                  <Label htmlFor="o-doc">Ordering Physician</Label>
+                  <Input
+                    id="o-doc"
+                    required
+                    value={orderingDoctor}
+                    onChange={(e) => setOrderingDoctor(e.target.value)}
+                  />
+                </div>
+                <div className="grid gap-1">
+                  <Label htmlFor="o-loc">Patient Location / Room</Label>
+                  <Input
+                    id="o-loc"
+                    required
+                    value={patientLocation}
+                    onChange={(e) => setPatientLocation(e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" size="sm" onClick={() => setOrderModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" size="sm">
+                Submit Test Order
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </div>
