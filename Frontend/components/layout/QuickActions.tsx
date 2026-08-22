@@ -47,9 +47,9 @@ export default function QuickActions() {
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
           <div className="absolute right-0 z-20 mt-1.5 w-64 card p-1.5">
             <div className="px-2.5 pb-1 pt-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-ink-faint">
-              Public Pages
+              Workspace
             </div>
-            {publicActions.map((a) => {
+            {workspaceActions.map((a) => {
               const Icon = a.icon;
               return (
                 <button
@@ -67,9 +67,9 @@ export default function QuickActions() {
             })}
             <div className="my-1 border-t border-line" />
             <div className="px-2.5 pb-1 pt-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-ink-faint">
-              Workspace
+              Public Pages
             </div>
-            {workspaceActions.map((a) => {
+            {publicActions.map((a) => {
               const Icon = a.icon;
               return (
                 <button

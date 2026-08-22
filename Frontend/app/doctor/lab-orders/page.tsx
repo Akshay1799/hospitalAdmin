@@ -9,6 +9,7 @@ import { useMode } from "@/lib/mode-context";
 import { LabOrder, OrderStatus, Patient } from "@/lib/types";
 import { CURRENT_DATE_ISO } from "@/lib/app-time";
 import { ApiSyncSkippedError, createBackendOrder, getBackendBootstrap, updateBackendOrderStatus } from "@/lib/api-client";
+import { mergeLocalLabOrders, saveLocalLabOrder } from "@/lib/lab-order-local-store";
 
 const commonTests = ["HbA1c", "Complete Blood Count", "Lipid Profile", "Thyroid Panel", "Troponin-I", "Liver Function Test", "Kidney Function Test", "Urinalysis"];
 
@@ -41,13 +42,13 @@ function LabOrdersBoard() {
       .then((data) => {
         if (cancelled) return;
         setPatients(data.patients);
-        setOrders(data.labOrders);
+        setOrders(mergeLocalLabOrders(data.labOrders));
         setBackendDoctorId(data.doctors[0]?.id ?? "");
       })
       .catch(() => {
         if (cancelled) return;
         setPatients(seedPatients);
-        setOrders(seedOrders);
+        setOrders(mergeLocalLabOrders(seedOrders));
         setBackendDoctorId("doc-1");
       });
 
@@ -90,6 +91,7 @@ function LabOrdersBoard() {
     } catch (error) {
       setSyncMessage(error instanceof ApiSyncSkippedError ? "Mock lab order saved locally." : "Backend sync failed; local lab order kept.");
     }
+    saveLocalLabOrder(localOrder);
     setOrders((prev) => [localOrder, ...prev]);
     setTestName("");
     setShowForm(false);

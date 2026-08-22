@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import clsx from "clsx";
 import { Ban, CalendarPlus, ChevronLeft, ChevronRight, Plane, Plus } from "lucide-react";
 import { ConflictNotice, ShiftCard, WorkplaceBadge } from "@/components/doctor-workflow";
-import { Card, Field, Modal, Pill, SectionHeading } from "@/components/ui";
+import { Card, Field, Modal, Pill, SectionHeading, TimePicker } from "@/components/ui";
 import { useDoctorWorkflow } from "@/lib/doctor-workflow-context";
 import { DoctorShift, ShiftType, shiftTypeLabel } from "@/lib/doctor-workflow-types";
 import { CURRENT_DATE_ISO, CURRENT_DATE_LABEL } from "@/lib/app-time";
@@ -418,10 +418,10 @@ export default function DoctorSchedulePage() {
             <input type="date" value={draft.date} onChange={(e) => setDraft((prev) => ({ ...prev, date: e.target.value }))} className="input-field" />
           </Field>
           <Field label="Start time">
-            <input type="time" value={draft.startTime} onChange={(e) => setDraft((prev) => ({ ...prev, startTime: e.target.value }))} className="input-field" />
+            <TimePicker value={draft.startTime} onChange={(value) => setDraft((prev) => ({ ...prev, startTime: value }))} ariaLabel="Shift start time" />
           </Field>
           <Field label="End time">
-            <input type="time" value={draft.endTime} onChange={(e) => setDraft((prev) => ({ ...prev, endTime: e.target.value }))} className="input-field" />
+            <TimePicker value={draft.endTime} onChange={(value) => setDraft((prev) => ({ ...prev, endTime: value }))} ariaLabel="Shift end time" />
           </Field>
           <Field label="Slot length">
             <select value={draft.slotMinutes} onChange={(e) => setDraft((prev) => ({ ...prev, slotMinutes: e.target.value }))} className="input-field">

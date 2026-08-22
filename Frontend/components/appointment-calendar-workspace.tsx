@@ -1,0 +1,779 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import clsx from "clsx";
+import {
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  Clock3,
+  MapPin,
+  Plus,
+  Printer,
+  Search,
+  Settings,
+  UserRound,
+  Video,
+} from "lucide-react";
+import { Avatar, Field, Modal, TimePicker } from "@/components/ui";
+import {
+  appointments as seedAppointments,
+  clinic,
+  doctors,
+  getPatient,
+  matchesWorkContext,
+  patientInWorkContext,
+  patients,
+} from "@/lib/mock-data";
+import { useMode } from "@/lib/mode-context";
+import { CURRENT_DATE_ISO, getLocalDateISO } from "@/lib/app-time";
+import { Appointment, AppointmentType, ClinicLocation, Doctor, Patient } from "@/lib/types";
+import {
+  ApiSyncSkippedError,
+  createBackendAppointment,
+  getBackendBootstrap,
+} from "@/lib/api-client";
+import { ConsultationForm } from "@/components/doctor-consultation-form";
+
+const hospitalLocations = [{ id: "hosp-1", name: "Aster City Hospital - Cardiology" }];
+const dayFormatter = new Intl.DateTimeFormat("en-US", { weekday: "short" });
+const monthFormatter = new Intl.DateTimeFormat("en-US", { month: "short" });
+const viewOptions = [
+  { label: "Day", value: "day" },
+  { label: "Week", value: "week" },
+  { label: "Month", value: "month" },
+] as const;
+
+type CalendarViewMode = (typeof viewOptions)[number]["value"];
+
+function dateAtNoon(date: string) {
+  return new Date(`${date}T12:00:00`);
+}
+
+function isoDate(date: Date) {
+  return getLocalDateISO(date);
+}
+
+function addDays(date: string, days: number) {
+  const next = dateAtNoon(date);
+  next.setDate(next.getDate() + days);
+  return isoDate(next);
+}
+
+function addMonths(date: string, months: number) {
+  const current = dateAtNoon(date);
+  const next = new Date(current.getFullYear(), current.getMonth() + months, 1, 12);
+  return isoDate(next);
+}
+
+function formatDayHeader(date: string) {
+  const value = dateAtNoon(date);
+  return `${dayFormatter.format(value).toUpperCase()} ${value.getDate()} ${monthFormatter.format(value).toUpperCase()}`;
+}
+
+function formatDateLabel(date: string) {
+  const value = dateAtNoon(date);
+  return new Intl.DateTimeFormat("en-US", { day: "numeric", month: "short", year: "numeric" }).format(value);
+}
+
+function formatMonthLabel(date: string) {
+  return new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" }).format(dateAtNoon(date));
+}
+
+function getMonthDates(date: string) {
+  const current = dateAtNoon(date);
+  const firstDay = new Date(current.getFullYear(), current.getMonth(), 1, 12);
+  const gridStart = new Date(firstDay);
+  gridStart.setDate(firstDay.getDate() - firstDay.getDay());
+
+  return Array.from({ length: 42 }, (_, index) => {
+    const next = new Date(gridStart);
+    next.setDate(gridStart.getDate() + index);
+    return isoDate(next);
+  });
+}
+
+function timeToMinutes(time: string) {
+  const match = time.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) return 0;
+  const rawHours = Number(match[1]);
+  const minutes = Number(match[2]);
+  const meridian = match[3].toUpperCase();
+  let hours = rawHours % 12;
+  if (meridian === "PM") hours += 12;
+  return hours * 60 + minutes;
+}
+
+function minutesToTime(totalMinutes: number) {
+  const normalized = ((totalMinutes % 1440) + 1440) % 1440;
+  const hours = Math.floor(normalized / 60);
+  const minutes = normalized % 60;
+  const suffix = hours >= 12 ? "PM" : "AM";
+  const displayHours = hours % 12 || 12;
+  return `${displayHours}:${String(minutes).padStart(2, "0")} ${suffix}`;
+}
+
+function durationRows(duration: number) {
+  return Math.max(1, Math.ceil(duration / 15));
+}
+
+export function AppointmentCalendarWorkspace() {
+  const { selectedWorkplaceId, workContext } = useMode();
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [appointmentPatients, setAppointmentPatients] = useState<Patient[]>([]);
+  const [appointmentDoctors, setAppointmentDoctors] = useState<Doctor[]>([]);
+  const [appointmentLocations, setAppointmentLocations] = useState<ClinicLocation[]>([]);
+  const [backendWorkplaceId, setBackendWorkplaceId] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState(CURRENT_DATE_ISO);
+  const [viewMode, setViewMode] = useState<CalendarViewMode>("week");
+  const [showForm, setShowForm] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [modernTheme, setModernTheme] = useState(true);
+  const [showCancelled, setShowCancelled] = useState(true);
+  const [selectedConsultation, setSelectedConsultation] = useState<Appointment | null>(null);
+  const [syncMessage, setSyncMessage] = useState("");
+  const [form, setForm] = useState({
+    patientId: "",
+    doctorId: "",
+    locationId: "",
+    date: CURRENT_DATE_ISO,
+    time: "09:00 AM",
+    durationMins: "20",
+    type: "In-Person" as AppointmentType,
+    reason: "",
+  });
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getBackendBootstrap()
+      .then((data) => {
+        if (cancelled) return;
+        setAppointmentPatients(data.patients);
+        setAppointmentDoctors(data.doctors);
+        setAppointmentLocations(data.locations);
+        setAppointments(data.appointments);
+        if (data.workplaceId) setBackendWorkplaceId(data.workplaceId);
+        setSyncMessage("Backend calendar loaded.");
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setAppointmentPatients(patients);
+        setAppointmentDoctors(doctors);
+        setAppointmentLocations(clinic.locations);
+        setAppointments(seedAppointments);
+        setSyncMessage("Backend unavailable; using local calendar data.");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const contextPatients = useMemo(
+    () => appointmentPatients.filter((patient) => patientInWorkContext(patient, workContext)),
+    [appointmentPatients, workContext]
+  );
+  const contextLocations = workContext === "hospital" ? hospitalLocations : appointmentLocations;
+  const patientById = useMemo(
+    () => new Map(appointmentPatients.map((patient) => [patient.id, patient])),
+    [appointmentPatients]
+  );
+  const canScheduleAppointment = contextPatients.length > 0 && appointmentDoctors.length > 0 && contextLocations.length > 0;
+  const weekStart = addDays(selectedDate, -Math.min(1, dateAtNoon(selectedDate).getDay()));
+  const weekDates = Array.from({ length: 6 }, (_, index) => addDays(weekStart, index));
+  const visibleDates = viewMode === "day" ? [selectedDate] : weekDates;
+  const monthDates = getMonthDates(selectedDate);
+  const rangeLabel =
+    viewMode === "month"
+      ? formatMonthLabel(selectedDate)
+      : viewMode === "day"
+        ? formatDateLabel(selectedDate)
+        : `${formatDateLabel(weekDates[0])} - ${formatDateLabel(weekDates[weekDates.length - 1])}`;
+  const visibleAppointments = appointments.filter(
+    (appointment) => matchesWorkContext(appointment, workContext) && (showCancelled || appointment.status !== "Cancelled")
+  );
+  const selectedDateAppointments = visibleAppointments
+    .filter((appointment) => appointment.date === selectedDate)
+    .sort((a, b) => timeToMinutes(a.time) - timeToMinutes(b.time));
+  const scheduleCounts = {
+    today: selectedDateAppointments.length,
+    waiting: selectedDateAppointments.filter((appointment) => appointment.status === "Scheduled" || appointment.status === "Checked In").length,
+    engaged: selectedDateAppointments.filter((appointment) => appointment.status === "In Consultation").length,
+    done: selectedDateAppointments.filter((appointment) => appointment.status === "Completed").length,
+  };
+  const gridClassName =
+    viewMode === "day"
+      ? "min-w-[640px] grid-cols-[64px_minmax(480px,1fr)]"
+      : "min-w-[920px] grid-cols-[64px_repeat(6,minmax(130px,1fr))]";
+
+  useEffect(() => {
+    setForm((prev) => ({
+      ...prev,
+      patientId: contextPatients[0]?.id ?? prev.patientId,
+      locationId: contextLocations[0]?.id ?? prev.locationId,
+      doctorId: appointmentDoctors[0]?.id ?? prev.doctorId,
+    }));
+  }, [appointmentDoctors, contextPatients, contextLocations]);
+
+  function openAppointmentForm(date = selectedDate, time = "09:00 AM") {
+    setSelectedDate(date);
+    setForm((prev) => ({
+      ...prev,
+      date,
+      time,
+      patientId: prev.patientId || contextPatients[0]?.id || "",
+      doctorId: prev.doctorId || appointmentDoctors[0]?.id || "",
+      locationId: prev.locationId || contextLocations[0]?.id || "",
+    }));
+    setShowForm(true);
+  }
+
+  function moveVisibleRange(direction: -1 | 1) {
+    if (viewMode === "month") {
+      setSelectedDate((current) => addMonths(current, direction));
+      return;
+    }
+
+    setSelectedDate((current) => addDays(current, viewMode === "day" ? direction : direction * 6));
+  }
+
+  function showSettingsMessage(message: string) {
+    setSyncMessage(message);
+    setSettingsOpen(false);
+  }
+
+  async function createAppointment() {
+    if (!canScheduleAppointment || !form.reason.trim()) return;
+    const nextAppointment: Appointment = {
+      id: `local-apt-${Date.now()}`,
+      patientId: form.patientId,
+      doctorId: form.doctorId,
+      locationId: form.locationId,
+      workContext,
+      date: form.date,
+      time: form.time,
+      durationMins: Number(form.durationMins) || 20,
+      type: form.type,
+      status: "Scheduled",
+      reason: form.reason.trim(),
+    };
+
+    try {
+      const savedAppointment = await createBackendAppointment({
+        ...nextAppointment,
+        workplaceId: backendWorkplaceId ?? selectedWorkplaceId,
+      });
+      setAppointments((prev) => [savedAppointment, ...prev]);
+      setSyncMessage("Appointment saved to backend.");
+    } catch (error) {
+      setAppointments((prev) => [nextAppointment, ...prev]);
+      setSyncMessage(error instanceof ApiSyncSkippedError ? "Mock appointment saved locally." : "Backend sync failed; local appointment kept.");
+    }
+
+    setSelectedDate(form.date);
+    setForm((prev) => ({ ...prev, reason: "" }));
+    setShowForm(false);
+  }
+
+  const slots = Array.from({ length: 41 }, (_, index) => 8 * 60 + index * 15);
+
+  return (
+    <div
+      className={clsx(
+        "min-h-[calc(100vh-9rem)] overflow-hidden rounded-md border border-line bg-white shadow-card",
+        modernTheme && "shadow-lift"
+      )}
+    >
+      <div className="flex min-h-[calc(100vh-9rem)]">
+        <aside className="hidden w-[268px] shrink-0 border-r border-line bg-[#f4f5f8] lg:block">
+          <div className="border-b border-line bg-white px-4 py-4">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-faint" size={16} />
+              <input className="input-field pl-9" placeholder="Search patients" />
+            </div>
+          </div>
+          <div className="border-b border-line px-5 py-4">
+            <button type="button" className="flex items-center gap-2 text-sm font-semibold text-ink">
+              <CalendarDays size={16} /> Block Calendar
+            </button>
+          </div>
+          <div className="border-b border-line">
+            <p className="px-5 py-3 text-xs font-semibold uppercase tracking-[0.08em] text-ink-muted">Doctors</p>
+            <button className="flex w-full items-center justify-between bg-[#747484] px-5 py-2 text-left text-sm font-semibold text-white">
+              <span>All doctors</span>
+              <span>{visibleAppointments.length}</span>
+            </button>
+            {appointmentDoctors.map((doctor) => (
+              <button key={doctor.id} className="flex w-full items-center justify-between px-5 py-2 text-left text-sm text-ink-soft hover:bg-white">
+                <span className="flex min-w-0 items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full bg-sage-500" />
+                  <span className="truncate">{doctor.name}</span>
+                </span>
+                <span>{visibleAppointments.filter((appointment) => appointment.doctorId === doctor.id).length}</span>
+              </button>
+            ))}
+          </div>
+          <div className="px-5 py-4">
+            <p className="mb-7 text-xs font-semibold uppercase tracking-[0.08em] text-ink-muted">Categories</p>
+            <p className="text-center text-sm text-ink-muted">No categories available.</p>
+            <button className="mt-2 w-full text-center text-sm font-semibold text-brand-700">Add categories</button>
+          </div>
+        </aside>
+
+        <section className="min-w-0 flex-1">
+          <div className="flex flex-col gap-4 border-b border-line bg-paper/70 px-5 py-4 xl:flex-row xl:items-start xl:justify-between">
+            <div className="min-w-0">
+              <div className="flex items-center gap-3">
+                <h1 className="font-display text-2xl text-ink">Calendar</h1>
+                <p className="truncate text-sm text-ink-muted">{workContext === "hospital" ? "Hospital Duty" : clinic.name}</p>
+              </div>
+              {syncMessage && <p className="mt-1 text-xs text-ink-muted">{syncMessage}</p>}
+            </div>
+            <div className="flex w-full flex-col items-stretch gap-2 xl:w-auto xl:items-end">
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <div className="inline-flex items-center rounded-md border border-line bg-white">
+                  <button type="button" onClick={() => moveVisibleRange(-1)} className="btn-ghost rounded-r-none" aria-label="Previous range">
+                    <ChevronLeft size={16} />
+                  </button>
+                  <span className="min-w-[220px] border-x border-line px-3 text-center font-mono text-sm font-semibold text-ink">{rangeLabel}</span>
+                  <button type="button" onClick={() => moveVisibleRange(1)} className="btn-ghost rounded-l-none" aria-label="Next range">
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+                <button type="button" onClick={() => setSelectedDate(CURRENT_DATE_ISO)} className="btn-secondary">
+                  Today
+                </button>
+                <div className="grid grid-cols-3 rounded-md border border-line bg-white p-0.5">
+                  {viewOptions.map((item) => (
+                    <button
+                      key={item.value}
+                      type="button"
+                      onClick={() => setViewMode(item.value)}
+                      className={clsx(
+                        "rounded px-4 py-1.5 text-xs font-semibold",
+                        viewMode === item.value ? "bg-[#747484] text-white" : "text-ink-muted hover:bg-paper"
+                      )}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <button type="button" className="btn-secondary" aria-label="Print calendar">
+                  <Printer size={16} />
+                </button>
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setSettingsOpen((open) => !open)}
+                    className="btn-secondary"
+                    aria-expanded={settingsOpen}
+                  >
+                    <Settings size={15} /> Settings
+                  </button>
+                  {settingsOpen && (
+                    <div className="absolute right-0 top-full z-40 mt-1 w-[364px] overflow-hidden rounded-md border border-line bg-white py-1 text-sm shadow-lift">
+                      {[
+                        ["Modify calendar timings", "Calendar timing settings are ready to connect."],
+                        ["Add/ edit doctor or staff, modify SMS/ email for doctors/staff", "Doctor and staff notification settings are ready to connect."],
+                        ["Modify doctor visit timings", "Doctor visit timing settings are ready to connect."],
+                        ["Modify SMS/ Email for patients", "Patient notification settings are ready to connect."],
+                      ].map(([label, message]) => (
+                        <button
+                          key={label}
+                          type="button"
+                          onClick={() => showSettingsMessage(message)}
+                          className="block w-full px-5 py-2.5 text-left leading-5 text-ink-muted hover:bg-paper hover:text-ink"
+                        >
+                          {label}
+                        </button>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => setModernTheme((value) => !value)}
+                        className="grid w-full grid-cols-[1fr_76px] items-center bg-clay-50 px-5 py-2.5 text-left text-ink hover:bg-clay-100"
+                      >
+                        <span>Modern Theme</span>
+                        <span className="flex h-5 items-center justify-between border border-clay-400 bg-white text-[10px] font-semibold text-clay-600">
+                          <span className={clsx("flex h-full w-10 items-center justify-center text-white", modernTheme ? "bg-clay-500" : "bg-ink-faint")}>
+                            {modernTheme ? "ON" : "OFF"}
+                          </span>
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowCancelled((value) => !value)}
+                        className="grid w-full grid-cols-[1fr_76px] items-center px-5 py-2.5 text-left text-ink-muted hover:bg-paper hover:text-ink"
+                      >
+                        <span>Show Cancelled Appointments</span>
+                        <span className="flex h-5 items-center justify-between border border-clay-400 bg-white text-[10px] font-semibold text-clay-600">
+                          <span className={clsx("flex h-full w-10 items-center justify-center text-white", showCancelled ? "bg-clay-500" : "bg-ink-faint")}>
+                            {showCancelled ? "YES" : "NO"}
+                          </span>
+                        </span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => openAppointmentForm()}
+                  disabled={!canScheduleAppointment}
+                  className="btn-primary disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <Plus size={14} /> New Appointment
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid min-h-[calc(100vh-15rem)] grid-cols-1 xl:grid-cols-[minmax(0,1fr)_356px]">
+            <div className="min-w-0 overflow-auto">
+              {viewMode === "month" ? (
+                <div className="min-w-[920px]">
+                  <div className="grid grid-cols-7 border-b border-line bg-white">
+                    {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+                      <div key={day} className="border-r border-line px-3 py-3 text-center text-xs font-semibold uppercase tracking-[0.06em] text-ink-muted">
+                        {day}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-7">
+                    {monthDates.map((date) => {
+                      const value = dateAtNoon(date);
+                      const inCurrentMonth = value.getMonth() === dateAtNoon(selectedDate).getMonth();
+                      const dayAppointments = visibleAppointments
+                        .filter((appointment) => appointment.date === date)
+                        .sort((a, b) => timeToMinutes(a.time) - timeToMinutes(b.time));
+
+                      return (
+                        <div
+                          key={date}
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => openAppointmentForm(date, "09:00 AM")}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" || event.key === " ") openAppointmentForm(date, "09:00 AM");
+                          }}
+                          className={clsx(
+                            "min-h-32 cursor-pointer border-b border-r border-line bg-white p-2 text-left transition-colors hover:bg-brand-50/60",
+                            date === selectedDate && "bg-clay-50/70",
+                            !inCurrentMonth && "bg-paper/70 text-ink-faint"
+                          )}
+                        >
+                          <div className="mb-2 flex items-center justify-between">
+                            <span className="font-mono text-xs font-semibold">{value.getDate()}</span>
+                            {date === CURRENT_DATE_ISO && <span className="rounded bg-brand-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">Today</span>}
+                          </div>
+                          <div className="space-y-1">
+                            {dayAppointments.slice(0, 3).map((appointment) => {
+                              const patient = patientById.get(appointment.patientId) ?? getPatient(appointment.patientId);
+                              return (
+                                <button
+                                  key={appointment.id}
+                                  type="button"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    setSelectedConsultation(appointment);
+                                  }}
+                                  className={clsx(
+                                    "block w-full truncate rounded border px-2 py-1 text-left text-[11px] font-semibold",
+                                    appointment.status === "Completed"
+                                      ? "border-sage-200 bg-sage-50 text-sage-600"
+                                      : appointment.status === "Cancelled"
+                                        ? "border-ink-faint bg-paper text-ink-muted"
+                                        : "border-brand-100 bg-brand-50 text-brand-800"
+                                  )}
+                                >
+                                  {appointment.time} {patient?.name ?? "Patient"}
+                                </button>
+                              );
+                            })}
+                            {dayAppointments.length > 3 && (
+                              <p className="px-1 text-[11px] font-semibold text-ink-muted">+{dayAppointments.length - 3} more</p>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className={clsx("grid border-b border-line bg-white", gridClassName)}>
+                    <div className="border-r border-line px-2 py-3 text-center text-xs text-ink-faint">
+                      <Clock3 className="mx-auto mb-1" size={15} />
+                      all-day
+                    </div>
+                    {visibleDates.map((date) => (
+                      <button
+                        key={date}
+                        type="button"
+                        onClick={() => setSelectedDate(date)}
+                        className={clsx(
+                          "border-r border-line px-3 py-3 text-center text-xs font-semibold transition-colors",
+                          date === selectedDate ? "bg-[#747484] text-white" : "text-ink-muted hover:bg-paper"
+                        )}
+                      >
+                        {formatDayHeader(date)}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className={clsx("grid", gridClassName)}>
+                    <div className="border-r border-line bg-white">
+                      {slots.map((slot) => (
+                        <div key={slot} className="h-10 border-b border-line/80 px-1 py-1 text-right font-mono text-[11px] text-ink-faint">
+                          {minutesToTime(slot)}
+                        </div>
+                      ))}
+                    </div>
+                    {visibleDates.map((date) => (
+                      <div key={date} className={clsx("relative border-r border-line", date === selectedDate && "bg-clay-50/45")}>
+                        {slots.map((slot) => (
+                          <button
+                            key={`${date}-${slot}`}
+                            type="button"
+                            onClick={() => openAppointmentForm(date, minutesToTime(slot))}
+                            className="block h-10 w-full border-b border-line/80 text-left transition-colors hover:bg-brand-50/70 focus-visible:z-10"
+                            aria-label={`Create appointment on ${date} at ${minutesToTime(slot)}`}
+                          />
+                        ))}
+                        {visibleAppointments
+                          .filter((appointment) => appointment.date === date)
+                          .map((appointment) => {
+                            const top = Math.max(0, ((timeToMinutes(appointment.time) - slots[0]) / 15) * 40);
+                            const patient = patientById.get(appointment.patientId) ?? getPatient(appointment.patientId);
+                            return (
+                              <button
+                                key={appointment.id}
+                                type="button"
+                                onClick={() => setSelectedConsultation(appointment)}
+                                className={clsx(
+                                  "absolute left-1 right-1 z-20 overflow-hidden rounded-md border px-2 py-1 text-left text-xs shadow-card",
+                                  appointment.status === "In Consultation"
+                                    ? "border-brand-500 bg-brand-500 text-white"
+                                    : appointment.status === "Completed"
+                                      ? "border-sage-200 bg-sage-50 text-sage-600"
+                                      : appointment.status === "Cancelled"
+                                        ? "border-ink-faint bg-paper text-ink-muted"
+                                        : "border-brand-100 bg-brand-50 text-brand-800"
+                                )}
+                                style={{ top, height: durationRows(appointment.durationMins) * 40 - 4 }}
+                              >
+                                <span className="block truncate font-semibold">{patient?.name ?? "Patient"}</span>
+                                <span className="block truncate font-mono text-[11px] opacity-80">{appointment.time}</span>
+                              </button>
+                            );
+                          })}
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+
+            <aside className="border-t border-line bg-white xl:border-l xl:border-t-0">
+              <div className="flex items-center justify-between border-b border-line px-5 py-4">
+                <h2 className="text-sm font-semibold text-ink">Today&apos;s Schedule</h2>
+                <div className="flex items-center gap-1">
+                  <button type="button" onClick={() => setSelectedDate(addDays(selectedDate, -1))} className="btn-ghost" aria-label="Previous day">
+                    <ChevronLeft size={15} />
+                  </button>
+                  <button type="button" onClick={() => setSelectedDate(addDays(selectedDate, 1))} className="btn-ghost" aria-label="Next day">
+                    <ChevronRight size={15} />
+                  </button>
+                </div>
+              </div>
+              <div className="border-b border-line px-5 py-4">
+                <button
+                  type="button"
+                  onClick={() => openAppointmentForm(selectedDate, "09:00 AM")}
+                  disabled={!canScheduleAppointment}
+                  className="w-full rounded-md border border-clay-400 px-3 py-2 text-sm font-semibold text-clay-500 hover:bg-clay-50 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Add Walk-in Appointment
+                </button>
+              </div>
+              <div className="grid grid-cols-4 border-b border-line px-4 py-4 text-center">
+                {[
+                  ["Today", scheduleCounts.today, "bg-[#747484]"],
+                  ["Waiting", scheduleCounts.waiting, "bg-alert-500"],
+                  ["Engaged", scheduleCounts.engaged, "bg-cyan-500"],
+                  ["Done", scheduleCounts.done, "bg-sage-500"],
+                ].map(([label, value, tone]) => (
+                  <div key={label} className="border-r border-line last:border-r-0">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-ink-muted">{label}</p>
+                    <span className={clsx("mt-2 inline-flex min-w-10 justify-center rounded px-2 py-1 font-mono text-xs font-semibold text-white", tone)}>
+                      {value}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div className="space-y-2 px-4 py-4">
+                {selectedDateAppointments.length === 0 ? (
+                  <p className="py-4 text-sm text-ink-muted">No appointments</p>
+                ) : (
+                  selectedDateAppointments.map((appointment) => {
+                    const patient = patientById.get(appointment.patientId) ?? getPatient(appointment.patientId);
+                    return (
+                      <button
+                        key={appointment.id}
+                        type="button"
+                        onClick={() => setSelectedConsultation(appointment)}
+                        className="w-full rounded-md border border-line bg-paper/60 p-3 text-left transition-colors hover:border-brand-100 hover:bg-brand-50"
+                      >
+                        <div className="flex items-start gap-3">
+                          {patient ? <Avatar initials={patient.avatarInitials} size={34} /> : <UserRound size={28} />}
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-semibold text-ink">{patient?.name ?? "Patient"}</p>
+                            <p className="mt-0.5 truncate text-xs text-ink-muted">{appointment.reason}</p>
+                            <p className="mt-2 flex items-center gap-1 font-mono text-[11px] text-ink-muted">
+                              {appointment.type === "Video" ? <Video size={12} /> : <MapPin size={12} />}
+                              {appointment.time} - {appointment.durationMins} min
+                            </p>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            </aside>
+          </div>
+        </section>
+      </div>
+
+      <Modal
+        open={showForm}
+        title="Schedule Appointment"
+        eyebrow="Appointment"
+        onClose={() => setShowForm(false)}
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={createAppointment}
+              disabled={!canScheduleAppointment || !form.reason.trim()}
+              className="btn-primary disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Schedule Appointment
+            </button>
+            <button type="button" onClick={() => setShowForm(false)} className="btn-secondary">
+              Cancel
+            </button>
+          </>
+        }
+      >
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <Field label="Patient" className="sm:col-span-2">
+            <select
+              value={form.patientId}
+              onChange={(event) => setForm((prev) => ({ ...prev, patientId: event.target.value }))}
+              className="input-field"
+            >
+              {contextPatients.map((patient) => (
+                <option key={patient.id} value={patient.id}>
+                  {patient.name} ({patient.mrn})
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Doctor">
+            <select
+              value={form.doctorId}
+              onChange={(event) => setForm((prev) => ({ ...prev, doctorId: event.target.value }))}
+              className="input-field"
+            >
+              {appointmentDoctors.map((doctor) => (
+                <option key={doctor.id} value={doctor.id}>
+                  {doctor.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Location">
+            <select
+              value={form.locationId}
+              onChange={(event) => setForm((prev) => ({ ...prev, locationId: event.target.value }))}
+              className="input-field"
+            >
+              {contextLocations.map((location) => (
+                <option key={location.id} value={location.id}>
+                  {location.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Date">
+            <input
+              value={form.date}
+              onChange={(event) => setForm((prev) => ({ ...prev, date: event.target.value }))}
+              type="date"
+              className="input-field"
+            />
+          </Field>
+          <Field label="Time">
+            <TimePicker
+              value={form.time}
+              onChange={(value) => setForm((prev) => ({ ...prev, time: value }))}
+              format="12h"
+              ariaLabel="Appointment time"
+            />
+          </Field>
+          <Field label="Duration">
+            <select
+              value={form.durationMins}
+              onChange={(event) => setForm((prev) => ({ ...prev, durationMins: event.target.value }))}
+              className="input-field"
+            >
+              <option value="15">15 min</option>
+              <option value="20">20 min</option>
+              <option value="30">30 min</option>
+              <option value="45">45 min</option>
+            </select>
+          </Field>
+          <Field label="Type">
+            <select
+              value={form.type}
+              onChange={(event) => setForm((prev) => ({ ...prev, type: event.target.value as AppointmentType }))}
+              className="input-field"
+            >
+              <option>In-Person</option>
+              <option>Video</option>
+              <option>Follow-up</option>
+            </select>
+          </Field>
+          <Field label="Reason for Visit" className="sm:col-span-2">
+            <input
+              value={form.reason}
+              onChange={(event) => setForm((prev) => ({ ...prev, reason: event.target.value }))}
+              placeholder="Reason for visit"
+              className="input-field"
+            />
+          </Field>
+        </div>
+      </Modal>
+
+      <Modal
+        open={Boolean(selectedConsultation)}
+        title="Consultation"
+        eyebrow={selectedConsultation ? `${selectedConsultation.date} - ${selectedConsultation.time}` : undefined}
+        onClose={() => setSelectedConsultation(null)}
+        size="xl"
+      >
+        {selectedConsultation && (
+          <ConsultationForm
+            patients={appointmentPatients.length > 0 ? appointmentPatients : patients}
+            preselectedPatientId={selectedConsultation.patientId}
+            labOrderMode="modal"
+            prescriptionMode="modal"
+            showHeading={false}
+          />
+        )}
+      </Modal>
+    </div>
+  );
+}

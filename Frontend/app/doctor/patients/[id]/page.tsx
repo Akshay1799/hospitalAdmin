@@ -3,11 +3,21 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, Phone, Droplet, Stethoscope, FilePlus2, FlaskConical, CalendarClock } from "lucide-react";
-import { Card, SectionHeading, Avatar, Pill, OrderStatusBadge, EmptyState } from "@/components/ui";
+import { ConsultationForm } from "@/components/doctor-consultation-form";
+import { LabOrderIssueModal } from "@/components/lab-order-issue-modal";
+import { PrescriptionIssueModal } from "@/components/prescription-issue-modal";
+import { Card, SectionHeading, Avatar, Pill, OrderStatusBadge, EmptyState, Modal } from "@/components/ui";
 import {
-  getPatient,
+  appointments as seedAppointments,
   consultationNotes,
+  diagnoses as seedDiagnoses,
+  doctors as seedDoctors,
+  followUps as seedFollowUps,
   getDoctor,
+  getPatient,
+  labOrders as seedLabOrders,
+  prescriptions as seedPrescriptions,
+  radiologyOrders as seedRadiologyOrders,
 } from "@/lib/mock-data";
 import { getBackendBootstrap } from "@/lib/api-client";
 import {
@@ -38,14 +48,35 @@ export default function PatientDetail({ params }: { params: { id: string } }) {
   const [radiologyOrders, setRadiologyOrders] = useState<RadiologyOrder[]>([]);
   const [followUps, setFollowUps] = useState<FollowUp[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [consultationOpen, setConsultationOpen] = useState(false);
+  const [prescriptionOpen, setPrescriptionOpen] = useState(false);
+  const [labOrderOpen, setLabOrderOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
 
+    const applySeededPatientRecord = () => {
+      setPatient(getPatient(params.id));
+      setDoctorRows(seedDoctors);
+      setDiagnoses(seedDiagnoses);
+      setPrescriptions(seedPrescriptions);
+      setLabOrders(seedLabOrders);
+      setRadiologyOrders(seedRadiologyOrders);
+      setFollowUps(seedFollowUps);
+      setAppointments(seedAppointments);
+    };
+
     getBackendBootstrap()
       .then((data) => {
         if (cancelled) return;
-        setPatient(data.patients.find((item) => item.id === params.id));
+
+        const backendPatient = data.patients.find((item) => item.id === params.id);
+        if (!backendPatient) {
+          applySeededPatientRecord();
+          return;
+        }
+
+        setPatient(backendPatient);
         setDoctorRows(data.doctors);
         setDiagnoses(data.diagnoses);
         setPrescriptions(data.prescriptions);
@@ -55,7 +86,7 @@ export default function PatientDetail({ params }: { params: { id: string } }) {
         setAppointments(data.appointments);
       })
       .catch(() => {
-        if (!cancelled) setPatient(getPatient(params.id));
+        if (!cancelled) applySeededPatientRecord();
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -95,6 +126,7 @@ export default function PatientDetail({ params }: { params: { id: string } }) {
   const patientFollowUps = followUps.filter((f) => f.patientId === patient.id);
   const patientAppointments = appointments.filter((a) => a.patientId === patient.id);
   const patientNotes = consultationNotes.filter((c) => c.patientId === patient.id);
+  const patientModalRows = [patient];
   const doctor = doctorRows.find((item) => item.id === patient.primaryDoctorId) ?? getDoctor(patient.primaryDoctorId);
   const patientTimeline = [
     ...patientAppointments.map((item) => ({
@@ -184,15 +216,15 @@ export default function PatientDetail({ params }: { params: { id: string } }) {
           </div>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <Link href={`/doctor/consultation?patient=${patient.id}`} className="btn-primary">
+          <button type="button" onClick={() => setConsultationOpen(true)} className="btn-primary">
             <Stethoscope size={15} /> Start Consultation
-          </Link>
-          <Link href={`/doctor/prescriptions?patient=${patient.id}`} className="btn-secondary">
+          </button>
+          <button type="button" onClick={() => setPrescriptionOpen(true)} className="btn-secondary">
             <FilePlus2 size={15} /> New Rx
-          </Link>
-          <Link href={`/doctor/lab-orders?patient=${patient.id}`} className="btn-secondary">
+          </button>
+          <button type="button" onClick={() => setLabOrderOpen(true)} className="btn-secondary">
             <FlaskConical size={15} /> Order Test
-          </Link>
+          </button>
         </div>
       </div>
 
@@ -407,6 +439,34 @@ export default function PatientDetail({ params }: { params: { id: string } }) {
           </Card>
         </div>
       </div>
+
+      <Modal
+        open={consultationOpen}
+        title="Start Consultation"
+        eyebrow={patient.name}
+        onClose={() => setConsultationOpen(false)}
+        size="xl"
+      >
+        <ConsultationForm
+          patients={patientModalRows}
+          preselectedPatientId={patient.id}
+          showHeading={false}
+          prescriptionMode="modal"
+          labOrderMode="modal"
+        />
+      </Modal>
+      <PrescriptionIssueModal
+        open={prescriptionOpen}
+        onClose={() => setPrescriptionOpen(false)}
+        patients={patientModalRows}
+        preselectedPatientId={patient.id}
+      />
+      <LabOrderIssueModal
+        open={labOrderOpen}
+        onClose={() => setLabOrderOpen(false)}
+        patients={patientModalRows}
+        preselectedPatientId={patient.id}
+      />
     </div>
   );
 }

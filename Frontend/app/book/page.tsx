@@ -4,7 +4,7 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { CalendarDays, CheckCircle2, MapPin, Stethoscope, UserRound } from "lucide-react";
-import { Card, Pill, SectionHeading } from "@/components/ui";
+import { Card, Pill, SectionHeading, TimePicker } from "@/components/ui";
 import { patients as seedPatients } from "@/lib/mock-data";
 import { ApiSyncSkippedError, createBackendAppointment, getBackendBootstrap } from "@/lib/api-client";
 import { CURRENT_DATE_ISO } from "@/lib/app-time";
@@ -186,11 +186,7 @@ function BookingFlow() {
               </label>
               <label>
                 <span className="text-[11px] text-ink-muted block mb-1">Slot</span>
-                <select value={slot} onChange={(event) => setSlot(event.target.value)} className="input-field">
-                  {slots.map((item) => (
-                    <option key={item} value={item}>{item}</option>
-                  ))}
-                </select>
+                <TimePicker value={slot} onChange={setSlot} format="12h" presets={slots} ariaLabel="Booking slot" />
               </label>
             </div>
 

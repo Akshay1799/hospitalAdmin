@@ -129,6 +129,8 @@ export function DoctorWorkflowProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  
+
   function completeShift(id: string) {
     setShifts((prev) => prev.map((shift) => (shift.id === id ? { ...shift, status: "completed" } : shift)));
   }

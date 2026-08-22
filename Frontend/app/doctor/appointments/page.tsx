@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Video, MapPin, ChevronRight, Plus } from "lucide-react";
-import { SectionHeading, Card, Avatar, EmptyState, Modal, Field } from "@/components/ui";
+import { SectionHeading, Card, Avatar, EmptyState, Modal, Field, TimePicker } from "@/components/ui";
 import {
   appointments as seedAppointments,
   clinic,
@@ -22,6 +22,7 @@ import {
   getBackendBootstrap,
   updateBackendAppointmentStatus,
 } from "@/lib/api-client";
+import { ConsultationForm } from "@/components/doctor-consultation-form";
 
 const filterTabs: { label: string; value: "today" | "upcoming" | "past" | "all" }[] = [
   { label: "Today", value: "today" },
@@ -52,6 +53,10 @@ export default function AppointmentsPage() {
   const [isLoadingAppointments, setIsLoadingAppointments] = useState(true);
   const [tab, setTab] = useState<"today" | "upcoming" | "past" | "all">("today");
   const [showForm, setShowForm] = useState(false);
+  const [selectedConsultation, setSelectedConsultation] = useState<{
+    appointmentId: string;
+    patientId: string;
+  } | null>(null);
   const [syncMessage, setSyncMessage] = useState("");
   const [form, setForm] = useState({
     patientId: "",
@@ -73,6 +78,9 @@ export default function AppointmentsPage() {
     () => new Map(appointmentPatients.map((patient) => [patient.id, patient])),
     [appointmentPatients]
   );
+  const selectedConsultationPatient = selectedConsultation
+    ? patientById.get(selectedConsultation.patientId) ?? getPatient(selectedConsultation.patientId)
+    : undefined;
   const canScheduleAppointment = contextPatients.length > 0 && appointmentDoctors.length > 0 && contextLocations.length > 0;
 
   useEffect(() => {
@@ -253,11 +261,11 @@ export default function AppointmentsPage() {
             />
             </Field>
             <Field label="Time">
-            <input
+            <TimePicker
               value={form.time}
-              onChange={(event) => setForm((prev) => ({ ...prev, time: event.target.value }))}
-              placeholder="Time"
-              className="input-field"
+              onChange={(value) => setForm((prev) => ({ ...prev, time: value }))}
+              format="12h"
+              ariaLabel="Appointment time"
             />
             </Field>
             <Field label="Duration">
@@ -292,6 +300,24 @@ export default function AppointmentsPage() {
             />
             </Field>
           </div>
+      </Modal>
+
+      <Modal
+        open={Boolean(selectedConsultation)}
+        title={selectedConsultationPatient ? `Consultation - ${selectedConsultationPatient.name}` : "Consultation"}
+        eyebrow="Appointment Consultation"
+        onClose={() => setSelectedConsultation(null)}
+        size="xl"
+      >
+        {selectedConsultation && (
+          <ConsultationForm
+            patients={appointmentPatients.length > 0 ? appointmentPatients : patients}
+            preselectedPatientId={selectedConsultation.patientId}
+            labOrderMode="modal"
+            prescriptionMode="modal"
+            showHeading={false}
+          />
+        )}
       </Modal>
 
       <div className="flex items-center gap-1 mb-5 border-b border-line">
@@ -365,12 +391,13 @@ export default function AppointmentsPage() {
                       </select>
                     </td>
                     <td>
-                      <Link
-                        href={`/doctor/consultation?patient=${patient.id}&appointment=${apt.id}`}
+                      <button
+                        type="button"
+                        onClick={() => setSelectedConsultation({ appointmentId: apt.id, patientId: patient.id })}
                         className="btn-ghost text-xs"
                       >
                         Open <ChevronRight size={13} />
-                      </Link>
+                      </button>
                     </td>
                   </tr>
                 );

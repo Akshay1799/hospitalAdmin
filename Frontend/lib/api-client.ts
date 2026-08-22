@@ -19,6 +19,7 @@ import {
   WorkContext,
 } from "./types";
 import { DoctorShift, ShiftStatus, ShiftType, Workplace, WorkplaceType } from "./doctor-workflow-types";
+import { getLocalDateISO } from "./app-time";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000";
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -404,8 +405,9 @@ function frontendFollowUpStatus(status: string, dueAt?: string | null): FollowUp
   if (status === "COMPLETED") return "Completed";
   if (status === "OVERDUE") return "Overdue";
   const dueDate = dueAt ? formatDate(dueAt) : "";
-  if (status === "DUE_TODAY" || dueDate === new Date().toISOString().slice(0, 10)) return "Due Today";
-  if (dueDate && dueDate < new Date().toISOString().slice(0, 10)) return "Overdue";
+  const today = getLocalDateISO();
+  if (status === "DUE_TODAY" || dueDate === today) return "Due Today";
+  if (dueDate && dueDate < today) return "Overdue";
   return "Upcoming";
 }
 
