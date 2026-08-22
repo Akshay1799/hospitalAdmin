@@ -3,6 +3,7 @@ import emergencyReducer from './slices/emergencySlice';
 import ambulanceReducer from './slices/ambulanceSlice';
 import procurementReducer from './slices/procurementSlice';
 import surgicalReducer from './slices/surgicalSlice';
+import wardsBedsReducer from './slices/wardsBedsSlice';
 
 export const store = configureStore({
   reducer: {
@@ -10,6 +11,7 @@ export const store = configureStore({
     ambulance: ambulanceReducer,
     procurement: procurementReducer,
     surgical: surgicalReducer,
+    wardsBeds: wardsBedsReducer,
   },
 });
 

@@ -281,6 +281,106 @@ export interface NurseStation {
   shiftCoverage: string;
 }
 
+/* ----------------------------- Wards & Beds ----------------------------- */
+
+export type WardType = "General" | "ICU" | "CCU" | "HDU" | "Isolation" | "Maternity" | "NICU" | "Private" | "Deluxe";
+export type BedTier = "General" | "Semi-Private" | "Private Suite" | "ICU" | "CCU" | "HDU" | "Isolation" | "NICU" | "Daycare";
+export type BedStatus = "Available" | "Occupied" | "Reserved" | "Cleaning" | "Maintenance" | "Decommissioned";
+export type IsolationType = "Droplet" | "Airborne" | "Contact" | "None";
+
+export interface Ward {
+  id: string;
+  name: string;
+  type: WardType;
+  floor: string;
+  department: string;
+  totalBeds: number;
+  occupiedBeds: number;
+  availableBeds: number;
+  status: "Active" | "Inactive";
+}
+
+export interface Bed {
+  id: string;
+  wardId: string;
+  wardName: string;
+  bedNumber: string;
+  tier: BedTier;
+  status: BedStatus;
+  floor: string;
+  currentPatientId?: string;
+  currentPatientName?: string;
+  admittingDoctor?: string;
+  admissionDate?: string;
+  lengthOfStayDays?: number;
+  isolationFlags?: IsolationType;
+  negativePressure?: boolean;
+  attachedEquipment?: string[];
+  nurseToPatientRatio?: string;
+  turnoverETA?: string;
+  reservedForPatientName?: string;
+  reservedExpiry?: string;
+}
+
+export interface BedAllocation {
+  id: string;
+  bedId: string;
+  bedNumber: string;
+  wardName: string;
+  patientId: string;
+  patientName: string;
+  doctorName: string;
+  admissionType: "Emergency" | "Elective IPD" | "OT Post-Op" | "Direct Transfer";
+  allocatedAt: string;
+  releasedAt?: string;
+  isolationPrecautions?: IsolationType;
+  notes?: string;
+}
+
+export interface BedTransferRequest {
+  id: string;
+  patientId: string;
+  patientName: string;
+  fromBedId: string;
+  fromBedNumber: string;
+  fromWard: string;
+  toBedId: string;
+  toBedNumber: string;
+  toWard: string;
+  reason: string;
+  requestedBy: string;
+  approvedBy?: string;
+  status: "Pending" | "Approved" | "Completed" | "Rejected";
+  requestedAt: string;
+}
+
+export interface BedCleaningTask {
+  id: string;
+  bedId: string;
+  bedNumber: string;
+  wardName: string;
+  triggeredAt: string;
+  assignedStaffId?: string;
+  assignedStaffName?: string;
+  status: "Pending" | "In Progress" | "Done";
+  completedAt?: string;
+  protocol: "Standard" | "Terminal-Isolation";
+  turnaroundMinutes?: number;
+  notes?: string;
+}
+
+export interface BedHistoryEntry {
+  id: string;
+  bedId: string;
+  bedNumber: string;
+  wardName: string;
+  eventType: "Allocation" | "Transfer Out" | "Transfer In" | "Discharge" | "Cleaning Started" | "Cleaning Completed" | "Maintenance" | "Reservation";
+  patientName?: string;
+  staffName: string;
+  timestamp: string;
+  details: string;
+}
+
 export interface Surgeon extends BaseStaff {
   role: "Surgeon";
   specialty: string;
