@@ -469,6 +469,70 @@ export interface ProcurementRequest {
 /* ----------------------------------- Billing ---------------------------------- */
 
 export type InvoiceStatus = "draft" | "issued" | "partially-paid" | "paid" | "cancelled" | "refunded";
+export type EncounterType = "OPD" | "IPD" | "Daycare" | "Emergency";
+export type ServiceCategory = "Consultation" | "Surgery" | "Diagnostics" | "Pharmacy" | "Bed Charges" | "Package";
+
+export interface InvoiceLineItem {
+  id: string;
+  name: string;
+  category: ServiceCategory;
+  sacCode?: string;
+  quantity: number;
+  unitPrice: number;
+  taxRate: number; // percentage e.g. 5, 12, 18
+  total: number;
+  procurementItemId?: string;
+  labOrderId?: string;
+  prescriptionId?: string;
+}
+
+export interface InterimDeposit {
+  id: string;
+  amount: number;
+  date: string;
+  mode: "Cash" | "Card" | "UPI" | "Insurance" | "Online";
+  receiptNo: string;
+  cashierName: string;
+  notes?: string;
+}
+
+export interface DiscountApplication {
+  typeId: string;
+  typeName: string;
+  percentage?: number;
+  flatAmount: number;
+  appliedBy: string;
+  approvedBy?: string;
+  status: "Applied" | "Pending Approval" | "Rejected";
+  reason?: string;
+  appliedAt: string;
+}
+
+export interface DiscountType {
+  id: string;
+  name: string;
+  category: "Senior Citizen" | "Staff Discount" | "Corporate / Insurance Rate" | "Promotional Camp" | "Compassionate Waiver";
+  defaultPercentage?: number;
+  defaultFlatAmount?: number;
+  eligibilityCriteria: string;
+  requiresSupervisorApproval: boolean;
+  isActive: boolean;
+}
+
+export interface RefundRecord {
+  id: string;
+  invoiceId: string;
+  invoiceNo: string;
+  patientName: string;
+  amount: number;
+  reason: string;
+  reasonCategory: "Clinical Cancellation" | "Billing Dispute" | "Service Dissatisfaction" | "Duplicate Payment";
+  requestedBy: string;
+  approvedBy?: string;
+  status: "Requested" | "Approved" | "Processed" | "Rejected";
+  timestamp: string;
+  paymentMode: "Cash" | "Bank Transfer" | "Original Mode";
+}
 
 export interface Invoice {
   id: string;
@@ -476,12 +540,25 @@ export interface Invoice {
   patientName: string;
   patientId: string;
   service: string;
-  amount: number;
+  encounterType?: EncounterType;
+  serviceCategory?: ServiceCategory;
+  department?: string;
+  doctorName?: string;
+  amount: number; // Gross amount
+  subtotal?: number;
+  taxAmount?: number;
   paid: number;
   outstanding: number;
   status: InvoiceStatus;
   issuedOn: string;
   method?: "Cash" | "Card" | "UPI" | "Insurance" | "Online";
+  lineItems?: InvoiceLineItem[];
+  interimDeposits?: InterimDeposit[];
+  discount?: DiscountApplication;
+  refunds?: RefundRecord[];
+  linkedCaseId?: string;
+  linkedProcurementItemIds?: string[];
+  dischargeCleared?: boolean;
 }
 
 /* ------------------------------------- Lab ------------------------------------ */

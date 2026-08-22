@@ -59,6 +59,7 @@ import { useToast } from "@/hooks/use-toast";
 import { invoices as initialInvoices } from "@/lib/mock-data/invoices";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { Invoice } from "@/lib/types";
+import { BillingNav } from "@/components/billing/billing-nav";
 
 export default function BillingPage() {
   const router = useRouter();
@@ -494,6 +495,8 @@ export default function BillingPage() {
           </div>
         }
       />
+
+      <BillingNav />
 
       {/* Summary KPI Cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">

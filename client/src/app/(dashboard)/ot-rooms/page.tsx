@@ -68,6 +68,8 @@ export default function OTRoomsPage() {
   const [editingRoom, setEditingRoom] = useState<OTRoom | null>(null);
   const [maintModalOpen, setMaintModalOpen] = useState(false);
   const [selectedMaintRoom, setSelectedMaintRoom] = useState<OTRoom | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [roomToDelete, setRoomToDelete] = useState<OTRoom | null>(null);
 
   // Form state: Add / Edit Room
   const [roomName, setRoomName] = useState("");
@@ -181,25 +183,35 @@ export default function OTRoomsPage() {
     setMaintModalOpen(false);
   };
 
-  const handleDeleteRoom = (room: OTRoom) => {
+  const handlePromptDeleteRoom = (room: OTRoom) => {
+    setRoomToDelete(room);
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleConfirmDeleteRoom = () => {
+    if (!roomToDelete) return;
+
     // Guard: Check if room has active bookings
     const hasConflict = cases.some(
       (c) =>
-        c.allocatedOT?.roomId === room.id &&
+        c.allocatedOT?.roomId === roomToDelete.id &&
         (c.status === "Scheduled" || c.status === "In Progress")
     );
 
     if (hasConflict) {
       toast({
         title: "Deactivation Blocked",
-        description: `Cannot deactivate ${room.name}: Active or scheduled surgical bookings are assigned to this room.`,
+        description: `Cannot deactivate ${roomToDelete.name}: Active or scheduled surgical bookings are assigned to this room.`,
         variant: "destructive",
       });
+      setDeleteConfirmOpen(false);
       return;
     }
 
-    dispatch(deleteOTRoom(room.id));
-    toast({ title: "Room Decommissioned", description: `${room.name} removed from registry.` });
+    dispatch(deleteOTRoom(roomToDelete.id));
+    toast({ title: "Room Decommissioned", description: `${roomToDelete.name} removed from registry.` });
+    setDeleteConfirmOpen(false);
+    setRoomToDelete(null);
   };
 
   const getStatusBadge = (status: OTRoomStatus) => {
@@ -377,7 +389,7 @@ export default function OTRoomsPage() {
                     variant="ghost"
                     size="icon"
                     className="h-7 w-7 text-destructive hover:text-destructive"
-                    onClick={() => handleDeleteRoom(room)}
+                    onClick={() => handlePromptDeleteRoom(room)}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
@@ -507,6 +519,62 @@ export default function OTRoomsPage() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ========================================================================= */}
+      {/* 3. CONFIRM DELETE / DECOMMISSION ROOM MODAL                               */}
+      {/* ========================================================================= */}
+      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <DialogContent className="sm:max-w-[440px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-5 w-5 text-destructive" /> Decommission &amp; Delete OT Room
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Are you sure you want to permanently decommission and delete <strong>{roomToDelete?.name}</strong>?
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-2 text-xs space-y-2.5">
+            <div className="p-3 rounded-lg border border-border bg-muted/20 space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Department:</span>
+                <span className="font-semibold text-foreground">{roomToDelete?.department}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Current Status:</span>
+                <span className="font-mono text-foreground">{roomToDelete?.status}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Total Surgeries Hosted:</span>
+                <span className="font-mono text-primary font-bold">{roomToDelete?.utilizationStats.totalSurgeries}</span>
+              </div>
+            </div>
+
+            <p className="text-[11px] text-muted-foreground">
+              This action will remove the operating theatre suite from active calendar scheduling and slot allocation engines.
+            </p>
+          </div>
+
+          <DialogFooter className="pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setDeleteConfirmOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              onClick={handleConfirmDeleteRoom}
+            >
+              Confirm Decommission &amp; Delete
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
