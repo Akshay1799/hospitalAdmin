@@ -4,6 +4,7 @@ Backend/node_modules/
 
 # Next.js
 Frontend/.next/
+Frontend/.next-dev.lock
 
 # Environment
 .env
