@@ -381,6 +381,175 @@ export interface BedHistoryEntry {
   details: string;
 }
 
+/* ----------------------------- Section 12 Modules ----------------------------- */
+
+// 12.2 Radiology & Imaging
+export type RadiologyModality = "X-Ray" | "CT Scan" | "MRI" | "Ultrasound" | "PET-CT" | "Mammography";
+export type RadiologyStatus = "Requested" | "Scheduled" | "In Progress" | "Report Pending" | "Report Ready";
+
+export interface RadiologyOrder {
+  id: string;
+  orderNo: string;
+  patientId: string;
+  patientName: string;
+  modality: RadiologyModality;
+  bodyPart: string;
+  orderingDoctor: string;
+  scheduledAt: string;
+  status: RadiologyStatus;
+  priority: "Routine" | "Urgent" | "Stat Emergency";
+  criticalFinding?: boolean;
+  criticalDetails?: string;
+  roomName: string;
+  radiologistName?: string;
+  reportNotes?: string;
+  dicomViewerUrl?: string;
+}
+
+// 12.3 Pharmacy & Medicine Inventory
+export type MedicineStatus = "In Stock" | "Low Stock" | "Out of Stock" | "Expiring Soon" | "Expired";
+
+export interface MedicineItem {
+  id: string;
+  name: string;
+  genericName: string;
+  category: "Antibiotics" | "Cardiovascular" | "Analgesics" | "Critical Emergency" | "Anesthetics" | "Gastrointestinal" | "Fluids & Electrolytes";
+  dosageForm: "Tablet" | "Capsule" | "Injection / Vial" | "IV Infusion" | "Syrup" | "Ointment";
+  stockLevel: number;
+  unit: string;
+  minThreshold: number;
+  expiryDate: string;
+  batchNumber: string;
+  rackLocation: string;
+  status: MedicineStatus;
+  unitPrice: number;
+  scheduleH1?: boolean;
+}
+
+export interface DispensingRecord {
+  id: string;
+  prescriptionNo: string;
+  patientId: string;
+  patientName: string;
+  doctorName: string;
+  dispensedAt: string;
+  pharmacistName: string;
+  items: { medicineName: string; quantity: number; dosage: string }[];
+  totalAmount: number;
+  status: "Completed" | "Pending Collection" | "Substituted";
+}
+
+export interface PharmacyAlert {
+  id: string;
+  medicineName: string;
+  type: "Low Stock" | "Expiring Soon" | "Critical Zero Stock";
+  severity: "High" | "Critical" | "Warning";
+  currentStock: number;
+  thresholdOrExpiry: string;
+  actionRequired: string;
+}
+
+// 12.4 Payments & Daily Counter Collections
+export type PaymentMethod = "Cash" | "Credit/Debit Card" | "UPI/QR" | "Bank Transfer" | "Insurance Direct";
+
+export interface PaymentTransaction {
+  id: string;
+  receiptNo: string;
+  patientId: string;
+  patientName: string;
+  invoiceId: string;
+  amount: number;
+  paymentMethod: PaymentMethod;
+  counterNo: string;
+  cashierName: string;
+  timestamp: string;
+  reconciliationStatus: "Reconciled" | "Pending Settlement" | "Variance";
+}
+
+export interface CashDrawerReport {
+  counterId: string;
+  counterName: string;
+  cashierName: string;
+  openingFloat: number;
+  cashCollected: number;
+  posCollected: number;
+  upiCollected: number;
+  refundsDeducted: number;
+  closingBalance: number;
+  variance: number;
+  status: "Balanced" | "Variance Detected" | "Open";
+}
+
+// 12.4 Insurance & TPA Claims Desk
+export type TpaProvider = "Star Health" | "HDFC ERGO" | "ICICI Lombard" | "Medi Assist" | "Vidal Health" | "Care Health" | "PM-JAY Scheme" | "CGHS Scheme";
+export type ClaimStatus = "Submitted" | "Pre-authorized" | "Under Review" | "Approved" | "Rejected" | "Settled";
+
+export interface InsuranceClaim {
+  id: string;
+  claimNo: string;
+  patientId: string;
+  patientName: string;
+  tpaProvider: TpaProvider;
+  policyNo: string;
+  admissionDate: string;
+  claimAmount: number;
+  approvedAmount: number;
+  copayAmount: number;
+  status: ClaimStatus;
+  submissionDate: string;
+  settlementDate?: string;
+  rejectionReason?: string;
+  queryNotes?: string;
+}
+
+// Central Store Inventory & Stock
+export interface InventoryItem {
+  id: string;
+  itemCode: string;
+  name: string;
+  category: "Surgical Consumables" | "PPE & Hygiene" | "Diagnostic Reagents" | "Linens & Bedding" | "Wound Care" | "General Medical Supplies";
+  stockLevel: number;
+  unit: string;
+  reorderLevel: number;
+  leadTimeDays: number;
+  supplierName: string;
+  unitCost: number;
+  status: "Adequate" | "Low Stock" | "Reorder Placed";
+}
+
+export interface StockIndent {
+  id: string;
+  indentNo: string;
+  department: string;
+  requestedBy: string;
+  items: { itemName: string; quantity: number }[];
+  status: "Pending Approval" | "Dispatched" | "Received";
+  requestedAt: string;
+}
+
+// Biomedical & Facility Assets Registry
+export type AssetCategory = "Diagnostic & Imaging" | "Life Support" | "OT Equipment" | "Monitoring" | "Facility Infrastructure";
+export type AssetMaintenanceStatus = "Operational" | "Under Maintenance" | "Calibration Due" | "Decommissioned";
+
+export interface BiomedicalAsset {
+  id: string;
+  assetCode: string;
+  name: string;
+  category: AssetCategory;
+  model: string;
+  serialNo: string;
+  department: string;
+  floor: string;
+  purchaseDate: string;
+  purchaseCost: number;
+  warrantyExpiry: string;
+  amcCmcContract: "Active" | "Expired" | "Under Renewal";
+  vendorName: string;
+  nextPPMDate: string;
+  maintenanceStatus: AssetMaintenanceStatus;
+  lastCalibrationDate?: string;
+}
+
 export interface Surgeon extends BaseStaff {
   role: "Surgeon";
   specialty: string;
