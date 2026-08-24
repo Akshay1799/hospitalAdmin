@@ -383,27 +383,117 @@ export interface BedHistoryEntry {
 
 /* ----------------------------- Section 12 Modules ----------------------------- */
 
-// 12.2 Radiology & Imaging
+// 12.2 Radiology & Imaging (Extended)
 export type RadiologyModality = "X-Ray" | "CT Scan" | "MRI" | "Ultrasound" | "PET-CT" | "Mammography";
-export type RadiologyStatus = "Requested" | "Scheduled" | "In Progress" | "Report Pending" | "Report Ready";
+export type RadiologyStatus = "Requested" | "Scheduled" | "In Progress" | "Report Pending" | "Report Ready" | "Completed" | "Cancelled";
+export type SuiteStatus = "Available" | "In Use" | "Maintenance" | "Offline";
+export type PacsConnectivityStatus = "Connected" | "Degraded" | "Offline";
 
 export interface RadiologyOrder {
   id: string;
   orderNo: string;
   patientId: string;
   patientName: string;
+  uhid?: string;
+  age?: number;
+  gender?: string;
   modality: RadiologyModality;
   bodyPart: string;
   orderingDoctor: string;
+  source?: "OPD" | "IPD" | "Emergency" | "OT";
   scheduledAt: string;
   status: RadiologyStatus;
   priority: "Routine" | "Urgent" | "Stat Emergency";
   criticalFinding?: boolean;
   criticalDetails?: string;
   roomName: string;
+  suiteId?: string;
   radiologistName?: string;
+  radiologistId?: string;
+  technologistName?: string;
+  scanStartTime?: string;
+  elapsedScanMins?: number;
+  patientLocation?: string;
+  wardBed?: string;
+  tariffId?: string;
+  price?: number;
   reportNotes?: string;
+  impressionNotes?: string;
   dicomViewerUrl?: string;
+  authorizedAt?: string;
+  amendedAt?: string;
+  amendedBy?: string;
+  amendmentNotes?: string;
+}
+
+export interface ImagingSuite {
+  id: string;
+  suiteId: string;
+  name: string;
+  modalityType: RadiologyModality;
+  location: string;
+  floor: string;
+  status: SuiteStatus;
+  pacsConnectivityStatus: PacsConnectivityStatus;
+  currentActiveOrderId?: string;
+  lastMaintenanceDate: string;
+  nextMaintenanceDate: string;
+  maintenanceNotes?: string;
+}
+
+export interface CriticalFindingLog {
+  id: string;
+  orderId: string;
+  orderNo: string;
+  patientName: string;
+  uhid: string;
+  patientLocation: string;
+  modality: RadiologyModality;
+  bodyPart: string;
+  criticalDetails: string;
+  flaggedAt: string;
+  orderingDoctor: string;
+  reportingRadiologist: string;
+  acknowledged: boolean;
+  acknowledgedBy?: string;
+  acknowledgedAt?: string;
+  clinicianNotified: boolean;
+  notificationMethod?: "Phone" | "Direct Consultation" | "Emergency Escalation Center";
+  escalationNotes?: string;
+}
+
+export interface StudyHistoryItem {
+  id: string;
+  orderId: string;
+  orderNo: string;
+  patientName: string;
+  uhid: string;
+  modality: RadiologyModality;
+  bodyPart: string;
+  orderingDoctor: string;
+  radiologistName: string;
+  technologistName: string;
+  suiteName: string;
+  outcome: "Completed" | "Cancelled" | "Aborted";
+  cancellationReason?: string;
+  totalTurnaroundTimeMins: number;
+  completedAt: string;
+  archivedAt: string;
+  dicomViewerUrl?: string;
+}
+
+export interface RadiologistProfile {
+  id: string;
+  doctorId: string;
+  name: string;
+  qualification: string;
+  registrationNo: string;
+  specialty: string;
+  onDutyStatus: "On Duty" | "Off Duty" | "On Call";
+  currentQueueCount: number;
+  avgTatMins: number;
+  todayAuthorizedCount: number;
+  contactNumber: string;
 }
 
 // 12.3 Pharmacy & Medicine Inventory
