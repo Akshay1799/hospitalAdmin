@@ -1118,3 +1118,126 @@ export interface StatTrend {
   trend?: "up" | "down" | "flat";
   icon?: string;
 }
+
+/* ----------------------------- 13. Hospital & Doctor Verification ----------------------------- */
+
+export type VerificationType =
+  | "Hospital Identity"
+  | "Hospital Registration"
+  | "Facility Evidence"
+  | "Admin Identity"
+  | "Doctor Affiliation"
+  | "Specialty / Qualification"
+  | "Ambulance Capability"
+  | "Emergency Capability";
+
+export type VerificationStatus =
+  | "Pending"
+  | "Under Review"
+  | "Verified"
+  | "Needs More Information"
+  | "Rejected"
+  | "Suspended";
+
+export interface VerificationDocument {
+  id: string;
+  name: string;
+  type: string;
+  documentNumber?: string;
+  fileUrl?: string;
+  fileSize: string;
+  uploadedAt: string;
+  status: "Verified" | "Pending Review" | "Flagged / Rejected" | "Expiring Soon";
+  expiryDate?: string;
+  rejectionReason?: string;
+}
+
+export interface VerificationTimelineEvent {
+  id: string;
+  status: VerificationStatus;
+  actorName: string;
+  actorRole: string;
+  timestamp: string;
+  notes: string;
+}
+
+export interface VerificationCase {
+  id: string;
+  caseNo: string;
+  subjectName: string;
+  subjectId: string;
+  subjectType: "Hospital" | "Doctor" | "Admin" | "Ambulance Service" | "Emergency Dept";
+  type: VerificationType;
+  status: VerificationStatus;
+  submittedAt: string;
+  updatedAt: string;
+  reviewerName?: string;
+  reviewerRole?: string;
+  reviewerDecision?: "Approved" | "Rejected" | "Needs More Information";
+  decisionReason?: string;
+  documents: VerificationDocument[];
+  timeline: VerificationTimelineEvent[];
+  expiryDate?: string;
+  daysUntilExpiry?: number;
+  publicSearchVisible: boolean;
+  metadata: {
+    legalName?: string;
+    registrationNo?: string;
+    registeredAddress?: string;
+    contactEmail?: string;
+    contactPhone?: string;
+    ownershipType?: string;
+    facilityAreaSqFt?: number;
+    specialtyClaims?: string[];
+    operatingHours?: string;
+    ambulanceFleetCount?: number;
+  };
+}
+
+export interface DoctorAffiliationVerification {
+  id: string;
+  doctorId: string;
+  doctorName: string;
+  specialty: string;
+  qualification: string;
+  registrationNo: string;
+  avatarUrl?: string;
+  hospitalAffiliationConfirmed: boolean;
+  hospitalAffirmedAt?: string;
+  platformCredentialsVerified: boolean;
+  platformVerifiedAt?: string;
+  platformReviewerName?: string;
+  publicSearchStatus: "Live / Searchable" | "Blocked (Pending Platform Review)" | "Blocked (Unconfirmed Affiliation)" | "Suspended";
+  documentsCount: number;
+  affiliationType: "Full-Time Consultant" | "Visiting Specialist" | "Honorary Surgeon" | "On-Call Emergency";
+}
+
+export interface CapabilityVerification {
+  id: string;
+  capabilityType: "Ambulance Fleet" | "24/7 Emergency & Trauma" | "ICU Critical Care" | "Blood Bank Storage";
+  title: string;
+  serviceDetails: string;
+  operatingHours: string;
+  fleetCount?: number;
+  traumaLevel?: string;
+  status: VerificationStatus;
+  verifiedAt?: string;
+  reviewerName?: string;
+  publicBadgeActive: boolean;
+  complianceNotes: string;
+  evidenceDocs: string[];
+}
+
+export interface ExpiryAlertItem {
+  id: string;
+  documentName: string;
+  subjectName: string;
+  subjectType: "Hospital" | "Doctor" | "Fleet / Facility";
+  licenseNumber: string;
+  issuingAuthority: string;
+  expiryDate: string;
+  daysRemaining: number;
+  urgency: "Critical Expired" | "High (<30 Days)" | "Medium (<60 Days)";
+  publicImpact: string;
+  status: "Action Required" | "Renewal Submitted" | "Verified";
+}
