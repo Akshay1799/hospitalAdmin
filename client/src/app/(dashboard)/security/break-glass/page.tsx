@@ -49,6 +49,7 @@ import { ScopeIndicator } from "@/components/shared/ScopeIndicator";
 import { SecurityNav } from "@/components/security/security-nav";
 import { StepUpAuthModal } from "@/components/security/step-up-auth-modal";
 import { useToast } from "@/hooks/use-toast";
+import { formatDateTime } from "@/lib/utils";
 import { mockBreakGlassSessions } from "@/lib/mock-data/security-operations";
 import { BreakGlassSession } from "@/lib/types";
 
@@ -293,7 +294,7 @@ export default function BreakGlassSecurityPage() {
                           <span>{s.durationMinutes} mins total</span>
                         </div>
                         <div className="text-[10px] text-muted-foreground">
-                          Exp: {new Date(s.expiresAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                          Exp: {formatDateTime(s.expiresAt)}
                         </div>
                       </div>
                     </TableCell>

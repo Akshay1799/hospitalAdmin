@@ -57,6 +57,7 @@ import { ScopeIndicator } from "@/components/shared/ScopeIndicator";
 import { SecurityNav } from "@/components/security/security-nav";
 import { StepUpAuthModal } from "@/components/security/step-up-auth-modal";
 import { useToast } from "@/hooks/use-toast";
+import { formatDateTime, formatDate } from "@/lib/utils";
 import {
   mockDocumentSecurityPolicies,
   mockPrivacyConsentRecords,
@@ -371,7 +372,7 @@ export default function DocumentPrivacySecurityPage() {
                         </TableCell>
 
                         <TableCell className="font-mono text-xs text-muted-foreground">
-                          {new Date(b.createdAt).toLocaleDateString()} {new Date(b.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                          {formatDateTime(b.createdAt)}
                         </TableCell>
 
                         <TableCell className="font-mono text-xs font-semibold">

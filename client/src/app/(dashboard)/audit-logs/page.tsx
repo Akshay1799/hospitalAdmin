@@ -47,6 +47,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { ScopeIndicator } from "@/components/shared/ScopeIndicator";
 import { SecurityNav } from "@/components/security/security-nav";
 import { useToast } from "@/hooks/use-toast";
+import { formatDateTime } from "@/lib/utils";
 import { mockDetailedAuditLogs } from "@/lib/mock-data/security-operations";
 import { AuditLogDetailedEntry } from "@/lib/types";
 
@@ -254,8 +255,7 @@ export default function AuditLogsPage() {
                     </TableCell>
 
                     <TableCell className="font-mono text-xs text-muted-foreground">
-                      <div>{new Date(l.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</div>
-                      <div className="text-[10px]">{new Date(l.timestamp).toLocaleDateString()}</div>
+                      {formatDateTime(l.timestamp)}
                     </TableCell>
 
                     <TableCell>

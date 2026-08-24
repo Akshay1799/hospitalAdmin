@@ -1367,3 +1367,59 @@ export interface ConfigBackupSnapshot {
   status: "Encrypted & Verified" | "Archived";
 }
 
+/* ----------------------------- 15. Admin Delegation Model ----------------------------- */
+
+export type DelegationCapabilityScope =
+  | "Reception & OPD Routing"
+  | "Nurse Station & Shift Rostering"
+  | "Doctor Operational Schedules"
+  | "Billing & Financial Refunds"
+  | "Lab & Radiology Operational Status"
+  | "Pharmacy Inventory & Batches"
+  | "OT Scheduling & Theatre Logistics"
+  | "Emergency Escalation & Ambulance"
+  | "Vendor Procurement Requests"
+  | "Operational Reports";
+
+export interface AdminDelegationGrant {
+  id: string;
+  grantToken: string;
+  grantorName: string;
+  grantorRole: string;
+  delegateeId: string;
+  delegateeName: string;
+  delegateeRole: string;
+  targetRole: string;
+  capabilityScopes: DelegationCapabilityScope[];
+  reason: string;
+  grantedAt: string;
+  expiresAt: string;
+  durationHours: number;
+  status: "Active" | "Expired" | "Revoked";
+  revokedAt?: string;
+  actionsCount: number;
+}
+
+export interface DelegationActionLog {
+  id: string;
+  timestamp: string;
+  actorName: string;
+  actorRole: string;
+  delegatedBy?: string;
+  actionDescription: string;
+  module: string;
+  entity: string;
+  entityId: string;
+  attributionString: string;
+  reason: string;
+}
+
+export interface ModuleBoundaryDefinition {
+  module: string;
+  iconName: string;
+  adminCanScope: string[];
+  adminCannotBoundary: string[];
+  riskLevel: "Standard Operational" | "Restricted Clinical Boundary" | "High Financial Risk";
+}
+
+
