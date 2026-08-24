@@ -152,7 +152,7 @@ export const navGroups: NavGroup[] = [
     title: "Administration",
     items: [
       { label: "Verifications", href: "/verification", icon: ShieldCheck },
-      { label: "Admin Delegation", href: "/admin-delegation", icon: UsersRound },
+      { label: "Hospital Admin", href: "/admin-delegation", icon: UsersRound },
       { label: "Reports", href: "/reports", icon: Gauge },
       { label: "Roles & Permissions", href: "/roles", icon: ShieldCheck },
       { label: "Audit Logs", href: "/audit-logs", icon: ScrollText },

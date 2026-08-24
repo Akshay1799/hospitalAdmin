@@ -194,12 +194,12 @@ export default function AdminDelegationPage() {
     return (
       <div className="space-y-4 animate-fade-in pb-12">
         <PageHeader
-          title="Hospital Admin Delegation &amp; Operational Capability Console"
-          description="Enforces PRD Section 15: Delegated operational super-role governance without credential sharing or hidden privilege."
-          crumbs={[{ label: "Administration" }, { label: "Admin Delegation" }]}
+          title="Hospital Admin Operational Capability &amp; Delegation Console"
+          description="Enforces PRD Section 15: Hospital Admin operational super-role governance without credential sharing or hidden privilege."
+          crumbs={[{ label: "Administration" }, { label: "Hospital Admin" }]}
         />
         <div className="h-48 flex items-center justify-center text-xs text-muted-foreground">
-          Loading delegation console...
+          Loading Hospital Admin console...
         </div>
       </div>
     );
@@ -212,9 +212,9 @@ export default function AdminDelegationPage() {
   return (
     <div className="space-y-4 animate-fade-in pb-12">
       <PageHeader
-        title="Hospital Admin Delegation &amp; Operational Capability Console"
-        description="Enforces PRD Section 15: Delegated operational super-role governance without credential sharing or hidden privilege."
-        crumbs={[{ label: "Administration" }, { label: "Admin Delegation" }]}
+        title="Hospital Admin Operational Capability &amp; Delegation Console"
+        description="Enforces PRD Section 15: Hospital Admin operational super-role governance without credential sharing or hidden privilege."
+        crumbs={[{ label: "Administration" }, { label: "Hospital Admin" }]}
         actions={
           <Button
             size="sm"
