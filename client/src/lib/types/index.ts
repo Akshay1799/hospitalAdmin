@@ -1241,3 +1241,129 @@ export interface ExpiryAlertItem {
   publicImpact: string;
   status: "Action Required" | "Renewal Submitted" | "Verified";
 }
+
+/* ----------------------------- 14. Security, Privacy & Access Control ----------------------------- */
+
+export type DataScope =
+  | "Self Only"
+  | "Department Wide"
+  | "Branch Wide"
+  | "Organization Wide"
+  | "Restricted Clinical";
+
+export interface RBACPermission {
+  module: string;
+  view: boolean;
+  create: boolean;
+  edit: boolean;
+  delete: boolean;
+  approve: boolean;
+  export: boolean;
+  emergencyOverride: boolean;
+  dataScope: DataScope;
+}
+
+export interface RBACRole {
+  id: string;
+  name: string;
+  description: string;
+  userCount: number;
+  system: boolean;
+  branchScope: string;
+  departmentScope: string;
+  mfaEnforced: boolean;
+  permissions: RBACPermission[];
+}
+
+export interface SecuritySession {
+  id: string;
+  userId: string;
+  userName: string;
+  userRole: string;
+  device: string;
+  browser: string;
+  ipAddress: string;
+  location: string;
+  lastActive: string;
+  status: "Active" | "Idle" | "Revoked" | "Expired";
+  isSuspicious?: boolean;
+  suspiciousReason?: string;
+}
+
+export interface MFAPolicy {
+  roleId: string;
+  roleName: string;
+  status: "Enforced" | "Grace Period" | "Optional";
+  allowedMethods: ("TOTP Authenticator" | "FIDO2 Security Key" | "SMS OTP")[];
+  graceDaysRemaining?: number;
+  complianceRate: number;
+  enforcedUserCount: number;
+}
+
+export interface BreakGlassSession {
+  id: string;
+  tokenNo: string;
+  requesterId: string;
+  requesterName: string;
+  requesterRole: string;
+  targetPatientId: string;
+  targetPatientName: string;
+  resourceScope: string;
+  reason: string;
+  grantedAt: string;
+  expiresAt: string;
+  durationMinutes: number;
+  status: "Active" | "Expired" | "Revoked";
+  revokedAt?: string;
+  revokedBy?: string;
+}
+
+export interface AuditLogDetailedEntry {
+  id: string;
+  actor: string;
+  actorRole: string;
+  action: string;
+  module: string;
+  entity: string;
+  entityId: string;
+  timestamp: string;
+  ipAddress: string;
+  status: "success" | "failed" | "step-up-verified";
+  severity: "Low" | "Medium" | "High" | "Critical";
+  reason?: string;
+  beforeState?: Record<string, any>;
+  afterState?: Record<string, any>;
+}
+
+export interface DocumentSecurityPolicy {
+  id: string;
+  documentCategory: string;
+  viewPermission: string[];
+  downloadPermission: string[];
+  sharePermission: string[];
+  watermarkingEnforced: boolean;
+  redactionRules: string[];
+}
+
+export interface PrivacyConsentRecord {
+  id: string;
+  patientId: string;
+  patientName: string;
+  externalOrgName: string;
+  purpose: string;
+  consentStatus: "Granted" | "Revoked" | "Expired";
+  validUntil: string;
+  dataMinimizationTier: "Full Medical Record" | "Restricted Diagnosis Only" | "Anonymized Billing";
+}
+
+export interface ConfigBackupSnapshot {
+  id: string;
+  snapshotName: string;
+  type: "Full System Configuration" | "RBAC & Role Definitions" | "Audit Log Archive";
+  createdAt: string;
+  createdBy: string;
+  fileSize: string;
+  checksum: string;
+  status: "Encrypted & Verified" | "Archived";
+}
+
