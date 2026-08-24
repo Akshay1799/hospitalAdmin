@@ -1570,5 +1570,112 @@ export interface PharmacyReturnRecord {
   status: "Restocked & Refunded" | "Returned to Vendor" | "Written Off";
 }
 
+// ==========================================
+// MODULE 16 — NOTIFICATION & ESCALATION CENTER
+// ==========================================
+
+export type HospitalNotificationEventType =
+  | "Doctor delay"
+  | "Emergency SOS"
+  | "Surgery blocker"
+  | "Vendor quote"
+  | "Bed shortage"
+  | "Staffing gap"
+  | "Security alert"
+  | "New appointment/check-in"
+  | "Critical lab/result"
+  | "Ambulance dispatch"
+  | "Surgeon request"
+  | "Vendor delivery delay";
+
+export type HospitalNotificationCategory =
+  | "Emergency"
+  | "Staffing"
+  | "Operational"
+  | "Security"
+  | "Vendor"
+  | "Clinical"
+  | "Appointments";
+
+export type NotificationSeverity = "critical" | "high" | "medium" | "low" | "info";
+
+export type NotificationStatus = "Unread" | "Read" | "Acknowledged" | "Dismissed";
+
+export type NotificationChannel = "in-app" | "email" | "sms" | "whatsapp";
+
+export interface HospitalNotification {
+  id: string;
+  title: string;
+  message: string;
+  eventType: HospitalNotificationEventType;
+  category: HospitalNotificationCategory;
+  severity: NotificationSeverity;
+  timestamp: string;
+  status: NotificationStatus;
+  targetRoles: string[];
+  adminRecipient: boolean;
+  linkUrl: string;
+  escalationLevel?: "L1" | "L2" | "L3" | "Not Triggered";
+  sourceDepartment?: string;
+  acknowledgedBy?: string;
+  acknowledgedAt?: string;
+}
+
+export interface NotificationEventRule {
+  id: string;
+  eventType: HospitalNotificationEventType;
+  category: HospitalNotificationCategory;
+  defaultRecipients: string[];
+  adminDirectRecipient: boolean;
+  enabledChannels: NotificationChannel[];
+  enabled: boolean;
+  hasEscalationLadder: boolean;
+  description: string;
+}
+
+export interface EscalationLadderStep {
+  level: number;
+  name: string;
+  role: string;
+  thresholdMinutes: number;
+  channel: NotificationChannel;
+}
+
+export interface EscalationLadder {
+  id: string;
+  name: string;
+  eventType: HospitalNotificationEventType;
+  department: string;
+  enabled: boolean;
+  steps: EscalationLadderStep[];
+  fallbackRecipient: string;
+  autoResolveOnAction: boolean;
+}
+
+export interface EscalationStepLog {
+  step: string;
+  notifiedAt: string;
+  recipient: string;
+  channel: NotificationChannel;
+  status: "Delivered" | "Acknowledged" | "Timed Out";
+}
+
+export interface EscalationRecord {
+  id: string;
+  incidentCode: string;
+  eventType: HospitalNotificationEventType;
+  title: string;
+  department: string;
+  triggeredAt: string;
+  currentStep: "L1" | "L2" | "L3";
+  stepsTaken: EscalationStepLog[];
+  status: "Not Triggered" | "In Progress" | "Escalated" | "Resolved";
+  durationMinutes: number;
+  resolvedAt?: string;
+  resolvedBy?: string;
+  resolutionNotes?: string;
+}
+
+
 
 

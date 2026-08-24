@@ -39,12 +39,12 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { SidebarNav } from "@/components/layout/sidebar";
-import { notifications } from "@/lib/mock-data/operations";
+import { mockExtendedNotifications } from "@/lib/mock-data/notifications-extended";
 import { GlobalSearch } from "@/components/layout/global-search";
 
 export function Topbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const unread = notifications.filter((n) => !n.read).length;
+  const unread = mockExtendedNotifications.filter((n) => n.status === "Unread").length;
 
   return (
     <TooltipProvider delayDuration={200}>
@@ -81,30 +81,32 @@ export function Topbar() {
                 </DropdownMenuTrigger>
               </TooltipTrigger>
               <TooltipContent>
-                <p>Notifications</p>
+                <p>Notifications &amp; Escalations</p>
               </TooltipContent>
             </Tooltip>
-            <DropdownMenuContent align="end" className="w-80">
+            <DropdownMenuContent align="end" className="w-88">
               <DropdownMenuLabel className="flex items-center justify-between">
-                Notifications
-                <Badge variant="secondary">{unread} new</Badge>
+                <span className="font-bold text-xs">Alerts &amp; Escalations</span>
+                <Badge variant="secondary" className="text-[10px]">{unread} unread</Badge>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <div className="max-h-80 overflow-y-auto scrollbar-thin">
-                {notifications.slice(0, 5).map((n) => (
-                  <DropdownMenuItem key={n.id} className="flex flex-col items-start gap-0.5 whitespace-normal py-2">
-                    <div className="flex w-full items-center justify-between gap-2">
-                      <span className="text-xs font-semibold text-foreground">{n.title}</span>
-                      {!n.read && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />}
-                    </div>
-                    <p className="line-clamp-2 text-xs text-muted-foreground">{n.message}</p>
+                {mockExtendedNotifications.slice(0, 5).map((n) => (
+                  <DropdownMenuItem key={n.id} className="flex flex-col items-start gap-0.5 whitespace-normal py-2" asChild>
+                    <Link href="/notifications" className="cursor-pointer">
+                      <div className="flex w-full items-center justify-between gap-2">
+                        <span className="text-xs font-semibold text-foreground truncate">{n.title}</span>
+                        {n.status === "Unread" && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />}
+                      </div>
+                      <p className="line-clamp-2 text-[11px] text-muted-foreground">{n.message}</p>
+                    </Link>
                   </DropdownMenuItem>
                 ))}
               </div>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
-                <Link href="/notifications" className="justify-center text-center text-sm font-medium text-primary">
-                  View all notifications
+                <Link href="/notifications" className="justify-center text-center text-xs font-semibold text-primary">
+                  Open Full Notification Center &rarr;
                 </Link>
               </DropdownMenuItem>
             </DropdownMenuContent>

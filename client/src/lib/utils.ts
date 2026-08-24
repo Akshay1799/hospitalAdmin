@@ -18,8 +18,10 @@ export function formatCurrency(amount: number, currency: string = "INR") {
   }).format(amount);
 }
 
-export function formatDate(date: string | Date, opts?: Intl.DateTimeFormatOptions) {
+export function formatDate(date: string | Date | null | undefined, opts?: Intl.DateTimeFormatOptions) {
+  if (!date) return "—";
   const d = typeof date === "string" ? new Date(date) : date;
+  if (!d || isNaN(d.getTime())) return "—";
   return new Intl.DateTimeFormat("en-IN", {
     day: "2-digit",
     month: "short",
@@ -28,8 +30,10 @@ export function formatDate(date: string | Date, opts?: Intl.DateTimeFormatOption
   }).format(d);
 }
 
-export function formatDateTime(date: string | Date) {
+export function formatDateTime(date: string | Date | null | undefined) {
+  if (!date) return "—";
   const d = typeof date === "string" ? new Date(date) : date;
+  if (!d || isNaN(d.getTime())) return "—";
   return new Intl.DateTimeFormat("en-IN", {
     day: "2-digit",
     month: "short",
