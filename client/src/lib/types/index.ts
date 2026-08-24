@@ -503,40 +503,47 @@ export interface MedicineItem {
   id: string;
   name: string;
   genericName: string;
-  category: "Antibiotics" | "Cardiovascular" | "Analgesics" | "Critical Emergency" | "Anesthetics" | "Gastrointestinal" | "Fluids & Electrolytes";
-  dosageForm: "Tablet" | "Capsule" | "Injection / Vial" | "IV Infusion" | "Syrup" | "Ointment";
+  category: "Antibiotics" | "Cardiovascular" | "Analgesics" | "Critical Emergency" | "Anesthetics" | "Gastrointestinal" | "Fluids & Electrolytes" | string;
+  dosageForm: "Tablet" | "Capsule" | "Injection / Vial" | "IV Infusion" | "Syrup" | "Ointment" | string;
   stockLevel: number;
-  unit: string;
+  unit?: string;
   minThreshold: number;
   expiryDate: string;
   batchNumber: string;
   rackLocation: string;
   status: MedicineStatus;
   unitPrice: number;
+  manufacturer?: string;
   scheduleH1?: boolean;
 }
 
 export interface DispensingRecord {
   id: string;
   prescriptionNo: string;
+  prescriptionNumber?: string;
   patientId: string;
   patientName: string;
   doctorName: string;
-  dispensedAt: string;
+  dispensedAt?: string;
+  timestamp?: string;
   pharmacistName: string;
   items: { medicineName: string; quantity: number; dosage: string }[];
   totalAmount: number;
-  status: "Completed" | "Pending Collection" | "Substituted";
+  status: "Completed" | "Pending Collection" | "Substituted" | "Dispensed";
 }
 
 export interface PharmacyAlert {
   id: string;
   medicineName: string;
-  type: "Low Stock" | "Expiring Soon" | "Critical Zero Stock";
+  type?: "Low Stock" | "Expiring Soon" | "Critical Zero Stock" | string;
+  alertType?: string;
   severity: "High" | "Critical" | "Warning";
   currentStock: number;
-  thresholdOrExpiry: string;
-  actionRequired: string;
+  thresholdOrExpiry?: string;
+  actionRequired?: string;
+  message?: string;
+  minThreshold?: number;
+  expiryDate?: string;
 }
 
 // 12.4 Payments & Daily Counter Collections
@@ -1421,5 +1428,147 @@ export interface ModuleBoundaryDefinition {
   adminCannotBoundary: string[];
   riskLevel: "Standard Operational" | "Restricted Clinical Boundary" | "High Financial Risk";
 }
+
+/* ----------------------------- Extended Pharmacy & Dispensing ----------------------------- */
+
+export interface PrescriptionItem {
+  medicineId: string;
+  medicineName: string;
+  dosage: string;
+  frequency: string;
+  duration: string;
+  quantity: number;
+  unitPrice: number;
+  scheduleH1?: boolean;
+  instructions?: string;
+}
+
+export interface PharmacyPrescription {
+  id: string;
+  prescriptionNumber: string;
+  patientId: string;
+  patientName: string;
+  patientAge: number;
+  patientGender: string;
+  wardBed?: string;
+  doctorId: string;
+  doctorName: string;
+  doctorSpecialty: string;
+  source: "OPD" | "IPD" | "Emergency";
+  priority: "Routine" | "Stat Emergency";
+  status: "New" | "In Progress" | "Ready for Pickup" | "Dispensed" | "Cancelled";
+  prescribedAt: string;
+  items: PrescriptionItem[];
+  totalAmount: number;
+  clinicalDiagnosis?: string;
+}
+
+export interface PharmacyPOItem {
+  medicineId: string;
+  medicineName: string;
+  orderedQuantity: number;
+  unitCost: number;
+  totalCost: number;
+  batchNumber?: string;
+}
+
+export interface PharmacyPurchaseOrder {
+  id: string;
+  poNumber: string;
+  supplierId: string;
+  supplierName: string;
+  supplierContact: string;
+  orderedAt: string;
+  expectedDelivery: string;
+  status: "Ordered" | "Dispatched" | "Delayed" | "Received";
+  items: PharmacyPOItem[];
+  totalAmount: number;
+  receivedAt?: string;
+  receivedBy?: string;
+}
+
+export interface PharmacySupplier {
+  id: string;
+  name: string;
+  contactPerson: string;
+  phone: string;
+  email: string;
+  address: string;
+  categoriesSupplied: string[];
+  leadTimeDays: number;
+  reliabilityScore: number;
+  activePOCount: number;
+  status: "Active" | "Under Review";
+}
+
+export interface PharmacyStaffMember {
+  id: string;
+  name: string;
+  role: "Chief Pharmacist" | "Clinical Pharmacist" | "Dispensing Pharmacist" | "Pharmacy Technician";
+  shift: "Morning (08:00 - 16:00)" | "Evening (16:00 - 00:00)" | "Night (00:00 - 08:00)";
+  dutyStatus: "On Duty" | "Off Duty" | "On Break";
+  pharmacyCouncilRegNo: string;
+  scheduleH1Authorized: boolean;
+  todayDispensedCount: number;
+  contactNumber: string;
+}
+
+export interface PharmacyBatchExpiry {
+  id: string;
+  medicineId: string;
+  medicineName: string;
+  category: string;
+  batchNumber: string;
+  manufacturer: string;
+  expiryDate: string;
+  daysRemaining: number;
+  currentStock: number;
+  unitPrice: number;
+  fefoPriority: "Critical (<30d)" | "High (<60d)" | "Moderate (<90d)";
+  quarantineStatus: "Active Stock" | "Quarantined" | "Written Off";
+}
+
+export interface PharmacySalesItem {
+  medicineId: string;
+  medicineName: string;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+}
+
+export interface PharmacySalesRecord {
+  id: string;
+  receiptNumber: string;
+  customerName: string;
+  customerPhone: string;
+  items: PharmacySalesItem[];
+  subtotal: number;
+  taxAmount: number;
+  discountAmount: number;
+  totalPaid: number;
+  paymentMode: "Cash" | "UPI" | "Credit/Debit Card";
+  dispensingPharmacist: string;
+  timestamp: string;
+}
+
+export interface PharmacyReturnRecord {
+  id: string;
+  returnNumber: string;
+  returnType: "Patient Return" | "Supplier Return" | "Expired / Damaged Write-Off";
+  medicineId: string;
+  medicineName: string;
+  batchNumber: string;
+  quantity: number;
+  unitPrice: number;
+  totalRefundAmount: number;
+  reason: string;
+  linkedPrescriptionId?: string;
+  patientName?: string;
+  supplierName?: string;
+  processedBy: string;
+  timestamp: string;
+  status: "Restocked & Refunded" | "Returned to Vendor" | "Written Off";
+}
+
 
 

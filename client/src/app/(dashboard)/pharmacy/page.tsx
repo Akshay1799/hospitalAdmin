@@ -42,6 +42,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/shared/page-header";
 import { ScopeIndicator } from "@/components/shared/ScopeIndicator";
+import { PharmacyNav } from "@/components/pharmacy/pharmacy-nav";
 import {
   mockMedicineInventory,
   mockDispensingLogs,
@@ -49,6 +50,7 @@ import {
 } from "@/lib/mock-data/section12-operations";
 import { MedicineItem, DispensingRecord, PharmacyAlert } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
+import { formatDateTime } from "@/lib/utils";
 
 const DELEGATION_STRING = "Performed by Hospital Admin • acting within Pharmacy Operational workflow";
 
@@ -98,95 +100,129 @@ export default function PharmacyPage() {
     [medicines]
   );
 
-  const handleSaveMedicine = (e: React.FormEvent) => {
+  const handleAddMedicine = (e: React.FormEvent) => {
     e.preventDefault();
     const newMed: MedicineItem = {
-      id: `med_${Date.now()}`,
+      id: `MED-0${medicines.length + 1}`,
       name: medName,
-      genericName,
+      genericName: genericName || medName,
       category,
       dosageForm,
-      stockLevel,
-      unit: "Units",
-      minThreshold,
-      expiryDate: "2027-12-31",
-      batchNumber: `BAT-${Date.now().toString().slice(-5)}`,
+      stockLevel: Number(stockLevel),
+      unitPrice: Number(unitPrice),
+      batchNumber: `BAT-2026-${Math.floor(100 + Math.random() * 900)}`,
+      expiryDate: "2027-06-30",
+      manufacturer: "Cadila Healthcare Ltd",
       rackLocation,
-      status: stockLevel === 0 ? "Out of Stock" : stockLevel <= minThreshold ? "Low Stock" : "In Stock",
-      unitPrice,
+      minThreshold: Number(minThreshold),
+      status: Number(stockLevel) <= Number(minThreshold) ? "Low Stock" : "In Stock",
     };
 
     setMedicines((prev) => [newMed, ...prev]);
     toast({
-      title: "Medicine Registered",
-      description: `${medName} (${dosageForm}) added to inventory. (${DELEGATION_STRING})`,
+      title: "Medicine Added to Formulary",
+      description: `${medName} (${category}) added with stock level ${stockLevel}. (${DELEGATION_STRING})`,
     });
     setAddModalOpen(false);
+    setMedName("");
+    setGenericName("");
+  };
+
+  const handleRestockQuick = (medId: string, qty: number) => {
+    setMedicines((prev) =>
+      prev.map((m) => {
+        if (m.id === medId) {
+          const newLevel = m.stockLevel + qty;
+          return {
+            ...m,
+            stockLevel: newLevel,
+            status: newLevel <= m.minThreshold ? "Low Stock" : "In Stock",
+          };
+        }
+        return m;
+      })
+    );
+    toast({
+      title: "Stock Replenished",
+      description: `Added ${qty} units to stock. Single source of truth inventory updated. (${DELEGATION_STRING})`,
+    });
   };
 
   if (!mounted) {
     return (
       <div className="space-y-4 animate-fade-in pb-12">
         <PageHeader
-          title="Hospital Pharmacy &amp; Dispensing"
-          description="Central medicine inventory, batch expiry management, stock replenishment alerts, and operational dispensing logs."
-          crumbs={[{ label: "Clinical Operations" }, { label: "Pharmacy" }]}
+          title="Pharmacy &amp; Formulary Operations"
+          description="Real-time medication formulary inventory, automated reorder thresholds, and FEFO stock dispatch."
+          crumbs={[{ label: "Operations" }, { label: "Pharmacy" }]}
         />
         <div className="h-48 flex items-center justify-center text-xs text-muted-foreground">
-          Loading pharmacy inventory...
+          Loading pharmacy console...
         </div>
       </div>
     );
   }
 
+  const lowStockCount = medicines.filter((m) => m.status === "Low Stock" || m.status === "Out of Stock").length;
+  const expiringCount = medicines.filter((m) => m.status === "Expiring Soon").length;
+  const totalSKUs = medicines.length;
+
   return (
     <div className="space-y-4 animate-fade-in pb-12">
       <PageHeader
-        title="Hospital Pharmacy &amp; Dispensing"
-        description="Central medicine inventory, batch expiry management, stock replenishment alerts, and operational dispensing logs."
-        crumbs={[{ label: "Clinical Operations" }, { label: "Pharmacy" }]}
+        title="Pharmacy &amp; Formulary Operations"
+        description="Real-time medication formulary inventory, automated reorder thresholds, and FEFO stock dispatch."
+        crumbs={[{ label: "Operations" }, { label: "Pharmacy" }]}
         actions={
           <div className="flex items-center gap-2">
-            <Button size="sm" variant="outline" asChild className="gap-1.5 font-semibold text-xs">
-              <Link href="/procurement/create">
-                <ShoppingCart className="h-4 w-4 text-primary" /> Create Purchase Order
-              </Link>
-            </Button>
-            <Button size="sm" className="gap-1.5 font-semibold text-xs" onClick={() => setAddModalOpen(true)}>
+            <Link href="/procurement/create">
+              <Button size="sm" variant="outline" className="gap-1.5 font-semibold text-xs text-primary border-primary/30 hover:bg-primary/10">
+                <ShoppingCart className="h-4 w-4" /> Create Purchase Order
+              </Button>
+            </Link>
+            <Button
+              size="sm"
+              className="gap-1.5 font-semibold text-xs bg-primary text-primary-foreground"
+              onClick={() => setAddModalOpen(true)}
+            >
               <Plus className="h-4 w-4" /> Add Medicine
             </Button>
           </div>
         }
       />
 
+      {/* Unified Pharmacy Sub-Navigation */}
+      <PharmacyNav />
+
+      {/* Scope Indicator & Governance Rule */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-        <ScopeIndicator scope="Hospital Admin" stationName="Central Hospital Pharmacy" />
+        <ScopeIndicator scope="Hospital Admin" stationName="Central Inpatient &amp; OPD Dispensary" />
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/30 px-3 py-1.5 rounded-md border border-border">
           <ShieldAlert className="h-3.5 w-3.5 text-amber-600" />
-          <span>Operational oversight &amp; restock • Drug dispensing stays with licensed pharmacists</span>
+          <span>Rule 12: Admin manages operational inventory; physical dispensing &amp; Schedule H1 verified by licensed pharmacists</span>
         </div>
       </div>
 
-      {/* Critical Zero-Stock Emergency Alert Banner (Section 12 Edge Case) */}
+      {/* Emergency Zero Stock Alert Banner */}
       {zeroStockCritical.length > 0 && (
-        <Card className="border-destructive/50 bg-destructive/10 shadow-xs">
-          <CardContent className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5">
+        <Card className="border-rose-500/40 bg-rose-500/10 shadow-xs">
+          <CardContent className="p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <AlertOctagon className="h-6 w-6 text-destructive shrink-0" />
+              <AlertOctagon className="h-6 w-6 text-rose-600 shrink-0" />
               <div>
-                <p className="text-xs font-bold text-destructive">
-                  EMERGENCY ALERT: {zeroStockCritical.length} Critical Life-Saving Medicine(s) at ZERO Stock
+                <p className="text-xs font-bold text-rose-900 dark:text-rose-300">
+                  CRITICAL EMERGENCY ALERT: {zeroStockCritical.length} Life-Saving SKU(s) at Zero Stock
                 </p>
-                <p className="text-[11px] text-foreground mt-0.5">
-                  {zeroStockCritical.map((m) => `${m.name} (${m.genericName})`).join(", ")} — Immediate emergency stock procurement required.
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  {zeroStockCritical.map((m) => m.name).join(", ")} — Immediate emergency procurement required for ICU &amp; Emergency OT.
                 </p>
               </div>
             </div>
-            <Button size="sm" variant="destructive" asChild className="text-xs shrink-0">
-              <Link href="/procurement/create">
-                <ShoppingCart className="h-3.5 w-3.5 mr-1" /> Expedite Purchase Order
-              </Link>
-            </Button>
+            <Link href="/procurement/create">
+              <Button size="sm" variant="destructive" className="text-xs font-semibold shrink-0">
+                Create Emergency PO
+              </Button>
+            </Link>
           </CardContent>
         </Card>
       )}
@@ -194,28 +230,24 @@ export default function PharmacyPage() {
       {/* KPI Ribbon */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <Card className="p-3.5 border-border bg-card shadow-xs">
-          <span className="text-[11px] text-muted-foreground uppercase font-bold">Total Catalog SKUs</span>
-          <p className="text-xl font-bold font-mono text-primary mt-0.5">{medicines.length} Medicines</p>
-          <span className="text-[10px] text-muted-foreground">Active hospital formulary</span>
+          <span className="text-[11px] text-muted-foreground uppercase font-bold">Total Formularies</span>
+          <p className="text-xl font-bold font-mono text-foreground mt-0.5">{totalSKUs} SKUs</p>
+          <span className="text-[10px] text-emerald-600 font-medium">All active hospital batches</span>
         </Card>
         <Card className="p-3.5 border-border bg-card shadow-xs">
           <span className="text-[11px] text-muted-foreground uppercase font-bold">Low / Out of Stock</span>
-          <p className="text-xl font-bold font-mono text-rose-600 mt-0.5">
-            {medicines.filter((m) => m.status === "Low Stock" || m.status === "Out of Stock").length} SKUs
-          </p>
-          <span className="text-[10px] text-rose-600 font-medium">Breached reorder threshold</span>
+          <p className="text-xl font-bold font-mono text-rose-600 mt-0.5">{lowStockCount} SKUs</p>
+          <span className="text-[10px] text-rose-600 font-medium">Below safety threshold</span>
         </Card>
         <Card className="p-3.5 border-border bg-card shadow-xs">
-          <span className="text-[11px] text-muted-foreground uppercase font-bold">Expiring &lt; 30 Days</span>
-          <p className="text-xl font-bold font-mono text-amber-600 mt-0.5">
-            {medicines.filter((m) => m.status === "Expiring Soon").length} Batches
-          </p>
-          <span className="text-[10px] text-amber-600 font-medium">Prioritize FEFO dispatch</span>
+          <span className="text-[11px] text-muted-foreground uppercase font-bold">Expiring &lt;30 Days</span>
+          <p className="text-xl font-bold font-mono text-amber-600 mt-0.5">{expiringCount} Batches</p>
+          <span className="text-[10px] text-amber-600 font-medium">FEFO dispatch prioritized</span>
         </Card>
         <Card className="p-3.5 border-border bg-card shadow-xs">
           <span className="text-[11px] text-muted-foreground uppercase font-bold">Today's Dispensing</span>
-          <p className="text-xl font-bold font-mono text-emerald-600 mt-0.5">{dispensingLogs.length} Prescriptions</p>
-          <span className="text-[10px] text-emerald-600 font-medium">Inpatient &amp; OPD fulfillment</span>
+          <p className="text-xl font-bold font-mono text-primary mt-0.5">148 Prescriptions</p>
+          <span className="text-[10px] text-muted-foreground">Accrued to Pharmacy Billing</span>
         </Card>
       </div>
 
@@ -223,7 +255,7 @@ export default function PharmacyPage() {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="grid grid-cols-3 max-w-md">
           <TabsTrigger value="inventory" className="text-xs">Medicine Inventory</TabsTrigger>
-          <TabsTrigger value="alerts" className="text-xs">Stock Alerts Panel ({alerts.length})</TabsTrigger>
+          <TabsTrigger value="alerts" className="text-xs">Stock Alerts Panel</TabsTrigger>
           <TabsTrigger value="dispensing" className="text-xs">Dispensing Activity</TabsTrigger>
         </TabsList>
 
@@ -231,39 +263,41 @@ export default function PharmacyPage() {
         <TabsContent value="inventory" className="space-y-4">
           <Card className="border-border shadow-xs">
             <CardHeader className="p-4 pb-2">
-              <CardTitle className="text-sm font-bold">Formulary &amp; Stock Levels</CardTitle>
-              <CardDescription className="text-xs">
-                Review batch details, shelf locations, unit pricing, and schedule compliance.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-4 pt-2 space-y-4">
               <div className="flex flex-col sm:flex-row justify-between gap-3">
-                <div className="relative w-full sm:max-w-xs">
-                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search medicine, generic, batch, or rack..."
-                    className="pl-8 text-xs h-9"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                  />
+                <div>
+                  <CardTitle className="text-sm font-bold">Formulary &amp; Stock Registry</CardTitle>
+                  <CardDescription className="text-xs">
+                    Single source of truth inventory with real-time stock levels, batch numbers, and reorder thresholds.
+                  </CardDescription>
                 </div>
-                <div className="flex items-center gap-2">
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="relative w-full sm:w-56">
+                    <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                    <Input
+                      placeholder="Search medicine or batch..."
+                      className="pl-8 text-xs h-8"
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                    />
+                  </div>
+
                   <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                    <SelectTrigger className="w-[140px] text-xs h-9">
+                    <SelectTrigger className="w-[140px] text-xs h-8">
                       <SelectValue placeholder="Category" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Categories</SelectItem>
-                      <SelectItem value="Antibiotics">Antibiotics</SelectItem>
                       <SelectItem value="Critical Emergency">Critical Emergency</SelectItem>
+                      <SelectItem value="Antibiotics">Antibiotics</SelectItem>
                       <SelectItem value="Cardiovascular">Cardiovascular</SelectItem>
-                      <SelectItem value="Anesthetics">Anesthetics</SelectItem>
+                      <SelectItem value="Analgesics">Analgesics</SelectItem>
                       <SelectItem value="Gastrointestinal">Gastrointestinal</SelectItem>
                     </SelectContent>
                   </Select>
 
                   <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="w-[130px] text-xs h-9">
+                    <SelectTrigger className="w-[120px] text-xs h-8">
                       <SelectValue placeholder="Status" />
                     </SelectTrigger>
                     <SelectContent>
@@ -276,85 +310,81 @@ export default function PharmacyPage() {
                   </Select>
                 </div>
               </div>
+            </CardHeader>
 
+            <CardContent className="p-4 pt-2">
               <div className="rounded-md border border-border overflow-hidden">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/40">
-                      <TableHead className="text-xs font-bold">Medicine Name &amp; Generic</TableHead>
-                      <TableHead className="text-xs font-bold">Category &amp; Form</TableHead>
-                      <TableHead className="text-xs font-bold">Batch &amp; Expiry</TableHead>
-                      <TableHead className="text-xs font-bold">Rack Location</TableHead>
-                      <TableHead className="text-xs font-bold">Stock Level</TableHead>
-                      <TableHead className="text-xs font-bold">Reorder Min</TableHead>
-                      <TableHead className="text-xs font-bold">Unit Price</TableHead>
-                      <TableHead className="text-xs font-bold">Status</TableHead>
-                      <TableHead className="text-xs font-bold text-right">Actions</TableHead>
+                      <TableHead className="text-xs font-bold w-[220px]">Medicine / Generic Name</TableHead>
+                      <TableHead className="text-xs font-bold w-[140px]">Category &amp; Form</TableHead>
+                      <TableHead className="text-xs font-bold w-[120px]">Batch &amp; Expiry</TableHead>
+                      <TableHead className="text-xs font-bold w-[110px]">Location</TableHead>
+                      <TableHead className="text-xs font-bold w-[100px]">Unit Price</TableHead>
+                      <TableHead className="text-xs font-bold w-[110px]">Current Stock</TableHead>
+                      <TableHead className="text-xs font-bold w-[110px]">Status</TableHead>
+                      <TableHead className="text-xs font-bold text-right w-[110px]">Action</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredMedicines.map((med) => (
-                      <TableRow key={med.id} className="hover:bg-muted/30 transition-colors">
+                    {filteredMedicines.map((m) => (
+                      <TableRow key={m.id} className="hover:bg-muted/30 transition-colors">
                         <TableCell>
-                          <div className="font-semibold text-xs text-foreground flex items-center gap-1.5">
-                            {med.name}
-                            {med.scheduleH1 && (
-                              <Badge variant="destructive" className="text-[9px] px-1 py-0 h-4">
-                                Sch H1
-                              </Badge>
-                            )}
-                          </div>
-                          <div className="text-[10px] text-muted-foreground">{med.genericName}</div>
+                          <div className="font-semibold text-xs text-foreground">{m.name}</div>
+                          <div className="text-[10px] text-muted-foreground italic">{m.genericName}</div>
                         </TableCell>
+
                         <TableCell>
-                          <div className="text-xs font-medium">{med.category}</div>
-                          <div className="text-[10px] text-muted-foreground">{med.dosageForm}</div>
+                          <div className="text-xs font-medium text-foreground">{m.category}</div>
+                          <div className="text-[10px] text-muted-foreground">{m.dosageForm}</div>
                         </TableCell>
-                        <TableCell>
-                          <div className="text-xs font-mono">{med.batchNumber}</div>
-                          <div className="text-[10px] text-muted-foreground">{med.expiryDate}</div>
-                        </TableCell>
-                        <TableCell className="text-xs font-mono">{med.rackLocation}</TableCell>
-                        <TableCell className="font-mono text-xs font-bold">
-                          <span
-                            className={
-                              med.stockLevel === 0
-                                ? "text-destructive font-bold"
-                                : med.stockLevel <= med.minThreshold
-                                ? "text-amber-600 font-bold"
-                                : "text-emerald-600"
-                            }
-                          >
-                            {med.stockLevel} {med.unit}
-                          </span>
-                        </TableCell>
+
                         <TableCell className="font-mono text-xs text-muted-foreground">
-                          {med.minThreshold}
+                          <div>{m.batchNumber}</div>
+                          <div className="text-[10px]">{m.expiryDate}</div>
                         </TableCell>
-                        <TableCell className="font-mono text-xs font-semibold">₹{med.unitPrice}</TableCell>
+
+                        <TableCell className="font-mono text-xs text-foreground">
+                          {m.rackLocation}
+                        </TableCell>
+
+                        <TableCell className="font-mono text-xs font-semibold text-foreground">
+                          ₹{m.unitPrice}
+                        </TableCell>
+
+                        <TableCell>
+                          <div className="font-mono text-xs font-bold text-foreground">
+                            {m.stockLevel} units
+                          </div>
+                          <div className="text-[9px] text-muted-foreground">Min: {m.minThreshold}</div>
+                        </TableCell>
+
                         <TableCell>
                           <Badge
                             className={
-                              med.status === "In Stock"
+                              m.status === "In Stock"
                                 ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px]"
-                                : med.status === "Low Stock"
+                                : m.status === "Low Stock"
                                 ? "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30 text-[10px]"
-                                : med.status === "Out of Stock"
+                                : m.status === "Out of Stock"
                                 ? "bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30 text-[10px]"
-                                : "bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border-cyan-500/30 text-[10px]"
+                                : "bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30 text-[10px]"
                             }
                           >
-                            {med.status}
+                            {m.status}
                           </Badge>
                         </TableCell>
+
                         <TableCell className="text-right">
-                          {(med.status === "Low Stock" || med.status === "Out of Stock") && (
-                            <Button size="sm" variant="outline" asChild className="h-7 text-xs font-semibold">
-                              <Link href="/procurement/create">
-                                <ShoppingCart className="h-3 w-3 mr-1" /> Restock
-                              </Link>
-                            </Button>
-                          )}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs font-semibold text-primary border-primary/30 hover:bg-primary/10"
+                            onClick={() => handleRestockQuick(m.id, 50)}
+                          >
+                            + Restock
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -367,56 +397,56 @@ export default function PharmacyPage() {
 
         {/* TAB 2: STOCK ALERTS PANEL */}
         <TabsContent value="alerts" className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {alerts.map((alert) => (
-              <Card
-                key={alert.id}
-                className={`border shadow-xs ${
-                  alert.severity === "Critical"
-                    ? "border-destructive/40 bg-destructive/5"
-                    : alert.severity === "High"
-                    ? "border-amber-500/40 bg-amber-500/5"
-                    : "border-cyan-500/40 bg-cyan-500/5"
-                }`}
-              >
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {alerts.map((a) => (
+              <Card key={a.id} className="border-border shadow-xs">
                 <CardHeader className="p-3.5 pb-2">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-xs font-bold text-foreground">{alert.medicineName}</CardTitle>
+                    <CardTitle className="text-sm font-bold flex items-center gap-2">
+                      <AlertTriangle
+                        className={`h-4 w-4 ${
+                          a.severity === "Critical" ? "text-rose-600" : "text-amber-600"
+                        }`}
+                      />
+                      <span>{a.medicineName}</span>
+                    </CardTitle>
                     <Badge
-                      variant="outline"
                       className={
-                        alert.severity === "Critical"
-                          ? "bg-destructive text-destructive-foreground text-[10px]"
-                          : "text-[10px]"
+                        a.severity === "Critical"
+                          ? "bg-rose-500/15 text-rose-700 dark:text-rose-300 text-[10px]"
+                          : "bg-amber-500/15 text-amber-700 dark:text-amber-300 text-[10px]"
                       }
                     >
-                      {alert.type}
+                      {a.alertType || a.type}
                     </Badge>
                   </div>
-                  <CardDescription className="text-[10px] font-mono mt-0.5">
-                    {alert.thresholdOrExpiry}
-                  </CardDescription>
                 </CardHeader>
-                <CardContent className="p-3.5 pt-1 space-y-3">
-                  <p className="text-xs text-foreground leading-relaxed">{alert.actionRequired}</p>
-                  <Button size="sm" className="w-full text-xs font-semibold" asChild>
+                <CardContent className="p-3.5 pt-0 space-y-2 text-xs">
+                  <p className="text-muted-foreground">{a.message || a.actionRequired}</p>
+                  <div className="flex items-center justify-between font-mono text-[11px] pt-1">
+                    <span>Stock: <strong>{a.currentStock}</strong> / Min: {a.minThreshold || a.thresholdOrExpiry}</span>
+                    <span className="text-muted-foreground">Expires: {a.expiryDate || a.thresholdOrExpiry}</span>
+                  </div>
+                  <div className="pt-2 flex justify-end">
                     <Link href="/procurement/create">
-                      <ShoppingCart className="h-3.5 w-3.5 mr-1" /> Create Purchase Order
+                      <Button size="sm" className="h-7 text-xs font-semibold bg-primary text-primary-foreground">
+                        Create Reorder PO
+                      </Button>
                     </Link>
-                  </Button>
+                  </div>
                 </CardContent>
               </Card>
             ))}
           </div>
         </TabsContent>
 
-        {/* TAB 3: DISPENSING LOG (READ-ONLY OPERATIONAL VIEW) */}
+        {/* TAB 3: DISPENSING ACTIVITY */}
         <TabsContent value="dispensing" className="space-y-4">
           <Card className="border-border shadow-xs">
             <CardHeader className="p-4 pb-2">
-              <CardTitle className="text-sm font-bold">Operational Prescription Dispensing Activity</CardTitle>
+              <CardTitle className="text-sm font-bold">Dispensing Audit Trail</CardTitle>
               <CardDescription className="text-xs">
-                Read-only operational tracking of fulfilled medications, verifying pharmacist delivery logs.
+                Audit record of fulfilled prescriptions linked directly to patient ledger and nurse administration logs.
               </CardDescription>
             </CardHeader>
             <CardContent className="p-4 pt-2">
@@ -424,50 +454,47 @@ export default function PharmacyPage() {
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/40">
-                      <TableHead className="text-xs font-bold">Prescription #</TableHead>
-                      <TableHead className="text-xs font-bold">Patient Details</TableHead>
-                      <TableHead className="text-xs font-bold">Prescribing Doctor</TableHead>
-                      <TableHead className="text-xs font-bold">Dispensed Medications &amp; Dosage</TableHead>
-                      <TableHead className="text-xs font-bold">Dispensed By</TableHead>
-                      <TableHead className="text-xs font-bold">Timestamp</TableHead>
-                      <TableHead className="text-xs font-bold">Billed Amount</TableHead>
-                      <TableHead className="text-xs font-bold">Status</TableHead>
+                      <TableHead className="text-xs font-bold w-[140px]">Prescription #</TableHead>
+                      <TableHead className="text-xs font-bold w-[180px]">Patient &amp; MRN</TableHead>
+                      <TableHead className="text-xs font-bold w-[160px]">Prescribing Doctor</TableHead>
+                      <TableHead className="text-xs font-bold w-[220px]">Dispensed Items</TableHead>
+                      <TableHead className="text-xs font-bold w-[140px]">Pharmacist</TableHead>
+                      <TableHead className="text-xs font-bold w-[120px]">Timestamp</TableHead>
+                      <TableHead className="text-xs font-bold text-right w-[100px]">Amount</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {dispensingLogs.map((disp) => (
-                      <TableRow key={disp.id} className="hover:bg-muted/30 transition-colors">
+                    {dispensingLogs.map((d) => (
+                      <TableRow key={d.id} className="hover:bg-muted/30 transition-colors">
                         <TableCell className="font-mono text-xs font-bold text-primary">
-                          {disp.prescriptionNo}
+                          {d.prescriptionNumber || d.prescriptionNo}
                         </TableCell>
+
                         <TableCell>
-                          <div className="font-semibold text-xs text-foreground">{disp.patientName}</div>
-                          <div className="text-[10px] text-muted-foreground font-mono">{disp.patientId}</div>
+                          <div className="font-semibold text-xs text-foreground">{d.patientName}</div>
+                          <div className="text-[10px] text-muted-foreground font-mono">{d.patientId}</div>
                         </TableCell>
-                        <TableCell className="text-xs text-muted-foreground font-medium">
-                          {disp.doctorName}
+
+                        <TableCell className="text-xs text-foreground">
+                          {d.doctorName}
                         </TableCell>
+
                         <TableCell>
-                          <div className="space-y-0.5">
-                            {disp.items.map((it, idx) => (
-                              <div key={idx} className="text-xs">
-                                <span className="font-semibold">{it.medicineName}</span> ({it.quantity}x) —{" "}
-                                <span className="text-[11px] text-muted-foreground">{it.dosage}</span>
-                              </div>
-                            ))}
+                          <div className="text-xs font-medium text-foreground">
+                            {d.items.map((i) => `${i.medicineName} (${i.quantity}x)`).join(", ")}
                           </div>
                         </TableCell>
-                        <TableCell className="text-xs font-medium">{disp.pharmacistName}</TableCell>
+
+                        <TableCell className="text-xs text-muted-foreground">
+                          {d.pharmacistName}
+                        </TableCell>
+
                         <TableCell className="font-mono text-xs text-muted-foreground">
-                          {new Date(disp.dispensedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                          {d.timestamp || d.dispensedAt}
                         </TableCell>
-                        <TableCell className="font-mono text-xs font-bold text-foreground">
-                          ₹{disp.totalAmount}
-                        </TableCell>
-                        <TableCell>
-                          <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[10px]">
-                            {disp.status}
-                          </Badge>
+
+                        <TableCell className="text-right font-mono text-xs font-bold text-foreground">
+                          ₹{d.totalAmount}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -479,36 +506,36 @@ export default function PharmacyPage() {
         </TabsContent>
       </Tabs>
 
-      {/* Add Medicine Modal */}
+      {/* MODAL: ADD MEDICINE */}
       <Dialog open={addModalOpen} onOpenChange={setAddModalOpen}>
         <DialogContent className="sm:max-w-md">
-          <form onSubmit={handleSaveMedicine}>
+          <form onSubmit={handleAddMedicine}>
             <DialogHeader>
               <DialogTitle className="text-base font-bold flex items-center gap-2">
-                <Pill className="h-5 w-5 text-primary" /> Register New Formulary Medicine
+                <Pill className="h-5 w-5 text-primary" /> Register New Medicine Formulary
               </DialogTitle>
               <DialogDescription className="text-xs">
-                Add an active pharmaceutical product with inventory thresholds.
+                Add a new pharmaceutical SKU to the hospital master formulary.
               </DialogDescription>
             </DialogHeader>
+
             <div className="grid gap-3 py-3 text-xs">
               <div className="grid gap-1">
-                <Label htmlFor="m-name">Medicine Brand Name *</Label>
+                <Label htmlFor="m-name">Brand Name *</Label>
                 <Input
                   id="m-name"
                   required
-                  placeholder="e.g. Ciprofloxacin 500mg"
+                  placeholder="e.g. Augmentin 625mg Duo"
                   value={medName}
                   onChange={(e) => setMedName(e.target.value)}
                 />
               </div>
 
               <div className="grid gap-1">
-                <Label htmlFor="m-gen">Generic Salt / Composition</Label>
+                <Label htmlFor="m-gen">Generic Composition</Label>
                 <Input
                   id="m-gen"
-                  required
-                  placeholder="e.g. Ciprofloxacin Hydrochloride"
+                  placeholder="e.g. Amoxicillin 500mg + Clavulanic Acid 125mg"
                   value={genericName}
                   onChange={(e) => setGenericName(e.target.value)}
                 />
@@ -530,6 +557,7 @@ export default function PharmacyPage() {
                     </SelectContent>
                   </Select>
                 </div>
+
                 <div className="grid gap-1">
                   <Label htmlFor="m-form">Dosage Form</Label>
                   <Select value={dosageForm} onValueChange={(val: any) => setDosageForm(val)}>
@@ -539,30 +567,29 @@ export default function PharmacyPage() {
                     <SelectContent>
                       <SelectItem value="Tablet">Tablet</SelectItem>
                       <SelectItem value="Capsule">Capsule</SelectItem>
-                      <SelectItem value="Injection / Vial">Injection / Vial</SelectItem>
+                      <SelectItem value="Injection">Injection</SelectItem>
+                      <SelectItem value="Syrup">Syrup</SelectItem>
                       <SelectItem value="IV Infusion">IV Infusion</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-3 gap-2">
                 <div className="grid gap-1">
-                  <Label htmlFor="m-stock">Opening Stock</Label>
+                  <Label htmlFor="m-stock">Initial Stock</Label>
                   <Input
                     id="m-stock"
                     type="number"
-                    required
                     value={stockLevel}
                     onChange={(e) => setStockLevel(Number(e.target.value))}
                   />
                 </div>
                 <div className="grid gap-1">
-                  <Label htmlFor="m-min">Reorder Min</Label>
+                  <Label htmlFor="m-min">Min Alert Threshold</Label>
                   <Input
                     id="m-min"
                     type="number"
-                    required
                     value={minThreshold}
                     onChange={(e) => setMinThreshold(Number(e.target.value))}
                   />
@@ -572,7 +599,6 @@ export default function PharmacyPage() {
                   <Input
                     id="m-price"
                     type="number"
-                    required
                     value={unitPrice}
                     onChange={(e) => setUnitPrice(Number(e.target.value))}
                   />
@@ -580,21 +606,21 @@ export default function PharmacyPage() {
               </div>
 
               <div className="grid gap-1">
-                <Label htmlFor="m-rack">Storage / Rack Location</Label>
+                <Label htmlFor="m-rack">Storage Rack / Shelf Location</Label>
                 <Input
                   id="m-rack"
-                  required
                   value={rackLocation}
                   onChange={(e) => setRackLocation(e.target.value)}
                 />
               </div>
             </div>
+
             <DialogFooter>
               <Button type="button" variant="outline" size="sm" onClick={() => setAddModalOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit" size="sm">
-                Register SKU
+              <Button type="submit" size="sm" className="bg-primary text-primary-foreground font-semibold">
+                Register Medicine
               </Button>
             </DialogFooter>
           </form>
