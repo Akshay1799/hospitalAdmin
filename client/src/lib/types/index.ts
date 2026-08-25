@@ -561,6 +561,32 @@ export interface PaymentTransaction {
   cashierName: string;
   timestamp: string;
   reconciliationStatus: "Reconciled" | "Pending Settlement" | "Variance";
+  gatewayRefId?: string;
+  terminalId?: string;
+  tpaClaimNo?: string;
+  tpaProvider?: string;
+  cardLast4?: string;
+  cardType?: string;
+  department?: string;
+  notes?: string;
+}
+
+export interface RefundReconciliationRecord {
+  id: string;
+  refundReceiptNo: string;
+  invoiceId: string;
+  patientId: string;
+  patientName: string;
+  amount: number;
+  originalMethod: PaymentMethod;
+  reversalChannel: "Cash Drawer" | "Card Reversal" | "UPI Gateway Reversal" | "Bank Transfer Reversal";
+  counterNo: string;
+  cashierName: string;
+  approvedBy: string;
+  approvalReference: string;
+  reconciliationStatus: "Reconciled" | "Pending Gateway Reversal" | "Variance";
+  timestamp: string;
+  reason: string;
 }
 
 export interface CashDrawerReport {
