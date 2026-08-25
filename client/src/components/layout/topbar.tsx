@@ -141,61 +141,76 @@ export function Topbar() {
                 <ChevronDown className="h-3.5 w-3.5 opacity-70" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+            <DropdownMenuContent align="end" className="w-64">
+              <DropdownMenuLabel className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
                 Quick Actions
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuGroup>
                 <DropdownMenuItem asChild>
-                  <Link href="/doctors" className="flex items-center gap-2.5 cursor-pointer">
-                    <UserPlus className="h-4 w-4 text-primary" />
-                    <span>Add doctor</span>
+                  <Link href="/verification" className="flex items-center gap-2.5 cursor-pointer text-xs">
+                    <UserPlus className="h-4 w-4 text-teal-600" />
+                    <span>Add Doctor</span>
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href="/nurses" className="flex items-center gap-2.5 cursor-pointer">
-                    <Users className="h-4 w-4 text-primary" />
-                    <span>Add staff</span>
+                  <Link href="/staff" className="flex items-center gap-2.5 cursor-pointer text-xs">
+                    <Users className="h-4 w-4 text-blue-600" />
+                    <span>Add Staff</span>
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href="/departments" className="flex items-center gap-2.5 cursor-pointer">
-                    <Building2 className="h-4 w-4 text-primary" />
-                    <span>Create department</span>
+                  <Link href="/departments" className="flex items-center gap-2.5 cursor-pointer text-xs">
+                    <Building2 className="h-4 w-4 text-indigo-600" />
+                    <span>Create Department</span>
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href="/nurse-stations" className="flex items-center gap-2.5 cursor-pointer">
-                    <Bed className="h-4 w-4 text-primary" />
-                    <span>Allocate bed</span>
+                  <Link href="/wards-beds" className="flex items-center gap-2.5 cursor-pointer text-xs">
+                    <Bed className="h-4 w-4 text-cyan-600" />
+                    <span>Allocate Bed</span>
                   </Link>
                 </DropdownMenuItem>
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
               <DropdownMenuGroup>
                 <DropdownMenuItem asChild>
-                  <Link href="/emergency" className="flex items-center gap-2.5 cursor-pointer text-destructive font-medium focus:text-destructive">
-                    <Siren className="h-4 w-4 text-destructive" />
-                    <span>Emergency action</span>
+                  <Link href="/surgical-cases/create" className="flex items-center gap-2.5 cursor-pointer text-xs">
+                    <Activity className="h-4 w-4 text-purple-600" />
+                    <span>Create Surgery Case</span>
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href="/surgical-cases/surgeon-requests" className="flex items-center gap-2.5 cursor-pointer">
-                    <Activity className="h-4 w-4 text-primary" />
-                    <span>Surgeon request</span>
+                  <Link href="/surgical-cases/surgeon-requests" className="flex items-center gap-2.5 cursor-pointer text-xs">
+                    <Stethoscope className="h-4 w-4 text-primary" />
+                    <span>Request Surgeon</span>
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href="/procurement/create" className="flex items-center gap-2.5 cursor-pointer">
-                    <ShoppingBag className="h-4 w-4 text-primary" />
-                    <span>Vendor request</span>
+                  <Link href="/procurement/create" className="flex items-center gap-2.5 cursor-pointer text-xs">
+                    <ShoppingBag className="h-4 w-4 text-orange-600" />
+                    <span>Request Vendor</span>
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href="/reports" className="flex items-center gap-2.5 cursor-pointer">
-                    <FileBarChart className="h-4 w-4 text-primary" />
-                    <span>Report</span>
+                  <Link href="/reports" className="flex items-center gap-2.5 cursor-pointer text-xs">
+                    <FileBarChart className="h-4 w-4 text-sky-600" />
+                    <span>Generate Report</span>
+                  </Link>
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+              <DropdownMenuSeparator />
+              <DropdownMenuGroup>
+                <DropdownMenuItem asChild>
+                  <Link href="/emergency" className="flex items-center gap-2.5 cursor-pointer text-xs text-destructive font-semibold focus:text-destructive">
+                    <ShieldAlert className="h-4 w-4 text-destructive" />
+                    <span>Emergency Control</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/ambulance" className="flex items-center gap-2.5 cursor-pointer text-xs text-rose-600 font-semibold focus:text-rose-600">
+                    <Siren className="h-4 w-4 text-rose-600" />
+                    <span>Dispatch Ambulance</span>
                   </Link>
                 </DropdownMenuItem>
               </DropdownMenuGroup>

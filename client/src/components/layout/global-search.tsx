@@ -1,19 +1,33 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
+  Activity,
   ArrowDown,
+  ArrowRight,
   ArrowUp,
+  Bed,
   Building2,
-  ChevronDown,
+  Calendar,
+  ChevronRight,
   CreditCard,
+  FileBarChart,
   FileText,
-  FlaskConical,
+  Flame,
+  Layers,
   Search,
+  ShieldAlert,
+  ShoppingBag,
+  Siren,
+  Sparkles,
   Stethoscope,
   User,
+  UserPlus,
+  Users,
   X,
+  Zap,
 } from "lucide-react";
 
 import {
@@ -22,31 +36,30 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { patients } from "@/lib/mock-data/patients";
-import { doctors } from "@/lib/mock-data/doctors";
-import { detailedDepartments } from "@/lib/mock-data/departments";
-import { labOrders } from "@/lib/mock-data/operations";
-import { invoices } from "@/lib/mock-data/invoices";
+  executeGlobalSearch,
+  STANDARD_QUICK_ACTIONS,
+  SearchResultItem,
+  SearchEntityCategory,
+} from "@/lib/search/global-search-indexer";
+import { cn } from "@/lib/utils";
 
-interface HighlightedSnippet {
-  label?: string;
-  text: string;
-}
-
-interface SpotlightResult {
-  id: string;
-  category: "Patient" | "Doctor" | "Department" | "Lab Report" | "Billing";
-  title: string;
-  href: string;
-  snippets: HighlightedSnippet[];
-}
+const CATEGORIES = [
+  "All",
+  "Patients",
+  "Doctors",
+  "Staff",
+  "Appointments",
+  "Beds & Wards",
+  "Surgeries",
+  "Invoices",
+  "Procurement",
+  "Emergency SOS",
+  "Vendors",
+  "Reports",
+];
 
 function HighlightText({ text, query }: { text: string; query: string }) {
   if (!query.trim() || !text) return <>{text}</>;
@@ -61,7 +74,7 @@ function HighlightText({ text, query }: { text: string; query: string }) {
         regex.test(part) ? (
           <mark
             key={i}
-            className="bg-[#fcd34d] text-slate-950 font-semibold px-1 py-0.5 rounded mx-0.5 inline-block leading-none"
+            className="bg-amber-300 dark:bg-amber-500/30 text-slate-950 dark:text-amber-200 font-semibold px-1 py-0.5 rounded mx-0.5 inline-block leading-none"
           >
             {part}
           </mark>
@@ -73,21 +86,58 @@ function HighlightText({ text, query }: { text: string; query: string }) {
   );
 }
 
+function getCategoryIcon(cat: SearchEntityCategory) {
+  switch (cat) {
+    case "Patient":
+      return <User className="h-4 w-4 text-emerald-600" />;
+    case "Doctor":
+      return <Stethoscope className="h-4 w-4 text-teal-600" />;
+    case "Staff":
+      return <Users className="h-4 w-4 text-blue-600" />;
+    case "Appointment":
+      return <Calendar className="h-4 w-4 text-indigo-600" />;
+    case "Bed / Ward":
+      return <Bed className="h-4 w-4 text-cyan-600" />;
+    case "Surgery & OT":
+      return <Zap className="h-4 w-4 text-purple-600" />;
+    case "Billing / Invoice":
+      return <CreditCard className="h-4 w-4 text-emerald-600" />;
+    case "Procurement & PO":
+      return <ShoppingBag className="h-4 w-4 text-orange-600" />;
+    case "Emergency SOS":
+      return <Flame className="h-4 w-4 text-rose-600" />;
+    case "Vendor":
+      return <Building2 className="h-4 w-4 text-slate-600" />;
+    case "Report":
+      return <FileBarChart className="h-4 w-4 text-sky-600" />;
+    case "Quick Action":
+      return <Sparkles className="h-4 w-4 text-primary" />;
+    default:
+      return <Search className="h-4 w-4 text-muted-foreground" />;
+  }
+}
+
 export function GlobalSearch() {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [filterCategory, setFilterCategory] = useState<string>("All");
+  const [selectedIndex, setSelectedIndex] = useState(0);
+
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
-  // Keyboard shortcut: Ctrl+K or / to open, Esc to close
+  // Keyboard shortcut: Ctrl+K, Cmd+K, or / to open, Esc to close
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setIsOpen(true);
-      } else if (e.key === "/" && document.activeElement?.tagName !== "INPUT" && document.activeElement?.tagName !== "TEXTAREA") {
+      } else if (
+        e.key === "/" &&
+        document.activeElement?.tagName !== "INPUT" &&
+        document.activeElement?.tagName !== "TEXTAREA"
+      ) {
         e.preventDefault();
         setIsOpen(true);
       }
@@ -100,354 +150,288 @@ export function GlobalSearch() {
   useEffect(() => {
     if (isOpen) {
       setTimeout(() => inputRef.current?.focus(), 50);
+      setSelectedIndex(0);
     }
   }, [isOpen]);
 
-  const q = query.trim().toLowerCase();
+  const searchResults = useMemo(() => {
+    return executeGlobalSearch(query, filterCategory);
+  }, [query, filterCategory]);
 
-  // Search Results with deep contextual snippets
-  const results: SpotlightResult[] = [];
-
-  if (q) {
-    // 1. Search Patients
-    patients.forEach((p) => {
-      const matchName = p.name.toLowerCase().includes(q);
-      const matchId = p.id.toLowerCase().includes(q) || p.qlynoPatientId.toLowerCase().includes(q);
-      const matchPhone = p.phone.toLowerCase().includes(q);
-      const matchBlood = p.bloodGroup.toLowerCase().includes(q);
-      const matchTags = p.tags?.some((t) => t.toLowerCase().includes(q));
-      const opdMatch = p.hospitalRelationships?.[0]?.opdHistory?.filter(
-        (o) =>
-          o.visitReason?.toLowerCase().includes(q) ||
-          o.consultationNotes?.toLowerCase().includes(q) ||
-          o.doctor?.toLowerCase().includes(q) ||
-          o.department?.toLowerCase().includes(q)
-      );
-
-      if (matchName || matchId || matchPhone || matchBlood || matchTags || (opdMatch && opdMatch.length > 0)) {
-        const snippets: HighlightedSnippet[] = [];
-
-        snippets.push({
-          label: "UHID & Identifiers",
-          text: `Qlyno ID: ${p.qlynoPatientId} • Gender: ${p.gender} • Blood Group: ${p.bloodGroup} • Phone: ${p.phone}`,
-        });
-
-        if (p.tags && p.tags.length > 0) {
-          snippets.push({
-            label: "Medical Conditions & Tags",
-            text: p.tags.join(", "),
-          });
-        }
-
-        if (opdMatch && opdMatch.length > 0) {
-          opdMatch.forEach((o) => {
-            snippets.push({
-              label: `Consultation (${o.department} - ${o.doctor})`,
-              text: `Visit Reason: "${o.visitReason}" — Notes: "${o.consultationNotes || "Routine follow-up"}"`,
-            });
-          });
-        }
-
-        results.push({
-          id: `pat-${p.id}`,
-          category: "Patient",
-          title: `${p.name} — ${p.qlynoPatientId}`,
-          href: `/patients/${p.id}`,
-          snippets,
-        });
+  // Handle keyboard navigation inside list
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (searchResults.length === 0) {
+      if (e.key === "Enter" && query.trim()) {
+        e.preventDefault();
+        setIsOpen(false);
+        router.push(`/search?q=${encodeURIComponent(query)}`);
       }
-    });
+      return;
+    }
 
-    // 2. Search Doctors
-    doctors.forEach((d) => {
-      const matchName = d.name.toLowerCase().includes(q);
-      const matchSpec = d.specialty.toLowerCase().includes(q) || d.subSpecialty?.toLowerCase().includes(q);
-      const matchDept = d.department.toLowerCase().includes(q);
-      const matchPhone = d.phone.toLowerCase().includes(q);
-      const matchEmail = d.email.toLowerCase().includes(q);
-      const matchPriv = d.privileges?.some((priv) => priv.toLowerCase().includes(q));
-
-      if (matchName || matchSpec || matchDept || matchPhone || matchEmail || matchPriv) {
-        const snippets: HighlightedSnippet[] = [];
-
-        snippets.push({
-          label: "Specialty & Credentials",
-          text: `${d.specialty} (${d.subSpecialty || "General"}) • Qualification: ${d.qualification} • ${d.experienceYears} Years Experience`,
-        });
-
-        snippets.push({
-          label: "Clinical Department & Privileges",
-          text: `Department: ${d.department} • Privileges: ${d.privileges?.join(", ")}`,
-        });
-
-        snippets.push({
-          label: "Contact & Registration",
-          text: `Reg No: ${d.registrationNo} • Phone: ${d.phone} • Email: ${d.email}`,
-        });
-
-        results.push({
-          id: `doc-${d.id}`,
-          category: "Doctor",
-          title: `${d.name} — ${d.specialty}`,
-          href: `/doctors/${d.id}`,
-          snippets,
-        });
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setSelectedIndex((prev) => (prev + 1) % searchResults.length);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setSelectedIndex((prev) => (prev - 1 + searchResults.length) % searchResults.length);
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (searchResults[selectedIndex]) {
+        setIsOpen(false);
+        router.push(searchResults[selectedIndex].href);
       }
-    });
+    }
+  };
 
-    // 3. Search Departments
-    detailedDepartments.forEach((dept) => {
-      const matchName = dept.name.toLowerCase().includes(q);
-      const matchType = dept.type.toLowerCase().includes(q);
-      const matchHead = dept.headName.toLowerCase().includes(q);
-      const matchProc = dept.scope.clinicalProcedures.some((proc) => proc.toLowerCase().includes(q));
-
-      if (matchName || matchType || matchHead || matchProc) {
-        const snippets: HighlightedSnippet[] = [];
-
-        snippets.push({
-          label: "Location & Leadership",
-          text: `Location: ${dept.floor}, ${dept.location} • Head of Dept: ${dept.headName} (${dept.headTitle})`,
-        });
-
-        snippets.push({
-          label: "Clinical Procedures in Scope",
-          text: dept.scope.clinicalProcedures.join(", "),
-        });
-
-        snippets.push({
-          label: "Operational Capacity",
-          text: `${dept.activePatients} Active Inpatients • Bed Capacity: ${dept.bedCapacity || "N/A"} • Shift Model: ${dept.shiftModel}`,
-        });
-
-        results.push({
-          id: `dept-${dept.id}`,
-          category: "Department",
-          title: `${dept.name} — Operational Care Unit`,
-          href: `/departments/${dept.id}`,
-          snippets,
-        });
-      }
-    });
-
-    // 4. Search Lab Orders & Diagnostic Reports
-    labOrders.forEach((lab) => {
-      const matchOrder = lab.orderNo.toLowerCase().includes(q);
-      const matchPatient = lab.patientName.toLowerCase().includes(q);
-      const matchTest = lab.test.toLowerCase().includes(q);
-      const matchDoc = lab.orderingDoctor.toLowerCase().includes(q);
-
-      if (matchOrder || matchPatient || matchTest || matchDoc) {
-        const snippets: HighlightedSnippet[] = [];
-
-        snippets.push({
-          label: "Diagnostic Investigation",
-          text: `Test Name: ${lab.test} • Turnaround Time: ${lab.tat} • Status: ${lab.status.toUpperCase()}`,
-        });
-
-        snippets.push({
-          label: "Patient & Ordering Clinician",
-          text: `Patient: ${lab.patientName} • Ordering Doctor: ${lab.orderingDoctor} • Source: ${lab.source}`,
-        });
-
-        results.push({
-          id: `lab-${lab.id}`,
-          category: "Lab Report",
-          title: `${lab.test} (${lab.orderNo})`,
-          href: `/lab/${lab.id}`,
-          snippets,
-        });
-      }
-    });
-
-    // 5. Search Invoices
-    invoices.forEach((inv) => {
-      const matchInv = inv.invoiceNo.toLowerCase().includes(q);
-      const matchPatient = inv.patientName.toLowerCase().includes(q);
-      const matchService = inv.service.toLowerCase().includes(q);
-
-      if (matchInv || matchPatient || matchService) {
-        const snippets: HighlightedSnippet[] = [];
-
-        snippets.push({
-          label: "Billed Hospital Service",
-          text: `Service Description: ${inv.service} • Payment Method: ${inv.method || "Cash/UPI"}`,
-        });
-
-        snippets.push({
-          label: "Financial Summary",
-          text: `Patient: ${inv.patientName} • Total Bill: ₹${inv.amount.toLocaleString("en-IN")} • Amount Paid: ₹${inv.paid.toLocaleString("en-IN")} • Outstanding: ₹${inv.outstanding.toLocaleString("en-IN")}`,
-        });
-
-        results.push({
-          id: `inv-${inv.id}`,
-          category: "Billing",
-          title: `${inv.invoiceNo} — ₹${inv.amount.toLocaleString("en-IN")}`,
-          href: `/billing`,
-          snippets,
-        });
-      }
-    });
-  }
-
-  const filteredResults =
-    filterCategory === "All"
-      ? results
-      : results.filter((r) => r.category === filterCategory);
-
-  const handleSelect = (href: string) => {
+  const handleSelectResult = (item: SearchResultItem) => {
     setIsOpen(false);
-    setQuery("");
-    router.push(href);
+    router.push(item.href);
+  };
+
+  const handleSelectQuickAction = (qa: (typeof STANDARD_QUICK_ACTIONS)[0]) => {
+    setIsOpen(false);
+    router.push(qa.href);
   };
 
   return (
     <>
-      {/* Search Bar Trigger in Header */}
-      <div className="relative w-full max-w-md">
-        <button
-          type="button"
-          onClick={() => setIsOpen(true)}
-          className="w-full flex items-center justify-between gap-3 h-9 px-3 rounded-lg bg-secondary/80 hover:bg-secondary border border-transparent hover:border-border text-muted-foreground transition-all cursor-text text-left"
-        >
-          <div className="flex items-center gap-2 text-xs">
-            <Search className="h-4 w-4 text-muted-foreground" />
-            <span>Search patients, doctors, invoices, orders...</span>
-          </div>
-        </button>
-      </div>
+      {/* PERSISTENT TOPBAR SEARCH TRIGGER */}
+      <button
+        onClick={() => setIsOpen(true)}
+        className="flex h-9 w-full max-w-sm items-center justify-between rounded-lg border border-input bg-background/80 px-3 text-xs text-muted-foreground shadow-xs transition-colors hover:bg-accent/40 hover:text-foreground focus:outline-hidden"
+      >
+        <div className="flex items-center gap-2">
+          <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
+          <span className="truncate">Search patients, doctors, beds, invoices, SOS...</span>
+        </div>
+        <kbd className="pointer-events-none hidden h-5 select-none items-center gap-1 rounded-sm border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground sm:flex">
+          <span className="text-xs">⌘</span>K
+        </kbd>
+      </button>
 
-      {/* EXACT SPOTLIGHT / DOCSEARCH STYLE SEARCH MODAL */}
+      {/* SPOTLIGHT COMMAND PALETTE DIALOG */}
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="max-w-2xl p-0 gap-0 overflow-hidden border border-border bg-card shadow-2xl rounded-2xl [&>button.absolute]:hidden">
-          <DialogTitle className="sr-only">Hospital Universal Search</DialogTitle>
+        <DialogContent className="sm:max-w-2xl p-0 gap-0 overflow-hidden border-border bg-card shadow-2xl rounded-2xl">
+          <DialogTitle className="sr-only">Global Hospital Search &amp; Command Palette</DialogTitle>
 
-          {/* Top Search Input Bar */}
-          <div className="flex items-center gap-3 px-4 py-3.5 border-b border-border bg-card">
-            <Search className="h-5 w-5 text-muted-foreground shrink-0" />
-            <input
+          {/* SEARCH INPUT BAR */}
+          <div className="flex items-center gap-2 border-b border-border px-4 py-3 bg-muted/20">
+            <Search className="h-5 w-5 shrink-0 text-primary" />
+            <Input
               ref={inputRef}
+              placeholder="Type to search patients, doctors, beds, surgeries, invoices, emergency..."
+              className="border-0 shadow-none text-sm focus-visible:ring-0 px-0 h-8 bg-transparent"
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search hospital records..."
-              className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none font-normal"
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setSelectedIndex(0);
+              }}
+              onKeyDown={handleKeyDown}
             />
             {query && (
               <button
-                type="button"
-                onClick={() => {
-                  setQuery("");
-                  inputRef.current?.focus();
-                }}
-                className="text-muted-foreground hover:text-foreground p-1"
+                onClick={() => setQuery("")}
+                className="text-muted-foreground hover:text-foreground p-1 rounded-full hover:bg-muted"
               >
                 <X className="h-4 w-4" />
               </button>
             )}
-            <button
-              type="button"
-              onClick={() => setIsOpen(false)}
-              className="rounded border border-border bg-muted/60 px-2 py-1 text-[11px] font-mono text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-            >
+            <kbd className="hidden sm:inline-block text-[10px] font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded border border-border">
               ESC
-            </button>
+            </kbd>
           </div>
 
-          {/* Search Results Area */}
-          <div
-            ref={listRef}
-            className="max-h-[440px] overflow-y-auto p-4 space-y-4 scrollbar-thin bg-card"
-          >
-            {!query.trim() ? (
-              <div className="py-12 text-center text-xs text-muted-foreground">
-                <Search className="h-8 w-8 mx-auto mb-2 text-muted-foreground/30" />
-                <p className="font-semibold text-foreground text-sm">Type to search hospital database</p>
-                <p className="mt-1 text-xs">Find patients by name or UHID, doctors by specialty, lab tests, and invoices.</p>
-              </div>
-            ) : filteredResults.length === 0 ? (
-              <div className="py-12 text-center text-xs text-muted-foreground">
-                <p className="font-semibold text-foreground text-sm">No results found for &ldquo;{query}&rdquo;</p>
-                <p className="mt-1 text-xs">Try searching with a different keyword or filter category.</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {filteredResults.map((item) => (
-                  <div
-                    key={item.id}
-                    onClick={() => handleSelect(item.href)}
-                    className="p-3.5 rounded-xl border border-transparent hover:border-border hover:bg-muted/40 transition-all cursor-pointer group"
-                  >
-                    {/* Category Label (e.g. 'Blog' in image -> 'Patient', 'Doctor', etc.) */}
-                    <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">
-                      {item.category}
-                    </div>
+          {/* CATEGORY FILTER PILLS */}
+          <div className="flex items-center gap-1 overflow-x-auto px-4 py-2 border-b border-border/50 bg-muted/10 scrollbar-none text-[11px]">
+            {CATEGORIES.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => {
+                  setFilterCategory(cat);
+                  setSelectedIndex(0);
+                }}
+                className={cn(
+                  "px-2.5 py-1 rounded-full whitespace-nowrap font-medium transition-all",
+                  filterCategory === cat
+                    ? "bg-primary text-primary-foreground font-semibold shadow-xs"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
+                )}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
 
-                    {/* Result Header Title */}
-                    <h3 className="font-bold text-sm text-foreground group-hover:text-primary transition-colors leading-snug">
-                      <HighlightText text={item.title} query={query} />
-                    </h3>
-
-                    {/* Section Snippet Lines with Yellow Highlights (Exact as in image) */}
-                    <div className="mt-2 space-y-1.5 text-xs text-muted-foreground leading-relaxed pl-2 border-l-2 border-border/60">
-                      {item.snippets.map((snip, sIdx) => (
-                        <p key={sIdx} className="break-words">
-                          {snip.label && (
-                            <span className="font-semibold text-foreground/80 mr-1.5">
-                              {snip.label}:
+          {/* RESULTS / QUICK ACTIONS LIST CONTAINER */}
+          <div ref={listRef} className="max-h-[380px] overflow-y-auto p-2 space-y-1 text-xs">
+            {/* 1. WHEN QUERY IS EMPTY: SHOW 10 PERMITTED QUICK ACTIONS */}
+            {!query.trim() && (
+              <div className="p-2 space-y-3">
+                <div>
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider px-2">
+                    Quick Actions
+                  </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 mt-1.5">
+                    {STANDARD_QUICK_ACTIONS.map((qa) => (
+                      <button
+                        key={qa.id}
+                        onClick={() => handleSelectQuickAction(qa)}
+                        className="flex items-center justify-between p-2.5 rounded-lg border border-border/60 hover:border-primary/50 hover:bg-primary/5 text-left transition-all group"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <div className="p-1.5 rounded-md bg-muted/40 group-hover:bg-primary/10 text-primary">
+                            <Sparkles className="h-4 w-4" />
+                          </div>
+                          <div>
+                            <span className="font-semibold text-foreground text-xs block group-hover:text-primary">
+                              {qa.title}
                             </span>
-                          )}
-                          <HighlightText text={snip.text} query={query} />
-                        </p>
-                      ))}
-                    </div>
+                            <span className="text-[10px] text-muted-foreground line-clamp-1">
+                              {qa.description}
+                            </span>
+                          </div>
+                        </div>
+                        <Badge variant="outline" className="text-[8px] font-mono shrink-0 ml-1">
+                          {qa.category}
+                        </Badge>
+                      </button>
+                    ))}
                   </div>
-                ))}
+                </div>
+
+                <div className="pt-2 border-t border-border flex items-center justify-between text-[11px] text-muted-foreground px-2">
+                  <span>Start typing to search across 11 hospital entities</span>
+                  <span className="font-mono text-[10px]">100% RBAC Gated</span>
+                </div>
               </div>
             )}
+
+            {/* 2. WHEN QUERY IS ACTIVE BUT NO MATCHES */}
+            {query.trim() && searchResults.length === 0 && (
+              <div className="p-8 text-center space-y-3">
+                <div className="h-10 w-10 mx-auto rounded-full bg-muted flex items-center justify-center text-muted-foreground">
+                  <Search className="h-5 w-5" />
+                </div>
+                <div>
+                  <p className="font-semibold text-foreground text-sm">No results found for &ldquo;{query}&rdquo;</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Try searching by UHID, Doctor Name, Staff Role, Bed Number, Surgery Case, or Invoice #.
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-8 text-xs font-semibold"
+                  onClick={() => {
+                    setIsOpen(false);
+                    router.push(`/search?q=${encodeURIComponent(query)}`);
+                  }}
+                >
+                  Open Full Search Results Page &rarr;
+                </Button>
+              </div>
+            )}
+
+            {/* 3. WHEN QUERY HAS MATCHES */}
+            {query.trim() &&
+              searchResults.map((item, idx) => {
+                const isSelected = idx === selectedIndex;
+                const isCritical = item.urgencyLevel === "critical";
+
+                return (
+                  <div
+                    key={item.id}
+                    onClick={() => handleSelectResult(item)}
+                    onMouseEnter={() => setSelectedIndex(idx)}
+                    className={cn(
+                      "p-2.5 rounded-lg cursor-pointer transition-all border",
+                      isSelected
+                        ? "bg-accent/70 border-primary/40 shadow-xs"
+                        : "border-transparent hover:bg-muted/30",
+                      isCritical && "border-rose-500/40 bg-rose-500/5 hover:bg-rose-500/10"
+                    )}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-start gap-2.5 min-w-0">
+                        <div
+                          className={cn(
+                            "p-1.5 rounded-md shrink-0 mt-0.5",
+                            isCritical ? "bg-rose-500/15 text-rose-600 animate-pulse" : "bg-muted text-foreground"
+                          )}
+                        >
+                          {getCategoryIcon(item.category)}
+                        </div>
+
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-foreground text-xs truncate">
+                              <HighlightText text={item.title} query={query} />
+                            </span>
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                "text-[9px] font-mono",
+                                isCritical
+                                  ? "bg-rose-500/20 text-rose-700 dark:text-rose-300 border-rose-500/40 font-bold"
+                                  : "bg-muted/40"
+                              )}
+                            >
+                              {item.badgeText || item.category}
+                            </Badge>
+                          </div>
+
+                          {item.subtitle && (
+                            <p className="text-[11px] text-muted-foreground line-clamp-1 mt-0.5">
+                              <HighlightText text={item.subtitle} query={query} />
+                            </p>
+                          )}
+
+                          {item.snippets.length > 0 && (
+                            <div className="mt-1.5 space-y-0.5">
+                              {item.snippets.map((snip, sIdx) => (
+                                <div key={sIdx} className="text-[10px] text-muted-foreground bg-background/60 p-1 rounded border border-border/40">
+                                  {snip.label && <strong className="text-foreground">{snip.label}: </strong>}
+                                  <HighlightText text={snip.text} query={query} />
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground mt-1" />
+                    </div>
+                  </div>
+                );
+              })}
           </div>
 
-          {/* Bottom Filter & Navigation Footer (Matches image bottom bar) */}
-          <div className="px-4 py-2.5 bg-muted/30 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
-            {/* Filter Dropdown on Bottom Left */}
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] font-medium text-foreground">Filter</span>
-              <Select value={filterCategory} onValueChange={setFilterCategory}>
-                <SelectTrigger className="h-7 text-xs border-border bg-background px-2.5 gap-1.5 font-medium">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="All">All</SelectItem>
-                  <SelectItem value="Patient">Patients</SelectItem>
-                  <SelectItem value="Doctor">Doctors</SelectItem>
-                  <SelectItem value="Department">Departments</SelectItem>
-                  <SelectItem value="Lab Report">Lab Reports</SelectItem>
-                  <SelectItem value="Billing">Billing</SelectItem>
-                </SelectContent>
-              </Select>
+          {/* FOOTER BAR */}
+          <div className="flex items-center justify-between border-t border-border px-4 py-2 bg-muted/20 text-[11px] text-muted-foreground">
+            <div className="flex items-center gap-3">
+              <span className="flex items-center gap-1">
+                <kbd className="rounded border bg-muted px-1 font-mono text-[9px]">↑</kbd>
+                <kbd className="rounded border bg-muted px-1 font-mono text-[9px]">↓</kbd> Navigate
+              </span>
+              <span className="flex items-center gap-1">
+                <kbd className="rounded border bg-muted px-1 font-mono text-[9px]">↵</kbd> Select
+              </span>
             </div>
 
-            {/* Scroll Navigation Indicators on Bottom Right */}
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] font-mono">{filteredResults.length} match(es)</span>
-              <div className="flex items-center gap-1 text-muted-foreground">
-                <button
-                  type="button"
-                  onClick={() => listRef.current?.scrollBy({ top: -100, behavior: "smooth" })}
-                  className="p-1 rounded hover:bg-muted hover:text-foreground"
-                  title="Scroll Up"
-                >
-                  <ArrowUp className="h-3 w-3" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => listRef.current?.scrollBy({ top: 100, behavior: "smooth" })}
-                  className="p-1 rounded hover:bg-muted hover:text-foreground"
-                  title="Scroll Down"
-                >
-                  <ArrowDown className="h-3 w-3" />
-                </button>
-              </div>
-            </div>
+            {query.trim() && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 text-[11px] font-semibold text-primary p-0 hover:bg-transparent"
+                onClick={() => {
+                  setIsOpen(false);
+                  router.push(`/search?q=${encodeURIComponent(query)}`);
+                }}
+              >
+                View all results on Search Page &rarr;
+              </Button>
+            )}
           </div>
         </DialogContent>
       </Dialog>
