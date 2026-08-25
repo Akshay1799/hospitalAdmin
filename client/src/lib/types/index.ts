@@ -1676,6 +1676,98 @@ export interface EscalationRecord {
   resolutionNotes?: string;
 }
 
+// ==========================================
+// MODULE 17 — REPORTS & ANALYTICS
+// ==========================================
+
+export type HospitalReportCategory =
+  | "Patient flow"
+  | "Patient Flow"
+  | "Bed/ward"
+  | "Bed/Ward"
+  | "Doctors"
+  | "Nursing"
+  | "Reception"
+  | "Surgery"
+  | "Diagnostics"
+  | "Pharmacy"
+  | "Finance"
+  | "Vendor"
+  | "Emergency"
+  | "Security";
+
+export type ReportSensitivityLevel =
+  | "Standard Operational"
+  | "Confidential Financial"
+  | "Restricted Security"
+  | "Clinical Governance";
+
+export interface ReportKPI {
+  label: string;
+  value: string | number;
+  delta?: string;
+  trend?: "up" | "down" | "neutral";
+  isPositive?: boolean;
+}
+
+export interface ReportChartKey {
+  dataKey: string;
+  name: string;
+  color: string;
+  type?: "bar" | "line" | "area";
+}
+
+export interface ReportTableColumn {
+  key: string;
+  label: string;
+  isNumeric?: boolean;
+  isBadge?: boolean;
+  badgeTone?: (val: any) => string;
+}
+
+export interface HospitalReportDefinition {
+  id: string;
+  code: string;
+  title: string;
+  category: HospitalReportCategory;
+  description: string;
+  sensitivity: ReportSensitivityLevel;
+  requiredPermission: string;
+  defaultPeriod: string;
+  kpis: ReportKPI[];
+  chartType: "bar" | "line" | "area" | "pie" | "composed";
+  chartData: any[];
+  chartKeys: ReportChartKey[];
+  tableColumns: ReportTableColumn[];
+  tableData: any[];
+}
+
+export interface CustomReportQuery {
+  id: string;
+  title: string;
+  category: HospitalReportCategory;
+  dimension: string;
+  metrics: string[];
+  dateRange: string;
+  visualization: "bar" | "line" | "area" | "table";
+}
+
+export interface ScheduledReportConfig {
+  id: string;
+  reportId: string;
+  reportTitle: string;
+  category: HospitalReportCategory;
+  frequency: "Daily" | "Weekly" | "Monthly" | "Quarterly";
+  deliveryTime: string;
+  dayOfWeek?: string;
+  format: "PDF" | "CSV" | "Excel";
+  recipients: string[];
+  enabled: boolean;
+  lastSentAt?: string;
+  nextRunAt: string;
+}
+
+
 
 
 
