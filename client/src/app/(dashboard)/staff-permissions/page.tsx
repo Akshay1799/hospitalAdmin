@@ -44,7 +44,7 @@ export default function StaffPermissionsPage() {
           }`}
         >
           <ShieldCheck className="h-3.5 w-3.5" />
-          Canonical Admin Permission Matrix (PRD 23)
+          Admin Permission Matrix
         </button>
       </div>
 

@@ -66,7 +66,7 @@ export function AdminPermissionMatrixView() {
             <div>
               <div className="flex items-center gap-2">
                 <CardTitle className="text-sm font-bold flex items-center gap-1.5">
-                  <ShieldCheck className="h-4 w-4 text-primary" /> Canonical Admin Permission Matrix (PRD Section 23)
+                  <ShieldCheck className="h-4 w-4 text-primary" /> Canonical Admin Permission Matrix
                 </CardTitle>
                 <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/30">
                   REFERENCE CHECKLIST
@@ -204,10 +204,11 @@ export function AdminPermissionMatrixView() {
                     </div>
                   </TableCell>
 
-                  <TableCell className="text-center bg-rose-500/5">
-                    <Badge variant="destructive" className="text-[10px] font-bold px-2 py-0.5 bg-rose-600">
-                      <Lock className="h-2.5 w-2.5 mr-1 inline" /> No
-                    </Badge>
+                  <TableCell className="text-center bg-rose-500/10">
+                    <span className="inline-flex items-center justify-center gap-1 font-bold text-xs px-2.5 py-1 rounded-md bg-rose-600 text-white shadow-xs">
+                      <Lock className="h-3 w-3 text-white shrink-0" />
+                      <span className="font-bold text-white tracking-wide">No</span>
+                    </span>
                   </TableCell>
 
                   <TableCell className="text-muted-foreground text-[11px]">

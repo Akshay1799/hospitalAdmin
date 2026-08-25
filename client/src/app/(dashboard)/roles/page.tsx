@@ -228,7 +228,7 @@ export default function RolesPage() {
           }`}
         >
           <ShieldCheck className="h-3.5 w-3.5" />
-          Admin Permission Matrix (PRD Section 23)
+          Admin Permission Matrix
         </button>
       </div>
 
