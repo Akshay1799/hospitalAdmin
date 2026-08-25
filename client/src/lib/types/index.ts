@@ -621,8 +621,41 @@ export interface InsuranceClaim {
   status: ClaimStatus;
   submissionDate: string;
   settlementDate?: string;
+  settlementUtr?: string;
+  admissionType?: "IPD" | "OPD" | "Emergency" | "Day Care";
+  dischargeDate?: string;
   rejectionReason?: string;
   queryNotes?: string;
+  linkedInvoiceId?: string;
+}
+
+export interface InsurancePatientRecord {
+  id: string;
+  patientId: string;
+  patientName: string;
+  age: number;
+  gender: string;
+  contactNo: string;
+  tpaProvider: TpaProvider;
+  policyNo: string;
+  coverageType: "Comprehensive Cashless" | "Government Scheme" | "Corporate Floater" | "Senior Citizen Special";
+  totalSumInsured: number;
+  availableCoverage: number;
+  primaryInsuredName: string;
+  relationship: string;
+  activeClaimsCount: number;
+  lastClaimDate?: string;
+}
+
+export interface TpaProviderMetric {
+  provider: TpaProvider;
+  totalClaims: number;
+  approvedClaims: number;
+  rejectedClaims: number;
+  approvalRatio: number;
+  avgTatDays: number;
+  totalSettledAmount: number;
+  pendingClaimsCount: number;
 }
 
 // Central Store Inventory & Stock
