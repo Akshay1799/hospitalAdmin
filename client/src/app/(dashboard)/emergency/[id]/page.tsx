@@ -18,6 +18,7 @@ import {
   ArrowRightLeft,
   Shield,
   ShieldAlert,
+  ShieldCheck,
   Send,
   UserCheck,
   Building,
@@ -424,6 +425,73 @@ export default function EmergencyCaseDetail() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Module 22: Emergency Pre-Arrival Packet & Care Continuity Card */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Feature 2: Emergency Pre-Arrival Packet */}
+            <Card className="border-rose-500/30 bg-rose-500/5 shadow-xs">
+              <CardHeader className="p-3.5 pb-2 border-b border-rose-500/20">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-xs font-bold text-rose-700 dark:text-rose-300 flex items-center gap-1.5">
+                    <Stethoscope className="h-3.5 w-3.5" /> Pre-Arrival Telemetry Packet
+                  </CardTitle>
+                  <Badge variant="outline" className="text-[9px] bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/30">
+                    PROPOSED (PRD 22)
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="p-3.5 space-y-2 text-xs">
+                <div className="grid grid-cols-2 gap-2 text-[11px]">
+                  <div className="p-2 rounded bg-card border border-border">
+                    <span className="text-[10px] text-muted-foreground block">Telemetry Vitals</span>
+                    <span className="font-mono font-bold text-foreground">HR: 114 | SpO2: 93%</span>
+                    <span className="text-[10px] text-muted-foreground block mt-0.5">BP: 168/102 mmHg</span>
+                  </div>
+                  <div className="p-2 rounded bg-card border border-border">
+                    <span className="text-[10px] text-muted-foreground block">Trauma Bay Prep</span>
+                    <span className="font-semibold text-primary">Bay 01 (Pre-Cleared)</span>
+                    <span className="text-[10px] text-rose-600 block mt-0.5 font-bold">ETA: ~7 Mins</span>
+                  </div>
+                </div>
+                <div className="p-2 rounded bg-muted/40 border border-border text-[10px] text-muted-foreground">
+                  <strong>Known Allergies:</strong> <span className="text-rose-600 font-semibold">Penicillin, NSAIDs</span> • Blood Group: <span className="font-bold text-foreground">O+</span>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Feature 5: Care Continuity Card */}
+            <Card className="border-blue-500/30 bg-blue-500/5 shadow-xs">
+              <CardHeader className="p-3.5 pb-2 border-b border-blue-500/20">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-xs font-bold text-blue-700 dark:text-blue-300 flex items-center gap-1.5">
+                    <ShieldCheck className="h-3.5 w-3.5" /> Care Continuity & Treatment History
+                  </CardTitle>
+                  <Badge variant="outline" className="text-[9px] bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/30">
+                    PROPOSED (PRD 22)
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="p-3.5 space-y-2 text-xs">
+                <div className="space-y-1 text-[11px]">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Primary Treating Doctor:</span>
+                    <span className="font-semibold text-foreground">Dr. Arvind Swaminathan</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Specialty / Unit:</span>
+                    <span className="text-primary font-medium">Interventional Cardiology</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Active Care Case:</span>
+                    <span className="font-mono text-[10px] text-foreground">CARE-2026-0891 (CAD Post-PTCA)</span>
+                  </div>
+                </div>
+                <div className="p-1.5 rounded bg-blue-500/10 border border-blue-500/20 text-[10px] text-blue-800 dark:text-blue-200">
+                  ✓ Qlyno Patient Consent Authenticated: Clinical history auto-unmasked for attending emergency physician.
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
           {/* Stepper / Visual Case Timeline */}
           <Card>

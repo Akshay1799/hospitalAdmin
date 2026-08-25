@@ -98,7 +98,12 @@ export function SidebarNav({
                       )}
                     />
                     {!collapsed && <span className="truncate">{item.label}</span>}
-                    {!collapsed && active && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary" />}
+                    {!collapsed && item.badge && (
+                      <span className="ml-auto text-[9px] px-1 py-0 rounded bg-primary/15 text-primary font-medium border border-primary/20">
+                        {item.badge}
+                      </span>
+                    )}
+                    {!collapsed && active && !item.badge && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary" />}
                   </Link>
                 );
               })}

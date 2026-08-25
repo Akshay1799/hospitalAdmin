@@ -59,6 +59,7 @@ export const navGroups: NavGroup[] = [
     title: "Overview",
     items: [
       { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+      { label: "Command Center", href: "/command-center", icon: Gauge, badge: "Proposed" },
     ],
   },
 
@@ -153,6 +154,7 @@ export const navGroups: NavGroup[] = [
     items: [
       { label: "Verifications", href: "/verification", icon: ShieldCheck },
       { label: "Hospital Admin", href: "/admin-delegation", icon: UsersRound },
+      { label: "Incidents", href: "/incidents", icon: ShieldAlert, badge: "Proposed" },
       { label: "Reports", href: "/reports", icon: Gauge },
       { label: "Roles & Permissions", href: "/roles", icon: ShieldCheck },
       { label: "Audit Logs", href: "/audit-logs", icon: ScrollText },

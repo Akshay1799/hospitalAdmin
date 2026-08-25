@@ -139,6 +139,20 @@ export default function EmergencyConfigPage() {
             <div className="space-y-3 pt-3 border-t">
               <div className="flex items-center justify-between">
                 <div>
+                  <div className="flex items-center gap-1.5">
+                    <Label htmlFor="network-signal" className="font-semibold text-xs text-foreground">
+                      Publish Emergency Capacity Signal to Qlyno Network
+                    </Label>
+                    <span className="text-[9px] bg-primary/10 text-primary border border-primary/20 px-1 rounded">
+                      PROPOSED (PRD 22)
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Broadcast live ER/ICU capacity telemetry to Qlyno central router (last broadcast: Just now)</p>
+                </div>
+                <Switch id="network-signal" defaultChecked={true} />
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
                   <Label htmlFor="24x7">24/7 Continuous Emergency Operations</Label>
                   <p className="text-xs text-muted-foreground">Always active for incoming SOS routing</p>
                 </div>
