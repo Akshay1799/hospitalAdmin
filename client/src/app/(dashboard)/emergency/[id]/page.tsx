@@ -61,6 +61,7 @@ import {
 } from "@/store/slices/emergencySlice";
 import { DispatchCreationModal } from "@/components/ambulance/DispatchCreationModal";
 import { useToast } from "@/hooks/use-toast";
+import { formatDateTime } from "@/lib/utils";
 
 const DELEGATION_STRING = "Performed by Hospital Admin • acting within Emergency workflow";
 
@@ -294,8 +295,8 @@ export default function EmergencyCaseDetail() {
                 {emergencyCase.status}
               </Badge>
             </div>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Initiated on {new Date(emergencyCase.createdAt).toLocaleString()} • Assigned to{" "}
+            <p className="text-xs text-muted-foreground mt-0.5" suppressHydrationWarning>
+              Initiated on {formatDateTime(emergencyCase.createdAt)} • Assigned to{" "}
               <strong className="text-foreground">{emergencyCase.assignedTeam || "Triage Desk"}</strong>
             </p>
           </div>

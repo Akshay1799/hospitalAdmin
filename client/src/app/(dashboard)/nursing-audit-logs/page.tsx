@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { ScopeIndicator } from '@/components/shared/ScopeIndicator';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { formatDateTime } from '@/lib/utils';
 
 export default function NursingAuditLogsPage() {
   return (
@@ -69,7 +70,7 @@ export default function NursingAuditLogsPage() {
           <TableBody>
             {mockAuditLogs.map((log) => (
               <TableRow key={log.id}>
-                <TableCell className="font-medium">{new Date(log.timestamp).toLocaleString()}</TableCell>
+                <TableCell className="font-medium" suppressHydrationWarning>{formatDateTime(log.timestamp)}</TableCell>
                 <TableCell>{log.actor}</TableCell>
                 <TableCell><span className="bg-muted px-2 py-1 rounded text-xs font-mono">{log.action}</span></TableCell>
                 <TableCell>{log.entity}</TableCell>

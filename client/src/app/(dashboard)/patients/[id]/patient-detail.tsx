@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import {
   AlertTriangle,
   ArrowRightLeft,
@@ -8,6 +9,7 @@ import {
   CheckCircle2,
   Clock,
   Download,
+  ExternalLink,
   FileText,
   Lock,
   Plus,
@@ -287,43 +289,126 @@ export function PatientDetail({ patientId }: PatientDetailProps) {
         {/* TIMELINE TAB */}
         <TabsContent value="timeline" className="space-y-4">
           <Card>
-            <CardHeader>
-              <CardTitle>Operational Timeline</CardTitle>
-              <CardDescription>Permission-scoped chronological trail of patient operational interactions.</CardDescription>
+            <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pb-3">
+              <div>
+                <CardTitle className="text-base font-bold">19.1 Cross-Module Longitudinal Care Timeline</CardTitle>
+                <CardDescription className="text-xs">
+                  Stitched event trail integrating Reception (Mod 6), Clinical OPD (Mod 7), Nursing (Mod 5), OT (Mod 10), Diagnostics/Pharmacy (Mod 12), and Invoices.
+                </CardDescription>
+              </div>
+              <Button size="sm" variant="outline" className="h-7 text-xs font-semibold" asChild>
+                <Link href="/care-coordination/patient-journey">
+                  <ExternalLink className="h-3 w-3 mr-1" /> Open Core Workflows Console &rarr;
+                </Link>
+              </Button>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 pt-2">
+              {/* 1. DISCOVERY & CONSENT */}
+              <div className="flex gap-3 border-l-2 border-emerald-500 pl-4 relative">
+                <div className="absolute -left-[9px] top-0.5 h-4 w-4 rounded-full bg-emerald-500 flex items-center justify-center text-white text-[9px] font-bold">
+                  ✓
+                </div>
+                <div className="flex-1 text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-foreground">Identity Verified &amp; Consent Logged (Mod 7)</span>
+                    <Badge variant="outline" className="text-[9px] font-mono">Qlyno Master Identity</Badge>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">{relationship?.consent.recordedOn || "Initial Registration"} • UHID: {patient.qlynoPatientId}</p>
+                  <p className="mt-1 text-muted-foreground bg-muted/20 p-2 rounded border border-border/50">Data sharing consent status verified as &lsquo;{relationship?.consent.status}&rsquo;. Master Qlyno profile verified without duplicate identity conflict.</p>
+                </div>
+              </div>
+
+              {/* 2. RECEPTION & TOKEN */}
+              <div className="flex gap-3 border-l-2 border-blue-500 pl-4 relative">
+                <div className="absolute -left-[9px] top-0.5 h-4 w-4 rounded-full bg-blue-500 flex items-center justify-center text-white text-[9px] font-bold">
+                  ✓
+                </div>
+                <div className="flex-1 text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-foreground">Reception Check-In &amp; Token Issuance (Mod 6)</span>
+                    <Badge variant="outline" className="text-[9px] font-mono">Counter 1</Badge>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">Checked in at 09:18 AM • Token: #OPD-24</p>
+                  <p className="mt-1 text-muted-foreground bg-muted/20 p-2 rounded border border-border/50">Receptionist verified identity, issued priority token, and routed patient to OPD waiting zone.</p>
+                </div>
+              </div>
+
+              {/* 3. OPD CONSULTATION */}
               {recentOPD && (
-                <div className="flex gap-4 border-l-2 border-primary pl-4">
-                  <div className="pt-0.5">
-                    <Clock className="h-5 w-5 text-primary" />
+                <div className="flex gap-3 border-l-2 border-primary pl-4 relative">
+                  <div className="absolute -left-[9px] top-0.5 h-4 w-4 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-[9px] font-bold">
+                    ✓
                   </div>
-                  <div className="flex-1">
-                    <p className="font-medium text-foreground">OPD Consultation Logistics</p>
-                    <p className="text-xs text-muted-foreground">{recentOPD.registrationDate}</p>
-                    <p className="mt-1 text-sm">{recentOPD.visitReason} with {recentOPD.doctor} ({recentOPD.department})</p>
+                  <div className="flex-1 text-xs">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-foreground">Clinical OPD Consultation &amp; Plan (Mod 2 &amp; 7)</span>
+                      <Badge variant="outline" className="text-[9px] font-mono">{recentOPD.department}</Badge>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">{recentOPD.registrationDate} • Consultant: {recentOPD.doctor}</p>
+                    <p className="mt-1 text-muted-foreground bg-muted/20 p-2 rounded border border-border/50">Consultation reason: &ldquo;{recentOPD.visitReason}&rdquo;. Doctor signed digital clinical encounter notes and ordered pre-op diagnostics.</p>
                   </div>
                 </div>
               )}
+
+              {/* 4. DIAGNOSTICS & PHARMACY */}
+              <div className="flex gap-3 border-l-2 border-amber-500 pl-4 relative">
+                <div className="absolute -left-[9px] top-0.5 h-4 w-4 rounded-full bg-amber-500 flex items-center justify-center text-white text-[9px] font-bold">
+                  ✓
+                </div>
+                <div className="flex-1 text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-foreground">Diagnostic Workup &amp; Pharmacy Dispensing (Mod 12)</span>
+                    <Badge variant="outline" className="text-[9px] font-mono">Central Lab &amp; PACS</Badge>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">Completed 2 hours post-OPD</p>
+                  <p className="mt-1 text-muted-foreground bg-muted/20 p-2 rounded border border-border/50">Pre-op blood panel (CBC, Coagulation) released; 128-Slice CT scan verified; pre-anesthetic medications dispensed from central pharmacy.</p>
+                </div>
+              </div>
+
+              {/* 5. IPD ADMISSION & BED */}
               {recentIPD && (
-                <div className="flex gap-4 border-l-2 border-info pl-4">
-                  <div className="pt-0.5">
-                    <Stethoscope className="h-5 w-5 text-info" />
+                <div className="flex gap-3 border-l-2 border-cyan-500 pl-4 relative">
+                  <div className="absolute -left-[9px] top-0.5 h-4 w-4 rounded-full bg-cyan-500 flex items-center justify-center text-white text-[9px] font-bold">
+                    ✓
                   </div>
-                  <div className="flex-1">
-                    <p className="font-medium text-foreground">IPD Admission & Bed Assignment</p>
-                    <p className="text-xs text-muted-foreground">{recentIPD.admissionDate}</p>
-                    <p className="mt-1 text-sm">{recentIPD.diagnosis} in {recentIPD.department} • Assigned {recentIPD.bedAssignment}</p>
+                  <div className="flex-1 text-xs">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-foreground">IPD Admission &amp; Bed Allocation (Mod 7 &amp; Wards)</span>
+                      <Badge variant="outline" className="text-[9px] font-mono">{recentIPD.bedAssignment}</Badge>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">{recentIPD.admissionDate} • Ward: {recentIPD.department}</p>
+                    <p className="mt-1 text-muted-foreground bg-muted/20 p-2 rounded border border-border/50">Admitted under provisional diagnosis &lsquo;{recentIPD.diagnosis}&rsquo;. Bed assigned with 1:4 nursing care ratio.</p>
                   </div>
                 </div>
               )}
-              <div className="flex gap-4 border-l-2 border-success pl-4">
-                <div className="pt-0.5">
-                  <Shield className="h-5 w-5 text-success" />
+
+              {/* 6. SURGERY & OT */}
+              <div className="flex gap-3 border-l-2 border-purple-500 pl-4 relative">
+                <div className="absolute -left-[9px] top-0.5 h-4 w-4 rounded-full bg-purple-500 flex items-center justify-center text-white text-[9px] font-bold">
+                  ✓
                 </div>
-                <div className="flex-1">
-                  <p className="font-medium text-foreground">Consent Agreement Logged</p>
-                  <p className="text-xs text-muted-foreground">{relationship?.consent.recordedOn || "Initial Registration"}</p>
-                  <p className="mt-1 text-sm">Data sharing status verified as '{relationship?.consent.status}'.</p>
+                <div className="flex-1 text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-foreground">Surgical Case Dossier &amp; OT Complex (Mod 10)</span>
+                    <Badge variant="outline" className="text-[9px] font-mono">Case #CASE-409</Badge>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">Main OR 1 • Lead Surgeon: Dr. Ramesh Sharma</p>
+                  <p className="mt-1 text-muted-foreground bg-muted/20 p-2 rounded border border-border/50">Procedure: Total Knee Arthroplasty. Readiness verified at 100% with Orthotech implant delivery and PAC clearance.</p>
+                </div>
+              </div>
+
+              {/* 7. BILLING & SETTLEMENT */}
+              <div className="flex gap-3 border-l-2 border-emerald-500 pl-4 relative">
+                <div className="absolute -left-[9px] top-0.5 h-4 w-4 rounded-full bg-emerald-500 flex items-center justify-center text-white text-[9px] font-bold">
+                  $
+                </div>
+                <div className="flex-1 text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-foreground">Billing Invoices &amp; Insurance Cashless Clearance (Mod 12)</span>
+                    <Badge variant="outline" className="text-[9px] font-mono">Ledger Settled</Badge>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">Cumulative Billed: ₹{relationship?.billingStatus.totalSpent.toLocaleString()} • Outstanding: ₹{relationship?.billingStatus.totalOutstanding.toLocaleString()}</p>
+                  <p className="mt-1 text-muted-foreground bg-muted/20 p-2 rounded border border-border/50">85% TPA cashless approval settled with Star Health; 15% patient copay collected at Counter 3.</p>
                 </div>
               </div>
             </CardContent>

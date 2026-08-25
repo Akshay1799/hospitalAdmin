@@ -14,6 +14,7 @@ import { RootState } from "@/store/store";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { formatDateTime } from "@/lib/utils";
 
 const DELEGATION_STRING = "Performed by Hospital Admin • acting within Emergency workflow";
 
@@ -144,8 +145,8 @@ export default function EmergencyAuditPage() {
             <TableBody>
               {filteredLogs.map((log) => (
                 <TableRow key={log.id}>
-                  <TableCell className="text-xs text-muted-foreground font-mono whitespace-nowrap">
-                    {new Date(log.timestamp).toLocaleString()}
+                  <TableCell className="text-xs text-muted-foreground font-mono whitespace-nowrap" suppressHydrationWarning>
+                    {formatDateTime(log.timestamp)}
                   </TableCell>
                   <TableCell className="font-semibold text-xs">
                     <Link href={`/emergency/${log.caseId}`} className="text-primary hover:underline font-mono">

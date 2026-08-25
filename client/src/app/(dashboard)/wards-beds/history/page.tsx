@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PageHeader } from "@/components/shared/page-header";
+import { formatDateTime } from "@/lib/utils";
 import { WardsBedsNav } from "@/components/wards-beds/wards-beds-nav";
 import { useToast } from "@/hooks/use-toast";
 
@@ -184,8 +185,8 @@ export default function BedHistoryPage() {
               <TableBody>
                 {filteredHistory.map((entry) => (
                   <TableRow key={entry.id} className="hover:bg-muted/30 transition-colors">
-                    <TableCell className="font-mono text-xs text-muted-foreground whitespace-nowrap">
-                      {new Date(entry.timestamp).toLocaleString()}
+                    <TableCell className="font-mono text-xs text-muted-foreground whitespace-nowrap" suppressHydrationWarning>
+                      {formatDateTime(entry.timestamp)}
                     </TableCell>
                     <TableCell className="font-mono text-xs font-bold text-foreground">
                       {entry.bedNumber}
