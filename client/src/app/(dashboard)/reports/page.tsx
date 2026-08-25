@@ -165,15 +165,198 @@ export default function ReportsAnalyticsPage() {
     });
   }, [selectedCategory, searchQuery]);
 
+  // Computed dynamic data for active report based on the 3 dropdown filters
+  const computedReportData = useMemo(() => {
+    // 1. Multipliers
+    let periodMultiplier = 1.0;
+    let periodLabel = "Current Month";
+    let periodDeltaSuffix = "vs last month";
+
+    if (dateRange === "Today") {
+      periodMultiplier = 0.04;
+      periodLabel = "Today";
+      periodDeltaSuffix = "vs yesterday";
+    } else if (dateRange === "Last 7 Days") {
+      periodMultiplier = 0.25;
+      periodLabel = "Last 7 Days";
+      periodDeltaSuffix = "vs prev week";
+    } else if (dateRange === "Current Month") {
+      periodMultiplier = 1.0;
+      periodLabel = "Current Month";
+      periodDeltaSuffix = "vs last month";
+    } else if (dateRange === "Last 90 Days") {
+      periodMultiplier = 2.85;
+      periodLabel = "Quarterly";
+      periodDeltaSuffix = "vs prev quarter";
+    } else if (dateRange === "Year to Date") {
+      periodMultiplier = 7.6;
+      periodLabel = "YTD";
+      periodDeltaSuffix = "YoY";
+    }
+
+    let deptMultiplier = 1.0;
+    if (selectedDepartment !== "All Departments") {
+      if (selectedDepartment.includes("Emergency")) deptMultiplier = 0.35;
+      else if (selectedDepartment.includes("Cardiology")) deptMultiplier = 0.25;
+      else if (selectedDepartment.includes("Operation") || selectedDepartment.includes("Surgery")) deptMultiplier = 0.20;
+      else if (selectedDepartment.includes("Critical") || selectedDepartment.includes("ICU")) deptMultiplier = 0.15;
+      else if (selectedDepartment.includes("Pharmacy")) deptMultiplier = 0.40;
+      else if (selectedDepartment.includes("Orthopaedics")) deptMultiplier = 0.18;
+      else if (selectedDepartment.includes("Paediatrics")) deptMultiplier = 0.14;
+      else if (selectedDepartment.includes("Neurology")) deptMultiplier = 0.12;
+      else if (selectedDepartment.includes("Obstetrics")) deptMultiplier = 0.16;
+      else deptMultiplier = 0.20;
+    }
+
+    let branchMultiplier = 1.0;
+    if (selectedBranch === "South Wing Specialty") branchMultiplier = 0.40;
+    else if (selectedBranch === "Day Care Center") branchMultiplier = 0.22;
+    else if (selectedBranch === "North Satellite Clinic") branchMultiplier = 0.15;
+    else if (selectedBranch === "Main Campus (Mumbai)") branchMultiplier = 0.75;
+
+    const totalScale = periodMultiplier * (selectedDepartment === "All Departments" ? 1.0 : deptMultiplier) * (selectedBranch === "All Locations" ? 1.0 : branchMultiplier);
+
+    // 2. Computed KPIs
+    const computedKpis = activeReport.kpis.map((kpi) => {
+      let valStr = String(kpi.value);
+      const isPercent = valStr.includes("%");
+      const isMins = valStr.includes("min") || valStr.includes("mins");
+      const isDays = valStr.includes("Day") || valStr.includes("days") || valStr.includes("Days");
+      const isCurrency = valStr.startsWith("₹") || valStr.startsWith("$");
+      const isRatio = valStr.includes(" / ");
+
+      if (isCurrency) {
+        const rawNum = parseFloat(valStr.replace(/[^0-9.]/g, "")) || 100000;
+        const scaled = Math.round(rawNum * totalScale);
+        valStr = `₹${scaled.toLocaleString("en-IN")}`;
+      } else if (isRatio) {
+        const parts = valStr.split(" / ");
+        const n1 = Math.max(1, Math.round((parseFloat(parts[0].replace(/[^0-9.]/g, "")) || 50) * totalScale));
+        const n2 = Math.max(1, Math.round((parseFloat(parts[1].replace(/[^0-9.]/g, "")) || 45) * totalScale));
+        valStr = `${n1.toLocaleString("en-IN")} / ${n2.toLocaleString("en-IN")}`;
+      } else if (isPercent) {
+        const rawP = parseFloat(valStr.replace(/[^0-9.]/g, "")) || 85;
+        const adjP = dateRange === "Today" ? Math.min(99.4, rawP + 1.2) : dateRange === "Last 90 Days" ? Math.max(70, rawP - 0.8) : rawP;
+        valStr = `${adjP.toFixed(1)}%`;
+      } else if (isMins) {
+        const rawM = parseFloat(valStr.replace(/[^0-9.]/g, "")) || 15;
+        const adjM = dateRange === "Today" ? Math.max(2.5, rawM - 2.1) : rawM;
+        valStr = `${adjM.toFixed(1)} mins`;
+      } else if (isDays) {
+        const rawD = parseFloat(valStr.replace(/[^0-9.]/g, "")) || 3.5;
+        valStr = `${rawD.toFixed(1)} Days`;
+      } else {
+        const rawNum = parseFloat(valStr.replace(/[^0-9.]/g, ""));
+        if (!isNaN(rawNum) && rawNum > 0) {
+          const scaled = Math.max(1, Math.round(rawNum * totalScale));
+          valStr = scaled.toLocaleString("en-IN");
+          const lower = String(kpi.value).toLowerCase();
+          if (lower.includes("beds")) valStr += " Beds";
+          else if (lower.includes("scans")) valStr += " Scans";
+          else if (lower.includes("orders")) valStr += " Orders";
+          else if (lower.includes("surgeries")) valStr += " Surgeries";
+        }
+      }
+
+      let deltaStr = kpi.delta;
+      if (deltaStr) {
+        if (deltaStr.includes("vs last month") || deltaStr.includes("vs prev")) {
+          deltaStr = `${deltaStr.split("vs")[0].trim()} ${periodDeltaSuffix}`;
+        }
+      }
+
+      return {
+        ...kpi,
+        value: valStr,
+        delta: deltaStr,
+      };
+    });
+
+    // 3. Computed Chart Data
+    let timeLabels: string[] = [];
+    if (dateRange === "Today") {
+      timeLabels = ["08:00", "10:00", "12:00", "14:00", "16:00", "18:00", "20:00"];
+    } else if (dateRange === "Last 7 Days") {
+      timeLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+    } else if (dateRange === "Current Month") {
+      timeLabels = ["Week 1", "Week 2", "Week 3", "Week 4"];
+    } else if (dateRange === "Last 90 Days") {
+      timeLabels = ["Month 1", "Month 2", "Month 3"];
+    } else if (dateRange === "Year to Date") {
+      timeLabels = ["Q1 2026", "Q2 2026", "Q3 2026", "Q4 (Est.)"];
+    }
+
+    let computedChartData = activeReport.chartData.map((d, index) => {
+      const updated: Record<string, any> = { ...d };
+      if (timeLabels[index]) {
+        updated.period = timeLabels[index];
+      }
+      activeReport.chartKeys.forEach((k) => {
+        if (typeof d[k.dataKey] === "number") {
+          const base = d[k.dataKey];
+          updated[k.dataKey] = Math.max(1, Math.round(base * totalScale));
+        }
+      });
+      return updated;
+    });
+
+    if (timeLabels.length > 0 && computedChartData.length > timeLabels.length) {
+      computedChartData = computedChartData.slice(0, timeLabels.length);
+    }
+
+    // 4. Computed Table Data
+    let computedTableData = activeReport.tableData.map((row) => {
+      const updatedRow: Record<string, any> = { ...row };
+      activeReport.tableColumns.forEach((col) => {
+        if (col.isNumeric && typeof row[col.key] === "number") {
+          updatedRow[col.key] = Math.max(1, Math.round(row[col.key] * totalScale));
+        }
+      });
+      return updatedRow;
+    });
+
+    if (selectedDepartment !== "All Departments") {
+      const deptLower = selectedDepartment.toLowerCase();
+      const filtered = computedTableData.filter((row) => {
+        return Object.values(row).some(
+          (val) => typeof val === "string" && (
+            val.toLowerCase().includes(deptLower) ||
+            deptLower.includes(val.toLowerCase()) ||
+            (deptLower.includes("emergency") && (val.toLowerCase().includes("trauma") || val.toLowerCase().includes("er"))) ||
+            (deptLower.includes("cardiology") && (val.toLowerCase().includes("cardiac") || val.toLowerCase().includes("ccu"))) ||
+            (deptLower.includes("operation") && (val.toLowerCase().includes("surg") || val.toLowerCase().includes("ot"))) ||
+            (deptLower.includes("critical") && (val.toLowerCase().includes("icu") || val.toLowerCase().includes("micu"))) ||
+            (deptLower.includes("orthopaedics") && val.toLowerCase().includes("joint")) ||
+            (deptLower.includes("paediatrics") && val.toLowerCase().includes("neonat"))
+          )
+        );
+      });
+
+      if (filtered.length > 0) {
+        computedTableData = filtered;
+      }
+    }
+
+    const isFiltered = dateRange !== "Current Month" || selectedDepartment !== "All Departments" || selectedBranch !== "Main Campus (Mumbai)";
+
+    return {
+      kpis: computedKpis,
+      chartData: computedChartData,
+      tableData: computedTableData,
+      isFiltered,
+    };
+  }, [activeReport, dateRange, selectedDepartment, selectedBranch]);
+
   // CSV Export Generator
   const handleExportCSV = (report: HospitalReportDefinition) => {
-    if (!report.tableData || report.tableData.length === 0) {
+    const dataToExport = computedReportData.tableData;
+    if (!dataToExport || dataToExport.length === 0) {
       toast({ title: "No Data", description: "No tabular data to export." });
       return;
     }
 
     const headers = report.tableColumns.map((c) => c.label).join(",");
-    const rows = report.tableData.map((row) =>
+    const rows = dataToExport.map((row) =>
       report.tableColumns
         .map((c) => {
           const val = row[c.key] ?? "";
@@ -182,18 +365,18 @@ export default function ReportsAnalyticsPage() {
         .join(",")
     );
 
-    const csvContent = "data:text/csv;charset=utf-8," + [headers, ...rows].join("\n");
-    const encodedUri = encodeURI(csvContent);
+    const metadata = `# Report: ${report.title} (${report.code})\n# Period: ${dateRange} | Department: ${selectedDepartment} | Facility: ${selectedBranch}\n# Generated: ${new Date().toISOString()}\n`;
+    const csvContent = "data:text/csv;charset=utf-8," + encodeURIComponent(metadata + [headers, ...rows].join("\n"));
     const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `${report.code}_${new Date().toISOString().split("T")[0]}.csv`);
+    link.setAttribute("href", csvContent);
+    link.setAttribute("download", `${report.code}_${dateRange.replace(/\s+/g, "_")}_${new Date().toISOString().split("T")[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
 
     toast({
       title: "CSV Report Downloaded",
-      description: `${report.title} exported as CSV. (${DELEGATION_STRING})`,
+      description: `${report.title} exported for ${dateRange} (${selectedDepartment}). (${DELEGATION_STRING})`,
     });
   };
 
@@ -211,24 +394,25 @@ export default function ReportsAnalyticsPage() {
     doc.setFont("helvetica", "normal");
     doc.setTextColor(100, 116, 139);
     doc.text("NABH & NABL Accredited Facility • Hospital Operational & Governance Analytics", 15, 26);
-    doc.text(`Report Code: ${report.code} | Generated on: ${new Date().toLocaleString()} | Period: ${dateRange}`, 15, 31);
+    doc.text(`Report Code: ${report.code} | Generated: ${new Date().toLocaleDateString()} | Period: ${dateRange}`, 15, 31);
+    doc.text(`Scope: ${selectedDepartment} | Location: ${selectedBranch}`, 15, 36);
 
     doc.setDrawColor(203, 213, 225);
-    doc.line(15, 35, 195, 35);
+    doc.line(15, 39, 195, 39);
 
     // Title & Description
     doc.setFontSize(13);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(15, 23, 42);
-    doc.text(report.title.toUpperCase(), 15, 43);
+    doc.text(report.title.toUpperCase(), 15, 47);
 
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(71, 85, 105);
     const splitDesc = doc.splitTextToSize(report.description, 180);
-    doc.text(splitDesc, 15, 49);
+    doc.text(splitDesc, 15, 53);
 
-    let y = 58;
+    let y = 62;
 
     // KPI Metrics Section
     doc.setFont("helvetica", "bold");
@@ -237,7 +421,7 @@ export default function ReportsAnalyticsPage() {
     doc.text("EXECUTIVE KEY PERFORMANCE INDICATORS (KPIs):", 15, y);
     y += 6;
 
-    report.kpis.forEach((kpi, idx) => {
+    computedReportData.kpis.forEach((kpi, idx) => {
       const colX = 15 + (idx % 2) * 90;
       const rowY = y + Math.floor(idx / 2) * 12;
       doc.setFont("helvetica", "normal");
@@ -250,13 +434,13 @@ export default function ReportsAnalyticsPage() {
       doc.text(`${kpi.value} (${kpi.delta || ""})`, colX, rowY + 4);
     });
 
-    y += Math.ceil(report.kpis.length / 2) * 12 + 6;
+    y += Math.ceil(computedReportData.kpis.length / 2) * 12 + 6;
 
     // Tabular Breakdown Header
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
     doc.setTextColor(15, 23, 42);
-    doc.text("OPERATIONAL DATASET BREAKDOWN:", 15, y);
+    doc.text(`OPERATIONAL DATASET BREAKDOWN (${selectedDepartment}):`, 15, y);
     y += 5;
 
     doc.setFillColor(241, 245, 249);
@@ -272,7 +456,7 @@ export default function ReportsAnalyticsPage() {
     y += 8;
     doc.setFont("helvetica", "normal");
 
-    report.tableData.slice(0, 10).forEach((row) => {
+    computedReportData.tableData.slice(0, 10).forEach((row) => {
       report.tableColumns.slice(0, 5).forEach((col, i) => {
         doc.text(String(row[col.key] ?? ""), 17 + i * colStep, y + 4);
       });
@@ -285,14 +469,14 @@ export default function ReportsAnalyticsPage() {
     doc.line(15, y, 195, y);
     doc.setFontSize(7.5);
     doc.setTextColor(148, 163, 184);
-    doc.text("CONFIDENTIAL HOSPITAL GOVERNANCE REPORT — PRD SECTION 17 STANDARDS", 15, y + 5);
+    doc.text(`CONFIDENTIAL HOSPITAL GOVERNANCE REPORT • FILTERED: ${dateRange.toUpperCase()} • ${selectedDepartment.toUpperCase()}`, 15, y + 5);
     doc.text("Generated by Hospital Administration • Unauthorized distribution prohibited", 15, y + 9);
 
-    doc.save(`${report.code}_${new Date().toISOString().split("T")[0]}.pdf`);
+    doc.save(`${report.code}_${dateRange.replace(/\s+/g, "_")}_${new Date().toISOString().split("T")[0]}.pdf`);
 
     toast({
       title: "PDF Report Generated",
-      description: `${report.title} exported as PDF. (${DELEGATION_STRING})`,
+      description: `${report.title} exported for ${dateRange} (${selectedDepartment}). (${DELEGATION_STRING})`,
     });
   };
 
@@ -596,7 +780,15 @@ export default function ReportsAnalyticsPage() {
                           <SelectItem value="Operation Theatres">Operation Theatres</SelectItem>
                           <SelectItem value="Critical Care / ICU">Critical Care / ICU</SelectItem>
                           <SelectItem value="Cardiology">Cardiology</SelectItem>
+                          <SelectItem value="Orthopaedics & Joint Care">Orthopaedics &amp; Joint Care</SelectItem>
+                          <SelectItem value="General Surgery">General Surgery</SelectItem>
+                          <SelectItem value="Paediatrics & Neonatology">Paediatrics &amp; Neonatology</SelectItem>
+                          <SelectItem value="Neurology & Neurosurgery">Neurology &amp; Neurosurgery</SelectItem>
+                          <SelectItem value="Obstetrics & Gynaecology">Obstetrics &amp; Gynaecology</SelectItem>
                           <SelectItem value="Central Pharmacy">Central Pharmacy</SelectItem>
+                          <SelectItem value="Diagnostics & Pathology">Diagnostics &amp; Pathology</SelectItem>
+                          <SelectItem value="Radiology & Imaging">Radiology &amp; Imaging</SelectItem>
+                          <SelectItem value="Billing & Finance">Billing &amp; Finance</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -608,19 +800,46 @@ export default function ReportsAnalyticsPage() {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
+                          <SelectItem value="All Locations">All Locations (Consolidated)</SelectItem>
                           <SelectItem value="Main Campus (Mumbai)">Main Campus (Mumbai)</SelectItem>
                           <SelectItem value="South Wing Specialty">South Wing Specialty</SelectItem>
                           <SelectItem value="Day Care Center">Day Care Center</SelectItem>
+                          <SelectItem value="North Satellite Clinic">North Satellite Clinic</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                   </div>
+
+                  {/* Active Filter Status & Reset Control */}
+                  {computedReportData.isFiltered && (
+                    <div className="flex items-center justify-between gap-2 pt-2 text-[11px] bg-primary/5 p-2 rounded-md border border-primary/20">
+                      <div className="flex items-center gap-1.5 text-primary font-medium flex-wrap">
+                        <Filter className="h-3.5 w-3.5 shrink-0" />
+                        <span>Active Filters:</span>
+                        <Badge variant="outline" className="text-[10px] bg-background">Period: {dateRange}</Badge>
+                        <Badge variant="outline" className="text-[10px] bg-background">Dept: {selectedDepartment}</Badge>
+                        <Badge variant="outline" className="text-[10px] bg-background">Facility: {selectedBranch}</Badge>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 text-[10px] text-muted-foreground hover:text-foreground px-2"
+                        onClick={() => {
+                          setDateRange("Current Month");
+                          setSelectedDepartment("All Departments");
+                          setSelectedBranch("Main Campus (Mumbai)");
+                        }}
+                      >
+                        <RefreshCw className="h-3 w-3 mr-1" /> Reset Filters
+                      </Button>
+                    </div>
+                  )}
                 </CardHeader>
 
                 <CardContent className="p-4 space-y-4">
                   {/* KPI Mini-Cards */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                    {activeReport.kpis.map((kpi, idx) => (
+                    {computedReportData.kpis.map((kpi, idx) => (
                       <div key={idx} className="p-2.5 rounded-lg border border-border bg-card shadow-xs">
                         <span className="text-[10px] text-muted-foreground uppercase font-bold block truncate">
                           {kpi.label}
@@ -642,13 +861,18 @@ export default function ReportsAnalyticsPage() {
 
                   {/* Visualizer Chart */}
                   <div className="p-3 rounded-xl border border-border bg-muted/10 space-y-2">
-                    <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
-                      <LineChartIcon className="h-3.5 w-3.5 text-primary" /> Visual Analytics &amp; Trend Distribution
-                    </span>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                        <LineChartIcon className="h-3.5 w-3.5 text-primary" /> Visual Analytics &amp; Trend Distribution ({dateRange})
+                      </span>
+                      <span className="text-[10px] text-muted-foreground font-mono">
+                        Filtered: {selectedDepartment} • {selectedBranch}
+                      </span>
+                    </div>
                     <div className="h-64 w-full">
                       <ResponsiveContainer width="100%" height="100%">
                         {activeReport.chartType === "bar" ? (
-                          <BarChart data={activeReport.chartData}>
+                          <BarChart data={computedReportData.chartData}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                             <XAxis dataKey="period" tickLine={false} axisLine={false} fontSize={11} />
                             <YAxis tickLine={false} axisLine={false} fontSize={11} />
@@ -658,7 +882,7 @@ export default function ReportsAnalyticsPage() {
                             ))}
                           </BarChart>
                         ) : activeReport.chartType === "area" ? (
-                          <AreaChart data={activeReport.chartData}>
+                          <AreaChart data={computedReportData.chartData}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                             <XAxis dataKey="period" tickLine={false} axisLine={false} fontSize={11} />
                             <YAxis tickLine={false} axisLine={false} fontSize={11} />
@@ -676,7 +900,7 @@ export default function ReportsAnalyticsPage() {
                             ))}
                           </AreaChart>
                         ) : activeReport.chartType === "composed" ? (
-                          <ComposedChart data={activeReport.chartData}>
+                          <ComposedChart data={computedReportData.chartData}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                             <XAxis dataKey="period" tickLine={false} axisLine={false} fontSize={11} />
                             <YAxis tickLine={false} axisLine={false} fontSize={11} />
@@ -690,7 +914,7 @@ export default function ReportsAnalyticsPage() {
                             )}
                           </ComposedChart>
                         ) : (
-                          <LineChart data={activeReport.chartData}>
+                          <LineChart data={computedReportData.chartData}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                             <XAxis dataKey="period" tickLine={false} axisLine={false} fontSize={11} />
                             <YAxis tickLine={false} axisLine={false} fontSize={11} />
@@ -706,7 +930,14 @@ export default function ReportsAnalyticsPage() {
 
                   {/* Tabular Dataset Breakdown */}
                   <div className="space-y-2">
-                    <span className="text-xs font-bold text-foreground">Operational Data Registry</span>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-foreground">
+                        Operational Data Registry ({computedReportData.tableData.length} records)
+                      </span>
+                      <span className="text-[10px] text-muted-foreground">
+                        Scope: {selectedDepartment} • {dateRange}
+                      </span>
+                    </div>
                     <div className="rounded-lg border border-border overflow-hidden">
                       <Table>
                         <TableHeader>
@@ -725,7 +956,7 @@ export default function ReportsAnalyticsPage() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {activeReport.tableData.map((row, idx) => (
+                          {computedReportData.tableData.map((row, idx) => (
                             <TableRow key={idx} className="hover:bg-muted/30 transition-colors text-xs">
                               {activeReport.tableColumns.map((col) => (
                                 <TableCell
