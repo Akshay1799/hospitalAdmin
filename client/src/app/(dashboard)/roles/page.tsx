@@ -48,6 +48,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { ScopeIndicator } from "@/components/shared/ScopeIndicator";
 import { SecurityNav } from "@/components/security/security-nav";
 import { StepUpAuthModal } from "@/components/security/step-up-auth-modal";
+import { AdminPermissionMatrixView } from "@/components/security/admin-permission-matrix-view";
 import { useToast } from "@/hooks/use-toast";
 import { mockRBACRoles } from "@/lib/mock-data/security-operations";
 import { RBACRole, RBACPermission, DataScope } from "@/lib/types";
@@ -57,6 +58,7 @@ const DELEGATION_STRING = "Performed by Hospital Admin • acting within Securit
 export default function RolesPage() {
   const [mounted, setMounted] = useState(false);
   const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState<"rbac" | "admin_matrix">("rbac");
 
   const [rolesList, setRolesList] = useState<RBACRole[]>(mockRBACRoles);
   const [selectedRoleId, setSelectedRoleId] = useState<string>(mockRBACRoles[0].id);
@@ -205,17 +207,46 @@ export default function RolesPage() {
 
       <SecurityNav />
 
-      {/* Scope Indicator & Section 14 Governing Principle */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-        <ScopeIndicator scope="Hospital Admin" stationName="Central RBAC Policy Engine" />
-        <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/30 px-3 py-1.5 rounded-md border border-border">
-          <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
-          <span>Section 14: Broad operational power without bypassing audit or clinical accountability</span>
-        </div>
+      {/* Tab Navigation: 6D RBAC vs Admin Permission Matrix */}
+      <div className="flex items-center gap-2 border-b border-border pb-2">
+        <button
+          onClick={() => setActiveTab("rbac")}
+          className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
+            activeTab === "rbac"
+              ? "bg-primary text-primary-foreground shadow-xs"
+              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+          }`}
+        >
+          6D Custom Roles &amp; Permissions
+        </button>
+        <button
+          onClick={() => setActiveTab("admin_matrix")}
+          className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors flex items-center gap-1.5 ${
+            activeTab === "admin_matrix"
+              ? "bg-primary text-primary-foreground shadow-xs"
+              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+          }`}
+        >
+          <ShieldCheck className="h-3.5 w-3.5" />
+          Admin Permission Matrix (PRD Section 23)
+        </button>
       </div>
 
-      {/* Main Grid: Roles List Left (1 Col), 6D Permission Matrix Right (3 Cols) */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+      {activeTab === "admin_matrix" ? (
+        <AdminPermissionMatrixView />
+      ) : (
+        <>
+          {/* Scope Indicator & Section 14 Governing Principle */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+            <ScopeIndicator scope="Hospital Admin" stationName="Central RBAC Policy Engine" />
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/30 px-3 py-1.5 rounded-md border border-border">
+              <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
+              <span>Section 14: Broad operational power without bypassing audit or clinical accountability</span>
+            </div>
+          </div>
+
+          {/* Main Grid: Roles List Left (1 Col), 6D Permission Matrix Right (3 Cols) */}
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
         {/* Left Column: Roles Selector */}
         <Card className="lg:col-span-1 border-border shadow-xs flex flex-col justify-between">
           <CardHeader className="p-3.5 pb-2 border-b border-border">
@@ -551,6 +582,8 @@ export default function RolesPage() {
         actionDescription={`Authorizing updated permission matrix for role "${activeRole.name}".`}
         onConfirm={handleCommitRoleChanges}
       />
+        </>
+      )}
     </div>
   );
 }
