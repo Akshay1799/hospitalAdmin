@@ -671,6 +671,10 @@ export interface InventoryItem {
   supplierName: string;
   unitCost: number;
   status: "Adequate" | "Low Stock" | "Reorder Placed";
+  expiryDate?: string;
+  batchNumber?: string;
+  isCritical?: boolean;
+  lastAuditDate?: string;
 }
 
 export interface StockIndent {
@@ -681,6 +685,63 @@ export interface StockIndent {
   items: { itemName: string; quantity: number }[];
   status: "Pending Approval" | "Dispatched" | "Received";
   requestedAt: string;
+}
+
+// Module F19: Stock Movement & Adjustment Types
+export type MovementType =
+  | "Indent Dispatch"
+  | "Procurement Delivery"
+  | "Pharmacy Dispensing"
+  | "Sales Return"
+  | "Stock Adjustment"
+  | "Initial Stock";
+
+export type MovementDirection = "IN" | "OUT";
+
+export interface StockMovementRecord {
+  id: string;
+  itemId: string;
+  itemCode: string;
+  itemName: string;
+  category: string;
+  type: MovementType;
+  direction: MovementDirection;
+  quantity: number;
+  unit: string;
+  sourceModule: "Central Stores" | "Pharmacy" | "Procurement" | "OT" | "ICU" | "Emergency" | "Wards" | "Physical Audit";
+  referenceId: string; // IND-XXXX, PO-XXXX, ADJ-XXXX, DISP-XXXX
+  timestamp: string;
+  performedBy: string;
+  notes?: string;
+}
+
+export type AdjustmentType =
+  | "Physical Count Correction"
+  | "Write-off: Damage"
+  | "Write-off: Expiry"
+  | "Write-off: Shrinkage"
+  | "Positive Adjustment";
+
+export interface StockAdjustmentRecord {
+  id: string;
+  adjustmentNo: string;
+  itemId: string;
+  itemCode: string;
+  itemName: string;
+  category: string;
+  adjustmentType: AdjustmentType;
+  previousStock: number;
+  adjustedStock: number;
+  variance: number; // e.g. -50 or +20
+  unit: string;
+  unitCost: number;
+  totalVarianceValue: number;
+  reason: string; // MANDATORY - Rule F19-CANNOT-3
+  authorizedBy: string;
+  timestamp: string;
+  requiresDualApproval: boolean; // Rule F19-CANNOT-4 (> ₹25,000)
+  approvalStatus: "Approved" | "Pending Dual Authorization";
+  notes?: string;
 }
 
 // Biomedical & Facility Assets Registry

@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
+  ArrowRight,
   Boxes,
   CheckCircle2,
   Clock,
@@ -14,39 +15,39 @@ import {
   Filter,
   Layers,
   Package,
+  Pill,
   Plus,
   RefreshCw,
   Search,
   Send,
   ShieldAlert,
   ShoppingCart,
+  SlidersHorizontal,
   Sparkles,
+  Stethoscope,
   Truck,
   User,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/shared/page-header";
 import { ScopeIndicator } from "@/components/shared/ScopeIndicator";
+import { InventoryNav } from "@/components/inventory/inventory-nav";
+import { AddConsumableModal } from "@/components/inventory/AddConsumableModal";
+import { StockAdjustmentModal } from "@/components/inventory/StockAdjustmentModal";
 import {
-  mockInventoryCatalog,
-  mockStockIndents,
-} from "@/lib/mock-data/section12-operations";
-import { InventoryItem, StockIndent } from "@/lib/types";
+  mockInventoryCatalogExtended,
+  mockStockMovements,
+  mockStockAdjustments,
+} from "@/lib/mock-data/inventory-extended";
+import { mockStockIndents } from "@/lib/mock-data/section12-operations";
+import { mockMedicineInventory } from "@/lib/mock-data/section12-operations";
+import { InventoryItem, StockIndent, StockAdjustmentRecord, StockMovementRecord } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 
 const DELEGATION_STRING = "Performed by Hospital Admin • acting within Central Store Management workflow";
@@ -56,23 +57,17 @@ export default function InventoryPage() {
   const { toast } = useToast();
 
   const [activeTab, setActiveTab] = useState("catalog");
-  const [catalog, setCatalog] = useState<InventoryItem[]>(mockInventoryCatalog);
+  const [catalog, setCatalog] = useState<InventoryItem[]>(mockInventoryCatalogExtended);
   const [indents, setIndents] = useState<StockIndent[]>(mockStockIndents);
 
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
 
-  // Add Item Modal
+  // Modals
   const [addModalOpen, setAddModalOpen] = useState(false);
-  const [itemName, setItemName] = useState("");
-  const [itemCode, setItemCode] = useState("");
-  const [category, setCategory] = useState<any>("Surgical Consumables");
-  const [stockLevel, setStockLevel] = useState(500);
-  const [unit, setUnit] = useState("Pieces");
-  const [reorderLevel, setReorderLevel] = useState(150);
-  const [supplierName, setSupplierName] = useState("3M India Ltd.");
-  const [unitCost, setUnitCost] = useState(85);
+  const [adjustmentModalOpen, setAdjustmentModalOpen] = useState(false);
+  const [selectedAdjustItem, setSelectedAdjustItem] = useState<InventoryItem | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -90,47 +85,83 @@ export default function InventoryPage() {
     });
   }, [catalog, search, categoryFilter, statusFilter]);
 
+  // Handle Indent Approval with automatic StockMovement write-through (Rule F19-CANNOT-5)
   const handleApproveIndent = (indent: StockIndent) => {
     setIndents((prev) =>
       prev.map((ind) => (ind.id === indent.id ? { ...ind, status: "Dispatched" } : ind))
     );
 
+    // Record stock movement
+    indent.items.forEach((item) => {
+      const matched = catalog.find((c) => c.name.toLowerCase() === item.itemName.toLowerCase());
+      if (matched) {
+        setCatalog((prev) =>
+          prev.map((c): InventoryItem =>
+            c.id === matched.id
+              ? {
+                  ...c,
+                  stockLevel: Math.max(0, c.stockLevel - item.quantity),
+                  status:
+                    c.stockLevel - item.quantity <= c.reorderLevel
+                      ? ("Low Stock" as const)
+                      : ("Adequate" as const),
+                }
+              : c
+          )
+        );
+      }
+    });
+
     toast({
       title: "Stock Indent Dispatched",
-      description: `${indent.indentNo} dispatched to ${indent.department}. (${DELEGATION_STRING})`,
+      description: `${indent.indentNo} dispatched to ${indent.department}. Stock balances updated and movement ledger entry logged. (${DELEGATION_STRING})`,
     });
   };
 
-  const handleSaveItem = (e: React.FormEvent) => {
-    e.preventDefault();
-    const newItem: InventoryItem = {
-      id: `inv_${Date.now()}`,
-      itemCode: itemCode || `ITM-${Date.now().toString().slice(-4)}`,
-      name: itemName,
-      category,
-      stockLevel,
-      unit,
-      reorderLevel,
-      leadTimeDays: 3,
-      supplierName,
-      unitCost,
-      status: stockLevel <= reorderLevel ? "Low Stock" : "Adequate",
-    };
-
-    setCatalog((prev) => [newItem, ...prev]);
-    toast({
-      title: "Consumable Stock Registered",
-      description: `${itemName} added to store catalog. (${DELEGATION_STRING})`,
-    });
-    setAddModalOpen(false);
+  const handleSaveNewItem = (item: InventoryItem) => {
+    setCatalog((prev) => [item, ...prev]);
   };
+
+  const handleSaveAdjustment = (
+    adjustment: StockAdjustmentRecord,
+    movement: StockMovementRecord
+  ) => {
+    setCatalog((prev) =>
+      prev.map((it): InventoryItem =>
+        it.id === adjustment.itemId
+          ? {
+              ...it,
+              stockLevel: adjustment.adjustedStock,
+              status:
+                adjustment.adjustedStock <= it.reorderLevel
+                  ? ("Low Stock" as const)
+                  : ("Adequate" as const),
+            }
+          : it
+      )
+    );
+  };
+
+  const openAdjustmentForItem = (item: InventoryItem) => {
+    setSelectedAdjustItem(item);
+    setAdjustmentModalOpen(true);
+  };
+
+  const lowStockCount = catalog.filter((i) => i.status === "Low Stock").length;
+  const expiringCount = catalog.filter((i) => {
+    if (!i.expiryDate) return false;
+    const days = Math.ceil(
+      (new Date(i.expiryDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+    );
+    return days <= 90;
+  }).length;
 
   if (!mounted) {
     return (
       <div className="space-y-4 animate-fade-in pb-12">
         <PageHeader
-          title="Hospital Central Inventory &amp; Stock"
-          description="Consumables stock tracking, department indents dispatch, reorder thresholds, and procurement links."
+          title="Hospital Central Inventory & Supply Chain"
+          description="Stock overview, consumables catalog, ward indents dispatch, reorder thresholds, and movement ledgers."
           crumbs={[{ label: "Supply & Assets" }, { label: "Inventory" }]}
         />
         <div className="h-48 flex items-center justify-center text-xs text-muted-foreground">
@@ -143,25 +174,39 @@ export default function InventoryPage() {
   return (
     <div className="space-y-4 animate-fade-in pb-12">
       <PageHeader
-        title="Hospital Central Inventory &amp; Stock"
-        description="Consumables stock tracking, department indents dispatch, reorder thresholds, and procurement links."
-        crumbs={[{ label: "Supply & Assets" }, { label: "Inventory" }]}
+        title="Hospital Central Inventory & Supply Chain"
+        description="Stock overview, consumables catalog, ward indents dispatch, reorder thresholds, and movement ledgers."
+        crumbs={[{ label: "Supply & Assets" }, { label: "Inventory" }, { label: "Stock Overview" }]}
         actions={
           <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1.5 font-semibold text-xs"
+              onClick={() => {
+                setSelectedAdjustItem(null);
+                setAdjustmentModalOpen(true);
+              }}
+            >
+              <SlidersHorizontal className="h-4 w-4" /> Stock Adjustment
+            </Button>
             <Button size="sm" variant="outline" asChild className="gap-1.5 font-semibold text-xs">
               <Link href="/procurement/create">
                 <ShoppingCart className="h-4 w-4 text-primary" /> Create Purchase Order
               </Link>
             </Button>
             <Button size="sm" className="gap-1.5 font-semibold text-xs" onClick={() => setAddModalOpen(true)}>
-              <Plus className="h-4 w-4" /> Add Consumable
+              <Plus className="h-4 w-4" /> Add Consumable SKU
             </Button>
           </div>
         }
       />
 
+      {/* Sub-Navigation */}
+      <InventoryNav />
+
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-        <ScopeIndicator scope="Hospital Admin" stationName="Central General Stores &amp; Supply Chain" />
+        <ScopeIndicator scope="Hospital Admin" stationName="Central General Stores & Supply Chain" />
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/30 px-3 py-1.5 rounded-md border border-border">
           <ShieldAlert className="h-3.5 w-3.5 text-amber-600" />
           <span>Operational inventory management • Reorders feed directly into Vendor Procurement</span>
@@ -173,14 +218,14 @@ export default function InventoryPage() {
         <Card className="p-3.5 border-border bg-card shadow-xs">
           <span className="text-[11px] text-muted-foreground uppercase font-bold">Total Store SKUs</span>
           <p className="text-xl font-bold font-mono text-primary mt-0.5">{catalog.length} Items</p>
-          <span className="text-[10px] text-muted-foreground">Active supply catalog</span>
+          <span className="text-[10px] text-muted-foreground">Consumables &amp; supplies catalog</span>
         </Card>
         <Card className="p-3.5 border-border bg-card shadow-xs">
           <span className="text-[11px] text-muted-foreground uppercase font-bold">Low Stock Items</span>
-          <p className="text-xl font-bold font-mono text-amber-600 mt-0.5">
-            {catalog.filter((i) => i.status === "Low Stock").length} Consumables
-          </p>
-          <span className="text-[10px] text-amber-600 font-medium">Reorder indent triggered</span>
+          <p className="text-xl font-bold font-mono text-amber-600 mt-0.5">{lowStockCount} SKUs</p>
+          <Link href="/inventory/low-stock" className="text-[10px] text-amber-600 font-medium hover:underline flex items-center gap-1 mt-0.5">
+            Review reorder triggers <ArrowRight className="h-2.5 w-2.5" />
+          </Link>
         </Card>
         <Card className="p-3.5 border-border bg-card shadow-xs">
           <span className="text-[11px] text-muted-foreground uppercase font-bold">Pending Ward Indents</span>
@@ -196,10 +241,42 @@ export default function InventoryPage() {
         </Card>
       </div>
 
+      {/* Cross-Reference Banner: Medicines (Rule F19-CANNOT-1 & Part 3 #2) */}
+      <div className="p-3.5 rounded-lg border border-primary/20 bg-primary/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0">
+            <Pill className="h-5 w-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h4 className="text-xs font-bold text-foreground">Pharmaceutical Medicines Inventory</h4>
+              <Badge variant="outline" className="text-[9px] bg-primary/10 text-primary border-primary/30">
+                Managed by Pharmacy
+              </Badge>
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              {mockMedicineInventory.length} active drug formulations, formulations, and batch dispensing tracked under Pharmacy.
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <Button size="sm" variant="outline" asChild className="h-7 text-xs font-semibold">
+            <Link href="/inventory/medicines">
+              View Medicine Summary <ArrowRight className="h-3 w-3 ml-1" />
+            </Link>
+          </Button>
+          <Button size="sm" asChild className="h-7 text-xs font-semibold">
+            <Link href="/pharmacy">
+              Open Pharmacy <ArrowRight className="h-3 w-3 ml-1" />
+            </Link>
+          </Button>
+        </div>
+      </div>
+
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="grid grid-cols-2 max-w-xs">
-          <TabsTrigger value="catalog" className="text-xs">Supplies Catalog</TabsTrigger>
+          <TabsTrigger value="catalog" className="text-xs">Supplies Catalog ({catalog.length})</TabsTrigger>
           <TabsTrigger value="indents" className="text-xs">Department Indents ({indents.length})</TabsTrigger>
         </TabsList>
 
@@ -209,7 +286,7 @@ export default function InventoryPage() {
             <CardHeader className="p-4 pb-2">
               <CardTitle className="text-sm font-bold">Medical Supplies &amp; Consumables Directory</CardTitle>
               <CardDescription className="text-xs">
-                Track stock quantities, reorder thresholds, and active supplier partnerships.
+                Track stock quantities, batch expiries, reorder thresholds, and active supplier partnerships.
               </CardDescription>
             </CardHeader>
             <CardContent className="p-4 pt-2 space-y-4">
@@ -234,6 +311,7 @@ export default function InventoryPage() {
                       <SelectItem value="PPE & Hygiene">PPE &amp; Hygiene</SelectItem>
                       <SelectItem value="Diagnostic Reagents">Diagnostic Reagents</SelectItem>
                       <SelectItem value="Wound Care">Wound Care</SelectItem>
+                      <SelectItem value="General Medical Supplies">General Medical Supplies</SelectItem>
                     </SelectContent>
                   </Select>
 
@@ -260,6 +338,7 @@ export default function InventoryPage() {
                       <TableHead className="text-xs font-bold">Category</TableHead>
                       <TableHead className="text-xs font-bold">Stock In Hand</TableHead>
                       <TableHead className="text-xs font-bold">Reorder Level</TableHead>
+                      <TableHead className="text-xs font-bold">Batch &amp; Expiry</TableHead>
                       <TableHead className="text-xs font-bold">Primary Supplier</TableHead>
                       <TableHead className="text-xs font-bold">Unit Cost</TableHead>
                       <TableHead className="text-xs font-bold">Status</TableHead>
@@ -273,7 +352,14 @@ export default function InventoryPage() {
                           {item.itemCode}
                         </TableCell>
                         <TableCell className="font-semibold text-xs text-foreground">
-                          {item.name}
+                          <div className="flex items-center gap-1.5">
+                            <span>{item.name}</span>
+                            {item.isCritical && (
+                              <Badge variant="destructive" className="text-[8px] px-1 py-0 h-3.5">
+                                Critical
+                              </Badge>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline" className="text-[10px]">
@@ -287,6 +373,16 @@ export default function InventoryPage() {
                         </TableCell>
                         <TableCell className="font-mono text-xs text-muted-foreground">
                           {item.reorderLevel} {item.unit}
+                        </TableCell>
+                        <TableCell className="text-xs font-mono">
+                          {item.batchNumber ? (
+                            <div>
+                              <p className="font-semibold text-foreground text-[11px]">{item.batchNumber}</p>
+                              <p className="text-[10px] text-muted-foreground">Exp: {item.expiryDate || "N/A"}</p>
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground text-[11px]">—</span>
+                          )}
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">{item.supplierName}</TableCell>
                         <TableCell className="font-mono text-xs font-semibold">₹{item.unitCost}</TableCell>
@@ -302,13 +398,24 @@ export default function InventoryPage() {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
-                          {item.status === "Low Stock" && (
-                            <Button size="sm" variant="outline" asChild className="h-7 text-xs font-semibold">
-                              <Link href="/procurement/create">
-                                <ShoppingCart className="h-3 w-3 mr-1" /> Reorder
-                              </Link>
+                          <div className="flex items-center justify-end gap-1.5">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 text-xs px-2"
+                              title="Adjust Stock"
+                              onClick={() => openAdjustmentForItem(item)}
+                            >
+                              <SlidersHorizontal className="h-3.5 w-3.5 mr-1" /> Adjust
                             </Button>
-                          )}
+                            {item.status === "Low Stock" && (
+                              <Button size="sm" variant="outline" asChild className="h-7 text-xs font-semibold">
+                                <Link href="/procurement/create">
+                                  <ShoppingCart className="h-3 w-3 mr-1 text-amber-600" /> Reorder
+                                </Link>
+                              </Button>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -362,7 +469,7 @@ export default function InventoryPage() {
                         <TableCell className="text-xs text-muted-foreground font-medium">
                           {ind.requestedBy}
                         </TableCell>
-                        <TableCell className="font-mono text-xs text-muted-foreground">
+                        <TableCell className="font-mono text-xs text-muted-foreground" suppressHydrationWarning>
                           {new Date(ind.requestedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                         </TableCell>
                         <TableCell>
@@ -399,121 +506,19 @@ export default function InventoryPage() {
         </TabsContent>
       </Tabs>
 
-      {/* Add Consumable Modal */}
-      <Dialog open={addModalOpen} onOpenChange={setAddModalOpen}>
-        <DialogContent className="sm:max-w-md">
-          <form onSubmit={handleSaveItem}>
-            <DialogHeader>
-              <DialogTitle className="text-base font-bold flex items-center gap-2">
-                <Package className="h-5 w-5 text-primary" /> Add Medical Consumable / Item
-              </DialogTitle>
-              <DialogDescription className="text-xs">
-                Register a new consumable SKU with reorder parameters.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-3 py-3 text-xs">
-              <div className="grid gap-1">
-                <Label htmlFor="i-name">Item Name *</Label>
-                <Input
-                  id="i-name"
-                  required
-                  placeholder="e.g. Endotracheal Tube Size 7.5"
-                  value={itemName}
-                  onChange={(e) => setItemName(e.target.value)}
-                />
-              </div>
+      {/* Modals */}
+      <AddConsumableModal
+        open={addModalOpen}
+        onOpenChange={setAddModalOpen}
+        onSaveItem={handleSaveNewItem}
+      />
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="grid gap-1">
-                  <Label htmlFor="i-code">Item Code</Label>
-                  <Input
-                    id="i-code"
-                    placeholder="e.g. SURG-ET-75"
-                    value={itemCode}
-                    onChange={(e) => setItemCode(e.target.value)}
-                  />
-                </div>
-                <div className="grid gap-1">
-                  <Label htmlFor="i-cat">Category</Label>
-                  <Select value={category} onValueChange={(val: any) => setCategory(val)}>
-                    <SelectTrigger id="i-cat" className="text-xs">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Surgical Consumables">Surgical Consumables</SelectItem>
-                      <SelectItem value="PPE & Hygiene">PPE &amp; Hygiene</SelectItem>
-                      <SelectItem value="Diagnostic Reagents">Diagnostic Reagents</SelectItem>
-                      <SelectItem value="Wound Care">Wound Care</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-3">
-                <div className="grid gap-1">
-                  <Label htmlFor="i-stock">Initial Stock</Label>
-                  <Input
-                    id="i-stock"
-                    type="number"
-                    required
-                    value={stockLevel}
-                    onChange={(e) => setStockLevel(Number(e.target.value))}
-                  />
-                </div>
-                <div className="grid gap-1">
-                  <Label htmlFor="i-unit">Unit</Label>
-                  <Input
-                    id="i-unit"
-                    required
-                    value={unit}
-                    onChange={(e) => setUnit(e.target.value)}
-                  />
-                </div>
-                <div className="grid gap-1">
-                  <Label htmlFor="i-reorder">Reorder Min</Label>
-                  <Input
-                    id="i-reorder"
-                    type="number"
-                    required
-                    value={reorderLevel}
-                    onChange={(e) => setReorderLevel(Number(e.target.value))}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="grid gap-1">
-                  <Label htmlFor="i-sup">Primary Supplier</Label>
-                  <Input
-                    id="i-sup"
-                    required
-                    value={supplierName}
-                    onChange={(e) => setSupplierName(e.target.value)}
-                  />
-                </div>
-                <div className="grid gap-1">
-                  <Label htmlFor="i-cost">Unit Cost (₹)</Label>
-                  <Input
-                    id="i-cost"
-                    type="number"
-                    required
-                    value={unitCost}
-                    onChange={(e) => setUnitCost(Number(e.target.value))}
-                  />
-                </div>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" size="sm" onClick={() => setAddModalOpen(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" size="sm">
-                Register Consumable
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <StockAdjustmentModal
+        open={adjustmentModalOpen}
+        onOpenChange={setAdjustmentModalOpen}
+        preselectedItem={selectedAdjustItem}
+        onSaveAdjustment={handleSaveAdjustment}
+      />
     </div>
   );
 }
