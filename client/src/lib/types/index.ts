@@ -757,6 +757,7 @@ export interface BiomedicalAsset {
   serialNo: string;
   department: string;
   floor: string;
+  installedRoom?: string;
   purchaseDate: string;
   purchaseCost: number;
   warrantyExpiry: string;
@@ -765,6 +766,84 @@ export interface BiomedicalAsset {
   nextPPMDate: string;
   maintenanceStatus: AssetMaintenanceStatus;
   lastCalibrationDate?: string;
+  isLoaned?: boolean;
+  currentLoanDepartment?: string;
+  expectedReturnDate?: string;
+  decommissionedDate?: string;
+  decommissionReason?: string;
+}
+
+// Module F20: Asset Allocation & Temporary Loans
+export interface AssetAllocationRecord {
+  id: string;
+  allocationNo: string;
+  assetId: string;
+  assetCode: string;
+  assetName: string;
+  fromDepartment: string;
+  toDepartment: string;
+  fromFloor: string;
+  toFloor: string;
+  fromRoom?: string;
+  toRoom?: string;
+  allocatedBy: string;
+  allocatedAt: string;
+  allocationType: "Permanent Transfer" | "Temporary Loan";
+  expectedReturnDate?: string;
+  returnedAt?: string;
+  returnedBy?: string;
+  status: "Active" | "Returned";
+  purposeNotes?: string;
+}
+
+// Module F20: Corrective Breakdown Repairs
+export type RepairStatus = "Reported" | "In Progress" | "Resolved" | "Escalated to Vendor";
+export type RepairPriority = "Low" | "Medium" | "High" | "Critical";
+
+export interface RepairTicket {
+  id: string;
+  ticketNo: string;
+  assetId: string;
+  assetCode: string;
+  assetName: string;
+  department: string;
+  reportedBy: string;
+  reportedAt: string;
+  faultDescription: string;
+  priority: RepairPriority;
+  assignedTechnicianOrVendor: string;
+  repairCost?: number;
+  partsUsed?: string;
+  downtimeStart: string;
+  downtimeEnd?: string;
+  resolutionNotes?: string;
+  status: RepairStatus;
+  resolvedBy?: string;
+  resolvedAt?: string;
+  requiresStepUpAuth?: boolean; // high-value repairs > ₹50,000
+}
+
+// Module F20: Asset History Audit Timeline
+export type AssetEventType =
+  | "Registration"
+  | "PPM Certified"
+  | "Breakdown Reported"
+  | "Repair Completed"
+  | "Allocation / Transfer"
+  | "Warranty Renewed"
+  | "Decommissioned";
+
+export interface AssetHistoryEvent {
+  id: string;
+  assetId: string;
+  assetCode: string;
+  assetName: string;
+  eventType: AssetEventType;
+  timestamp: string;
+  actor: string;
+  title: string;
+  details: string;
+  referenceId?: string;
 }
 
 export interface Surgeon extends BaseStaff {
