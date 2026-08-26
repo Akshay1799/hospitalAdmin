@@ -36,11 +36,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/shared/page-header";
 import { ScopeIndicator } from "@/components/shared/ScopeIndicator";
 import { VerificationNav } from "@/components/verification/verification-nav";
+import { BookConsultationModal } from "@/components/verification/BookConsultationModal";
 import { mockPublicHospitalProfile, mockDoctorAffiliations } from "@/lib/mock-data/verification-cases";
+import { DoctorAffiliationVerification } from "@/lib/types";
+import { useToast } from "@/hooks/use-toast";
 
 export default function PublicProfilePreviewPage() {
+  const { toast } = useToast();
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState("hospital-card");
+
+  // Booking Modal State
+  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
+  const [selectedDoctorForBooking, setSelectedDoctorForBooking] = useState<DoctorAffiliationVerification | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -62,6 +70,32 @@ export default function PublicProfilePreviewPage() {
   }
 
   const liveDoctors = mockDoctorAffiliations.filter((d) => d.publicSearchStatus === "Live / Searchable");
+
+  const handleOpenDoctorBooking = (doctor: DoctorAffiliationVerification) => {
+    setSelectedDoctorForBooking(doctor);
+    setIsBookingModalOpen(true);
+  };
+
+  const handleOpenHospitalBooking = () => {
+    setSelectedDoctorForBooking(liveDoctors[0] || null);
+    setIsBookingModalOpen(true);
+  };
+
+  const handleBookingConfirm = (details: {
+    doctorName: string;
+    specialty: string;
+    patientName: string;
+    phone: string;
+    consultationType: string;
+    date: string;
+    timeSlot: string;
+    fee: number;
+  }) => {
+    toast({
+      title: "Consultation Booked Successfully",
+      description: `Appointment confirmed with ${details.doctorName} (${details.specialty}) for ${details.patientName} on ${details.date} at ${details.timeSlot}.`,
+    });
+  };
 
   return (
     <div className="space-y-4 animate-fade-in pb-12">
@@ -179,7 +213,11 @@ export default function PublicProfilePreviewPage() {
                 <HeartPulse className="h-4 w-4 text-rose-600" />
                 <span>24/7 Emergency Helpline: <strong>{mockPublicHospitalProfile.emergencyHelpline}</strong></span>
               </div>
-              <Button size="sm" className="bg-primary text-primary-foreground text-xs font-semibold h-8">
+              <Button
+                size="sm"
+                className="bg-primary text-primary-foreground text-xs font-semibold h-8"
+                onClick={handleOpenHospitalBooking}
+              >
                 Book Hospital Appointment
               </Button>
             </div>
@@ -281,7 +319,11 @@ export default function PublicProfilePreviewPage() {
                       <span className="font-mono text-[9px] text-muted-foreground">
                         Reg: {doc.registrationNo}
                       </span>
-                      <Button size="sm" className="h-6 text-[10px] bg-primary text-primary-foreground font-semibold px-2.5">
+                      <Button
+                        size="sm"
+                        className="h-6 text-[10px] bg-primary text-primary-foreground font-semibold px-2.5 hover:bg-primary/90 transition-colors"
+                        onClick={() => handleOpenDoctorBooking(doc)}
+                      >
                         Book Consultation
                       </Button>
                     </div>
@@ -292,6 +334,17 @@ export default function PublicProfilePreviewPage() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Book Consultation Modal */}
+      <BookConsultationModal
+        isOpen={isBookingModalOpen}
+        onClose={() => {
+          setIsBookingModalOpen(false);
+          setSelectedDoctorForBooking(null);
+        }}
+        doctor={selectedDoctorForBooking}
+        onConfirm={handleBookingConfirm}
+      />
     </div>
   );
 }
