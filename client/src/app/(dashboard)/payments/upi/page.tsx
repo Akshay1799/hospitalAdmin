@@ -103,7 +103,7 @@ export default function UpiPaymentsPage() {
         <ScopeIndicator scope="Hospital Admin" stationName="UPI &amp; QR Gateway Monitor" />
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/30 px-3 py-1.5 rounded-md border border-border">
           <ShieldAlert className="h-3.5 w-3.5 text-cyan-600" />
-          <span>F16 UPI View • Real-time VPA / Bank Reference ID tracking with gateway reconciliation</span>
+          <span>UPI &amp; Instant Pay Gateway • Real-time VPA / Bank Reference ID tracking with gateway reconciliation</span>
         </div>
       </div>
 

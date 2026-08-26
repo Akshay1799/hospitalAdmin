@@ -617,7 +617,7 @@ export default function VerificationMasterPage() {
                 <UserCheck className="h-5 w-5 text-primary" /> Verify Administrator Identity
               </DialogTitle>
               <DialogDescription className="text-xs">
-                Lightweight identity verification sub-flow for individuals claiming Hospital Admin rights (Rule F13-CAN-5).
+                Lightweight identity verification sub-flow for individuals requesting Hospital Admin delegated authority.
               </DialogDescription>
             </DialogHeader>
 

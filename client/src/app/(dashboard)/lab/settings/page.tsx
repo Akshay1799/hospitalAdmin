@@ -189,7 +189,7 @@ export default function LabSettingsPage() {
         <ScopeIndicator scope="Hospital Admin" stationName="Laboratory Standards &amp; Tariffs Console" />
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/30 px-3 py-1.5 rounded-md border border-border">
           <ShieldAlert className="h-3.5 w-3.5 text-amber-600" />
-          <span>Rules F13-CANNOT-6 &amp; 10: Test tariffs gate Billing auto-accrual • Threshold edits are strictly audited</span>
+          <span>Formulary &amp; Tariff Standards • Test tariffs gate Billing auto-accrual • Threshold edits are strictly audited</span>
         </div>
       </div>
 
@@ -208,7 +208,7 @@ export default function LabSettingsPage() {
             <CardHeader className="p-4 pb-2">
               <CardTitle className="text-sm font-bold">Investigation Formulary &amp; Tariff Linking</CardTitle>
               <CardDescription className="text-xs">
-                Manage test codes, reference ranges, specimen tubes, and linked billing tariffs (Rule F13-CANNOT-6).
+                Manage test codes, reference ranges, specimen tubes, and linked billing tariffs.
               </CardDescription>
             </CardHeader>
             <CardContent className="p-4 pt-2">
@@ -319,7 +319,7 @@ export default function LabSettingsPage() {
             <CardHeader className="p-4 pb-2">
               <CardTitle className="text-sm font-bold">Critical Panic-Value Threshold Configuration</CardTitle>
               <CardDescription className="text-xs">
-                Physiological panic-value triggers requiring immediate emergency clinician notification (Rule F13-CANNOT-10).
+                Physiological panic-value triggers requiring immediate emergency clinician notification.
               </CardDescription>
             </CardHeader>
             <CardContent className="p-4 pt-2">
@@ -589,7 +589,7 @@ export default function LabSettingsPage() {
               </div>
 
               <div className="p-2.5 rounded-md border border-destructive/30 bg-destructive/5 text-destructive text-[11px]">
-                Rule F13-CANNOT-10: Modifying panic thresholds alters emergency alerts hospital-wide. This change will be permanently logged in the audit trail.
+                Quality Governance: Modifying panic thresholds alters emergency alerts hospital-wide. This change is permanently recorded in the audit trail.
               </div>
             </div>
             <DialogFooter>

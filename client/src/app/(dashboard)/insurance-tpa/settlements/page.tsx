@@ -96,7 +96,7 @@ export default function InsuranceSettlementsPage() {
             asChild
           >
             <Link href="/payments/online">
-              <Wallet className="h-3.5 w-3.5 text-primary" /> Payments Online Ledger (F16)
+              <Wallet className="h-3.5 w-3.5 text-primary" /> Payments Online Ledger
             </Link>
           </Button>
         }
@@ -106,7 +106,7 @@ export default function InsuranceSettlementsPage() {
         <ScopeIndicator scope="Hospital Admin" stationName="TPA Bank Settlement Audit Desk" />
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/30 px-3 py-1.5 rounded-md border border-border">
           <ShieldAlert className="h-3.5 w-3.5 text-emerald-600" />
-          <span>F17 &amp; F16 Rule • Every settled claim links 1-to-1 with an institutional bank transfer in Payments</span>
+          <span>Settlement Audit • Every settled claim links 1-to-1 with an institutional bank transfer in Payments</span>
         </div>
       </div>
 
@@ -205,7 +205,7 @@ export default function InsuranceSettlementsPage() {
 
                     <TableCell className="text-center">
                       <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 text-[9px]">
-                        Reconciled in F16
+                        Reconciled in Payments
                       </Badge>
                     </TableCell>
 
@@ -221,7 +221,7 @@ export default function InsuranceSettlementsPage() {
                         asChild
                       >
                         <Link href="/payments/online">
-                          <ArrowUpRight className="h-3 w-3" /> Trace F16
+                          <ArrowUpRight className="h-3 w-3" /> Trace Payment
                         </Link>
                       </Button>
                     </TableCell>

@@ -138,7 +138,7 @@ export function FinancialReportsNav({
             </SelectContent>
           </Select>
           <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/20">
-            Ground-truth derived from F11/F16/F17
+            Real-time integrated ledger (Billing, Collections &amp; TPA)
           </Badge>
         </div>
 

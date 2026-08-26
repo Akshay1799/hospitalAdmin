@@ -87,7 +87,7 @@ export default function BreakGlassSecurityPage() {
     if (!reason.trim()) {
       toast({
         title: "Mandatory Reason Required",
-        description: "Rule 14-CANNOT-1: Break-glass access cannot be granted without a clinical emergency reason.",
+        description: "Break-Glass Policy: Emergency record override requires a recorded life-critical justification.",
         variant: "destructive",
       });
       return;

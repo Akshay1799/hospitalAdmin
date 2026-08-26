@@ -199,7 +199,7 @@ export default function PharmacyPage() {
         <ScopeIndicator scope="Hospital Admin" stationName="Central Inpatient &amp; OPD Dispensary" />
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/30 px-3 py-1.5 rounded-md border border-border">
           <ShieldAlert className="h-3.5 w-3.5 text-amber-600" />
-          <span>Rule 12: Admin manages operational inventory; physical dispensing &amp; Schedule H1 verified by licensed pharmacists</span>
+          <span>Dispensary Governance • Administration manages operational inventory; dispensing &amp; Schedule H1 verified by licensed pharmacists</span>
         </div>
       </div>
 

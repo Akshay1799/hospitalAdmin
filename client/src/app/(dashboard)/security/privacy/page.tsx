@@ -270,7 +270,7 @@ export default function DocumentPrivacySecurityPage() {
             <CardHeader className="p-4 pb-2">
               <CardTitle className="text-sm font-bold">Cross-Organization Patient Consent Registry</CardTitle>
               <CardDescription className="text-xs">
-                Enforce Rule 14-CAN-27: Patient sharing and consent rules for cross-hospital records and Ayushman Bharat (ABHA).
+                Enforce patient sharing and consent rules for cross-hospital records and Ayushman Bharat (ABHA) ecosystem.
               </CardDescription>
             </CardHeader>
             <CardContent className="p-4 pt-2">

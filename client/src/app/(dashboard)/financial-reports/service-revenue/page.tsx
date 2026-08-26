@@ -79,7 +79,7 @@ export default function ServiceRevenueReportPage() {
             />
           </div>
           <Badge variant="outline" className="text-xs bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 border-cyan-500/30">
-            Ground Truth: F11 Billing Categories
+            Integrated Source: Clinical Service Invoices
           </Badge>
         </div>
       </div>
@@ -115,7 +115,7 @@ export default function ServiceRevenueReportPage() {
         <CardHeader className="p-4 pb-3 border-b border-border/60">
           <CardTitle className="text-sm font-bold">Clinical Service Line Performance</CardTitle>
           <CardDescription className="text-xs">
-            Direct aggregation of individual clinical procedures and services billed through F11.
+            Direct aggregation of individual clinical procedures and services billed across hospital departments.
           </CardDescription>
         </CardHeader>
 

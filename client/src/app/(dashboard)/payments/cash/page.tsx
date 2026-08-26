@@ -104,7 +104,7 @@ export default function CashPaymentsPage() {
         <ScopeIndicator scope="Hospital Admin" stationName="Physical Cash Counter Registry" />
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/30 px-3 py-1.5 rounded-md border border-border">
           <ShieldAlert className="h-3.5 w-3.5 text-emerald-600" />
-          <span>F16 Cash View • Filtered strictly on paymentMethod = Cash linked to Drawers</span>
+          <span>Physical Cash Office • Counter collection register linked directly to cashier shift drawers</span>
         </div>
       </div>
 

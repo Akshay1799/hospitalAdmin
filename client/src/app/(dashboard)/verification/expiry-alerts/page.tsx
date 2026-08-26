@@ -146,16 +146,16 @@ export default function VerificationExpiryAlertsPage() {
 
       <VerificationNav />
 
-      {/* Scope Indicator & Rule 13-CANNOT-5 */}
+      {/* Scope Indicator & Licensure Compliance */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
         <ScopeIndicator scope="Hospital Admin" stationName="Credential Expiry Compliance Desk" />
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/30 px-3 py-1.5 rounded-md border border-border">
           <ShieldAlert className="h-3.5 w-3.5 text-amber-600" />
-          <span>Rule 13-CANNOT-5: Lapsed licenses trigger immediate real-time downgrade of verified public status</span>
+          <span>Licensure Standard: Lapsed medical council registrations trigger immediate real-time status downgrade</span>
         </div>
       </div>
 
-      {/* Immediate Downgrade Emergency Warning (Rule 13.1) */}
+      {/* Immediate Downgrade Emergency Warning */}
       {expiredCount > 0 && (
         <Card className="border-rose-500/40 bg-rose-500/10 shadow-xs">
           <CardContent className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3.5">
@@ -166,7 +166,7 @@ export default function VerificationExpiryAlertsPage() {
                   REAL-TIME DOWNGRADE ACTIVE: {expiredCount} Certification(s) Expired
                 </p>
                 <p className="text-[11px] text-muted-foreground mt-0.5">
-                  Per Rule 13-CANNOT-5, public verification badges have been automatically revoked in real time. Upload renewal certificates to reinstate public search listing.
+                  Public verification badges have been automatically revoked in real time due to license expiry. Upload renewal certificates to reinstate public search listing.
                 </p>
               </div>
             </div>

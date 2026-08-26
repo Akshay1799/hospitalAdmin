@@ -200,7 +200,7 @@ export default function InsuranceTPAPage() {
         <ScopeIndicator scope="Hospital Admin" stationName="Insurance Desk &amp; TPA Liaison Office" />
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/30 px-3 py-1.5 rounded-md border border-border">
           <ShieldAlert className="h-3.5 w-3.5 text-primary" />
-          <span>F17 &amp; F11/F16 • Copay splits drive Billing; TPA bank remittances link directly into Payments</span>
+          <span>Claims &amp; Billing Integration • Copay splits drive Billing; TPA bank remittances link directly into Payments</span>
         </div>
       </div>
 

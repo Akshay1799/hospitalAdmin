@@ -127,7 +127,7 @@ export default function RadiologyEquipmentPage() {
     if (editingSuite && editingSuite.status === "In Use" && status === "Available" && editingSuite.currentActiveOrderId) {
       toast({
         title: "Active Scan Safety Lock",
-        description: "Cannot set suite to Available while an active scan (In Progress) is linked to this scanner. Complete or abort the scan first. (Rule F14-CANNOT-11)",
+        description: "Cannot set suite to Available while an active scan (In Progress) is linked to this scanner. Complete or abort the scan first.",
         variant: "destructive",
       });
       return;
@@ -242,7 +242,7 @@ export default function RadiologyEquipmentPage() {
         <ScopeIndicator scope="Hospital Admin" stationName="Radiology Biomedical Equipment Console" />
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/30 px-3 py-1.5 rounded-md border border-border">
           <ShieldAlert className="h-3.5 w-3.5 text-amber-600" />
-          <span>Rules F14-CANNOT-3 &amp; 11: Offline/Maintenance suites cannot be booked • Active scans lock suite availability</span>
+          <span>Suite Safety Lock: Offline/Maintenance suites cannot be booked • Active scans lock suite availability</span>
         </div>
       </div>
 
@@ -581,7 +581,7 @@ export default function RadiologyEquipmentPage() {
               </div>
 
               <div className="p-2 rounded-md border border-amber-500/30 bg-amber-500/5 text-amber-800 dark:text-amber-200 text-[11px]">
-                Rule F14-CANNOT-3: During maintenance windows, this suite will be locked from patient slot allocations.
+                Maintenance Protocol: During maintenance windows, this suite will be locked from patient slot allocations.
               </div>
             </div>
             <DialogFooter>

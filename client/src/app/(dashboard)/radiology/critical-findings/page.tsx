@@ -152,7 +152,7 @@ export default function RadiologyCriticalFindingsPage() {
         <ScopeIndicator scope="Hospital Admin" stationName="Emergency Diagnostic Escalation Desk" />
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/30 px-3 py-1.5 rounded-md border border-border">
           <ShieldAlert className="h-3.5 w-3.5 text-destructive" />
-          <span>Rule F14-CANNOT-5: Critical findings are permanently logged and must alert through Emergency escalation</span>
+          <span>STAT Critical Protocol: Critical findings are permanently logged and alert through Emergency escalation</span>
         </div>
       </div>
 
@@ -351,7 +351,7 @@ export default function RadiologyCriticalFindingsPage() {
               </div>
 
               <div className="p-2.5 rounded-md border border-border bg-muted/20 text-muted-foreground text-[11px]">
-                Rule F14-CANNOT-5: Critical communication timestamps are permanently logged in the electronic audit trail.
+                Audit Protocol: Critical clinician communication timestamps are permanently logged in the electronic audit trail.
               </div>
             </div>
             <DialogFooter>

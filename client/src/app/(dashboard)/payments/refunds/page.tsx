@@ -104,7 +104,7 @@ export default function RefundsPaymentsPage() {
             asChild
           >
             <Link href="/billing/refunds">
-              <RotateCcw className="h-3.5 w-3.5 text-primary" /> F11 Refund Approvals Queue
+              <RotateCcw className="h-3.5 w-3.5 text-primary" /> Billing Refund Approvals
             </Link>
           </Button>
         }
@@ -114,7 +114,7 @@ export default function RefundsPaymentsPage() {
         <ScopeIndicator scope="Hospital Admin" stationName="Cash-Office Refund Reconciliation Lens" />
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/30 px-3 py-1.5 rounded-md border border-border">
           <ShieldAlert className="h-3.5 w-3.5 text-rose-600" />
-          <span>F16 &amp; F11/F8 Rule • Reconciles how money left the hospital; does NOT duplicate approval limits</span>
+          <span>Disbursement Audit • Reconciles how money left the hospital against authorized refund approvals</span>
         </div>
       </div>
 
@@ -141,7 +141,7 @@ export default function RefundsPaymentsPage() {
         </Card>
 
         <Card className="p-3.5 border-border bg-card shadow-xs">
-          <span className="text-[11px] text-muted-foreground uppercase font-bold">F11/F8 Audit Auth</span>
+          <span className="text-[11px] text-muted-foreground uppercase font-bold">Authorized Sign-off</span>
           <p className="text-xl font-bold font-mono text-emerald-600 mt-0.5">100% Signed</p>
           <span className="text-[10px] text-emerald-600 font-medium">Authoritative Sign-Off</span>
         </Card>
@@ -178,7 +178,7 @@ export default function RefundsPaymentsPage() {
                   <TableHead className="text-xs font-bold">Patient &amp; UHID</TableHead>
                   <TableHead className="text-xs font-bold">Original Invoice</TableHead>
                   <TableHead className="text-xs font-bold">Reversal Channel</TableHead>
-                  <TableHead className="text-xs font-bold">Approval Token (F8/F11)</TableHead>
+                  <TableHead className="text-xs font-bold">Approval Token</TableHead>
                   <TableHead className="text-xs font-bold text-right">Amount</TableHead>
                   <TableHead className="text-xs font-bold text-center">Drawer / Gateway Status</TableHead>
                   <TableHead className="text-xs font-bold">Disbursed At</TableHead>

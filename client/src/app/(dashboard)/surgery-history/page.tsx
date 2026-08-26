@@ -277,7 +277,7 @@ export default function SurgeryHistoryPage() {
               <FileText className="h-5 w-5 text-primary" /> Surgical Audit Record — {selectedRecord?.caseId}
             </DialogTitle>
             <DialogDescription>
-              Archived historical clinical telemetry (Read-only per Rule F6-12).
+              Archived historical clinical telemetry (Immutable audit record).
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 py-2 text-xs">

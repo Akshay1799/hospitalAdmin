@@ -103,7 +103,7 @@ export default function InsurancePatientsPage() {
         <ScopeIndicator scope="Hospital Admin" stationName="Patient Insurance Relations Desk" />
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/30 px-3 py-1.5 rounded-md border border-border">
           <ShieldAlert className="h-3.5 w-3.5 text-primary" />
-          <span>F17 Patient View • Reads patient identity from Patient &amp; Treatment module; zero duplicate records</span>
+          <span>Patient Index Sync • Reads patient identity from Master Patient Index; zero duplicate records</span>
         </div>
       </div>
 

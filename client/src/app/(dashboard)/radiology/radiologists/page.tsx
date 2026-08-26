@@ -88,7 +88,7 @@ export default function RadiologistsRosterPage() {
         <ScopeIndicator scope="Hospital Admin" stationName="Radiology Medical Staffing Console" />
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/30 px-3 py-1.5 rounded-md border border-border">
           <ShieldAlert className="h-3.5 w-3.5 text-amber-600" />
-          <span>Rules F14-CANNOT-6 &amp; 7: Reads from Doctor Management (Radiology specialty) • Technologists live in Technicians category</span>
+          <span>Central Directory Sync: Reads from Doctor Management (Radiology Specialty) • Technologists managed in Technical Staff category</span>
         </div>
       </div>
 

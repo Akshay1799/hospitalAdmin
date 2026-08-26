@@ -176,10 +176,9 @@ export default function FinancialReportsHubPage() {
           <Card className="border-border hover:border-primary/50 transition-all shadow-xs flex flex-col justify-between">
             <CardHeader className="p-4 pb-2">
               <div className="flex items-center justify-between">
-                <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30">
-                  Feature 1
-                </Badge>
-                <TrendingUp className="h-4 w-4 text-emerald-600" />
+                <div className="h-8 w-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-600">
+                  <TrendingUp className="h-4 w-4" />
+                </div>
               </div>
               <CardTitle className="text-sm font-bold mt-2">Revenue Analysis</CardTitle>
               <CardDescription className="text-xs">
@@ -200,10 +199,9 @@ export default function FinancialReportsHubPage() {
           <Card className="border-border hover:border-primary/50 transition-all shadow-xs flex flex-col justify-between">
             <CardHeader className="p-4 pb-2">
               <div className="flex items-center justify-between">
-                <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/30">
-                  Feature 2
-                </Badge>
-                <Wallet className="h-4 w-4 text-primary" />
+                <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                  <Wallet className="h-4 w-4" />
+                </div>
               </div>
               <CardTitle className="text-sm font-bold mt-2">Collections &amp; Realization</CardTitle>
               <CardDescription className="text-xs">
@@ -224,10 +222,9 @@ export default function FinancialReportsHubPage() {
           <Card className="border-border hover:border-primary/50 transition-all shadow-xs flex flex-col justify-between">
             <CardHeader className="p-4 pb-2">
               <div className="flex items-center justify-between">
-                <Badge variant="outline" className="text-[10px] bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30">
-                  Feature 3
-                </Badge>
-                <TrendingDown className="h-4 w-4 text-amber-600" />
+                <div className="h-8 w-8 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-600">
+                  <TrendingDown className="h-4 w-4" />
+                </div>
               </div>
               <CardTitle className="text-sm font-bold mt-2">Outstanding &amp; AR Aging</CardTitle>
               <CardDescription className="text-xs">
@@ -248,10 +245,9 @@ export default function FinancialReportsHubPage() {
           <Card className="border-border hover:border-primary/50 transition-all shadow-xs flex flex-col justify-between">
             <CardHeader className="p-4 pb-2">
               <div className="flex items-center justify-between">
-                <Badge variant="outline" className="text-[10px] bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/30">
-                  Feature 4
-                </Badge>
-                <Building2 className="h-4 w-4 text-blue-600" />
+                <div className="h-8 w-8 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-600">
+                  <Building2 className="h-4 w-4" />
+                </div>
               </div>
               <CardTitle className="text-sm font-bold mt-2">Department Revenue</CardTitle>
               <CardDescription className="text-xs">
@@ -272,10 +268,9 @@ export default function FinancialReportsHubPage() {
           <Card className="border-border hover:border-primary/50 transition-all shadow-xs flex flex-col justify-between">
             <CardHeader className="p-4 pb-2">
               <div className="flex items-center justify-between">
-                <Badge variant="outline" className="text-[10px] bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/30">
-                  Feature 5
-                </Badge>
-                <Stethoscope className="h-4 w-4 text-purple-600" />
+                <div className="h-8 w-8 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-600">
+                  <Stethoscope className="h-4 w-4" />
+                </div>
               </div>
               <CardTitle className="text-sm font-bold mt-2">Doctor Revenue</CardTitle>
               <CardDescription className="text-xs">
@@ -296,10 +291,9 @@ export default function FinancialReportsHubPage() {
           <Card className="border-border hover:border-primary/50 transition-all shadow-xs flex flex-col justify-between">
             <CardHeader className="p-4 pb-2">
               <div className="flex items-center justify-between">
-                <Badge variant="outline" className="text-[10px] bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 border-cyan-500/30">
-                  Feature 6
-                </Badge>
-                <Receipt className="h-4 w-4 text-cyan-600" />
+                <div className="h-8 w-8 rounded-lg bg-cyan-500/10 flex items-center justify-center text-cyan-600">
+                  <Receipt className="h-4 w-4" />
+                </div>
               </div>
               <CardTitle className="text-sm font-bold mt-2">Service Revenue</CardTitle>
               <CardDescription className="text-xs">
@@ -320,10 +314,9 @@ export default function FinancialReportsHubPage() {
           <Card className="border-border hover:border-primary/50 transition-all shadow-xs flex flex-col justify-between">
             <CardHeader className="p-4 pb-2">
               <div className="flex items-center justify-between">
-                <Badge variant="outline" className="text-[10px] bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border-indigo-500/30">
-                  Feature 7
-                </Badge>
-                <CreditCard className="h-4 w-4 text-indigo-600" />
+                <div className="h-8 w-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-600">
+                  <CreditCard className="h-4 w-4" />
+                </div>
               </div>
               <CardTitle className="text-sm font-bold mt-2">Payment &amp; Reconciliation</CardTitle>
               <CardDescription className="text-xs">
@@ -344,10 +337,9 @@ export default function FinancialReportsHubPage() {
           <Card className="border-border hover:border-primary/50 transition-all shadow-xs flex flex-col justify-between bg-linear-to-br from-card via-card to-primary/5">
             <CardHeader className="p-4 pb-2">
               <div className="flex items-center justify-between">
-                <Badge variant="outline" className="text-[10px] bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/30">
-                  Feature 8 (New Data)
-                </Badge>
-                <Scale className="h-4 w-4 text-primary" />
+                <div className="h-8 w-8 rounded-lg bg-rose-500/10 flex items-center justify-center text-rose-600">
+                  <Scale className="h-4 w-4" />
+                </div>
               </div>
               <CardTitle className="text-sm font-bold mt-2">Profit / Expense &amp; P&amp;L</CardTitle>
               <CardDescription className="text-xs">

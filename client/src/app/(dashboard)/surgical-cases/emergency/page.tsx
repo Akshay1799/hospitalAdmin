@@ -84,7 +84,7 @@ export default function EmergencySurgeryPage() {
     if (!bloodVerified || !anesthesiaVerified) {
       toast({
         title: "Life-Critical Verification Required",
-        description: "Rule F6-3: Blood availability and Anesthesia clearance CANNOT be waived.",
+        description: "Patient Safety Standard: Blood availability and Anesthesia clearance cannot be bypassed.",
         variant: "destructive",
       });
       return;
@@ -93,7 +93,7 @@ export default function EmergencySurgeryPage() {
     if (!waiverAcknowledged || !overrideReason.trim()) {
       toast({
         title: "Mandatory Waiver Reason",
-        description: "Rule F6-2: You must record both a clinical reason and the authorizing clinician to waive non-critical items.",
+        description: "Emergency Override Protocol: You must record both a clinical justification and the authorizing senior clinician.",
         variant: "destructive",
       });
       return;
@@ -265,7 +265,7 @@ export default function EmergencySurgeryPage() {
                 <Shield className="h-4 w-4 text-emerald-600" /> Life-Critical Checklist &amp; Waiver
               </CardTitle>
               <CardDescription className="text-xs">
-                Strict governance per clinical rule F6-2 &amp; F6-3.
+                Strict governance per Emergency Surgery Clinical Safety Protocols.
               </CardDescription>
             </CardHeader>
             <CardContent className="p-4 space-y-3">

@@ -86,7 +86,7 @@ export default function LabStaffPage() {
         <ScopeIndicator scope="Hospital Admin" stationName="Laboratory Workforce &amp; Quality Audit" />
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/30 px-3 py-1.5 rounded-md border border-border">
           <ShieldAlert className="h-3.5 w-3.5 text-amber-600" />
-          <span>Rule F13-CANNOT-8: Staff list mapped directly from hospital-wide directory (no duplicate rosters)</span>
+          <span>Central Staff Registry: Personnel roster mapped directly from hospital-wide staff directory</span>
         </div>
       </div>
 

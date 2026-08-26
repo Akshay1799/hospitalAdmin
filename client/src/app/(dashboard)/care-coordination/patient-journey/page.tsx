@@ -115,7 +115,7 @@ export default function PatientJourneyPage() {
     if (!validation.canDispatch) {
       toast({
         variant: "destructive",
-        title: "Ambulance Dispatch Blocked (19.2 Rule 1)",
+        title: "Ambulance Dispatch Blocked (Emergency Sequencing Protocol)",
         description: validation.errorReason,
       });
       return;

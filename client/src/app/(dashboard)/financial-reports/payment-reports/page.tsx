@@ -88,7 +88,7 @@ export default function PaymentReportsPage() {
             />
           </div>
           <Badge variant="outline" className="text-xs bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border-indigo-500/30">
-            Ground Truth: F16 Cash Drawer Reports
+            Integrated Source: Cashier Drawer Reconciliation
           </Badge>
         </div>
       </div>
@@ -126,7 +126,7 @@ export default function PaymentReportsPage() {
             <div>
               <CardTitle className="text-sm font-bold">Counter Cashier Shift &amp; Settlement Log</CardTitle>
               <CardDescription className="text-xs">
-                Audited daily drawer reconciliations aggregated from F16 Payments operations.
+                Audited daily drawer reconciliations aggregated from Cash Office &amp; Payments operations.
               </CardDescription>
             </div>
             <div className="relative w-full sm:max-w-xs">

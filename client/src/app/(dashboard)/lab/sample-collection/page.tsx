@@ -183,7 +183,7 @@ export default function SampleCollectionPage() {
         <ScopeIndicator scope="Hospital Admin" stationName="Phlebotomy &amp; Specimen Intake Hub" />
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/30 px-3 py-1.5 rounded-md border border-border">
           <ShieldAlert className="h-3.5 w-3.5 text-amber-600" />
-          <span>Patient locations synchronized live with Wards &amp; Beds (F12) and OPD Desk (F2)</span>
+          <span>Patient Location Sync: Locations synchronized live with Inpatient Wards &amp; Beds and OPD Clinic Desks</span>
         </div>
       </div>
 

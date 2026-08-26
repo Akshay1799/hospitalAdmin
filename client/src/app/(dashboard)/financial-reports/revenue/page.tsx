@@ -87,7 +87,7 @@ export default function RevenueReportPage() {
             />
           </div>
           <Badge variant="outline" className="text-xs bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30">
-            Ground Truth: F11 Central Invoice Directory
+            Integrated Source: Central Hospital Invoicing System
           </Badge>
         </div>
       </div>
@@ -149,7 +149,7 @@ export default function RevenueReportPage() {
             <div>
               <CardTitle className="text-sm font-bold">Revenue Source Aggregation</CardTitle>
               <CardDescription className="text-xs">
-                Computed by summing invoice line items categorized under F11 Billing.
+                Computed by summing invoice line items categorized under Hospital Billing.
               </CardDescription>
             </div>
             <div className="relative w-full sm:max-w-xs">

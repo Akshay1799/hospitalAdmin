@@ -212,7 +212,7 @@ export default function RadiologySchedulingPage() {
     if (suite.status === "Maintenance" || suite.status === "Offline") {
       toast({
         title: "Suite Unavailable for Booking",
-        description: `${suite.name} is currently in ${suite.status} status. Booking slots in non-operational suites is locked. (Rule F14-CANNOT-3)`,
+        description: `${suite.name} is currently in ${suite.status} status. Booking slots in non-operational suites is locked.`,
         variant: "destructive",
       });
       return;
@@ -306,7 +306,7 @@ export default function RadiologySchedulingPage() {
     if (targetSuite.status === "Maintenance" || targetSuite.status === "Offline") {
       toast({
         title: "Suite Locked for Service",
-        description: `${targetSuite.name} is in ${targetSuite.status} status. Cannot reschedule into a locked suite. (Rule F14-CANNOT-3)`,
+        description: `${targetSuite.name} is in ${targetSuite.status} status. Cannot reschedule into a locked suite.`,
         variant: "destructive",
       });
       return;
@@ -389,7 +389,7 @@ export default function RadiologySchedulingPage() {
     if (selectedBookingSuite.status === "Maintenance" || selectedBookingSuite.status === "Offline") {
       toast({
         title: "Suite Unavailable",
-        description: `${selectedBookingSuite.name} is in ${selectedBookingSuite.status} status. Cannot allocate slot. (Rule F14-CANNOT-3)`,
+        description: `${selectedBookingSuite.name} is in ${selectedBookingSuite.status} status. Cannot allocate slot.`,
         variant: "destructive",
       });
       return;
@@ -511,7 +511,7 @@ export default function RadiologySchedulingPage() {
         <ScopeIndicator scope="Hospital Admin" stationName="Radiology Resource &amp; Suite Dispatch" />
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/30 px-3 py-1.5 rounded-md border border-border">
           <ShieldAlert className="h-3.5 w-3.5 text-amber-600" />
-          <span>Rule F14-CANNOT-3: Suites with Maintenance or Offline status are strictly locked from bookings</span>
+          <span>Suite Locking Protocol: Suites under Maintenance or Offline status are locked from bookings</span>
         </div>
       </div>
 

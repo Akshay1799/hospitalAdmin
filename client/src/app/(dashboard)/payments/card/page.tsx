@@ -84,7 +84,7 @@ export default function CardPaymentsPage() {
         <ScopeIndicator scope="Hospital Admin" stationName="Merchant POS Terminal Gateway" />
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/30 px-3 py-1.5 rounded-md border border-border">
           <ShieldAlert className="h-3.5 w-3.5 text-blue-600" />
-          <span>F16 Card View • Terminal IDs and batch reconciliation tracked per physical swipe terminal</span>
+          <span>Card &amp; POS Terminals • Terminal IDs and batch settlements tracked per physical swipe terminal</span>
         </div>
       </div>
 

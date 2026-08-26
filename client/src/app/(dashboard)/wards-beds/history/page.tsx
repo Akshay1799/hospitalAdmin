@@ -117,7 +117,7 @@ export default function BedHistoryPage() {
         </Card>
         <Card className="p-3.5 border-border bg-card shadow-xs">
           <span className="text-[11px] text-muted-foreground uppercase font-bold">Immutable Trail</span>
-          <p className="text-xl font-bold font-mono text-emerald-600 mt-0.5">Rule F12-CANNOT-8</p>
+          <p className="text-xl font-bold font-mono text-emerald-600 mt-0.5">Audited</p>
           <span className="text-[10px] text-emerald-600 font-medium">Zero retrospective tampering</span>
         </Card>
         <Card className="p-3.5 border-border bg-card shadow-xs">

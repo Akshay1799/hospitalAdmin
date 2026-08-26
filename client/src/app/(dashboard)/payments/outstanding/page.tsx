@@ -167,10 +167,10 @@ export default function OutstandingPaymentsPage() {
       />
 
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-        <ScopeIndicator scope="Hospital Admin" stationName="Live Receivables Ledger (F11 Read)" />
+        <ScopeIndicator scope="Hospital Admin" stationName="Live Receivables &amp; Outstanding Ledger" />
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/30 px-3 py-1.5 rounded-md border border-border">
           <ShieldAlert className="h-3.5 w-3.5 text-amber-600" />
-          <span>F16 &amp; F11 Integration • Reads directly from Billing &amp; Invoices; zero duplicate data storage</span>
+          <span>Billing Synchronization • Real-time receivables ledger integrated directly with patient invoices</span>
         </div>
       </div>
 

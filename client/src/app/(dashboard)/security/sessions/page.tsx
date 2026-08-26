@@ -116,7 +116,7 @@ export default function SecuritySessionsPage() {
     setInactivityTimeout(val);
     toast({
       title: "Inactivity Timeout Configured",
-      description: `Global hospital terminal session idle timeout set to ${val} minutes. (Rule 14-CAN-11)`,
+      description: `Global hospital terminal session idle timeout set to ${val} minutes.`,
     });
   };
 

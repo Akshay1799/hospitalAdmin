@@ -104,7 +104,7 @@ export default function PharmacyLowStockPage() {
         <ScopeIndicator scope="Hospital Admin" stationName="Formulary Depletion &amp; Restock Engine" />
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/30 px-3 py-1.5 rounded-md border border-border">
           <TrendingDown className="h-3.5 w-3.5 text-rose-600" />
-          <span>Rule 12: Automated threshold monitoring triggers reorder requisitions into procurement</span>
+          <span>Inventory Monitoring • Automated safety stock threshold monitoring triggers reorder requisitions into procurement</span>
         </div>
       </div>
 

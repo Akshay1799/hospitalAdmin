@@ -119,7 +119,7 @@ export default function PendingApprovalsPage() {
         <ScopeIndicator scope="Hospital Admin" stationName="Adjudication Pipeline Monitor" />
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/30 px-3 py-1.5 rounded-md border border-border">
           <ShieldAlert className="h-3.5 w-3.5 text-amber-600" />
-          <span>F17 Pipeline • Covers Submitted, Pre-authorized, and Under Review query claims</span>
+          <span>Claims Pipeline • Covers Submitted, Pre-authorized, and Under Review query claims</span>
         </div>
       </div>
 

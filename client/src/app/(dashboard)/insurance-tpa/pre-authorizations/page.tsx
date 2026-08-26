@@ -160,7 +160,7 @@ export default function PreAuthorizationsPage() {
         <ScopeIndicator scope="Hospital Admin" stationName="Cashless Pre-Authorization Gateway" />
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/30 px-3 py-1.5 rounded-md border border-border">
           <ShieldAlert className="h-3.5 w-3.5 text-primary" />
-          <span>F17 Rule 5 • System computes 85% approved amount &amp; 15% patient copay automatically</span>
+          <span>Automated Split Calculation • System computes 85% approved amount &amp; 15% patient copay automatically</span>
         </div>
       </div>
 

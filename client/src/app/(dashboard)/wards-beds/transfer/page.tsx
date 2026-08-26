@@ -178,7 +178,7 @@ export default function BedTransferPage() {
         </Card>
         <Card className="p-3.5 border-border bg-card shadow-xs">
           <span className="text-[11px] text-muted-foreground uppercase font-bold">Atomic Execution</span>
-          <p className="text-xl font-bold font-mono text-emerald-600 mt-0.5">Rule F12 Active</p>
+          <p className="text-xl font-bold font-mono text-emerald-600 mt-0.5">Enforced</p>
           <span className="text-[10px] text-emerald-600 font-medium">Origin Cleaning + Destination Occ</span>
         </Card>
         <Card className="p-3.5 border-border bg-card shadow-xs">

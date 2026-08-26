@@ -101,7 +101,7 @@ export default function VerificationCaseDetailPage({
     } else if (type === "Reject") {
       setDecisionReason("Submitted registration numbers do not match State Medical Council records. Application rejected.");
     } else if (type === "Suspend") {
-      setDecisionReason("Immediate suspension triggered: License validity expired or compliance breach detected per Rule 13.1.");
+      setDecisionReason("Immediate suspension triggered: License validity expired or compliance breach detected.");
     }
     setDecisionModalOpen(true);
   };
@@ -229,7 +229,7 @@ export default function VerificationCaseDetailPage({
               className="gap-1.5 text-xs text-rose-600 border-rose-500/30 hover:bg-rose-500/10"
               onClick={() => handleOpenDecision("Suspend")}
             >
-              <Lock className="h-3.5 w-3.5" /> Suspend Verification (Rule 13.1)
+              <Lock className="h-3.5 w-3.5" /> Suspend Verification (Compliance Breach)
             </Button>
           ) : (
             <>
@@ -275,7 +275,7 @@ export default function VerificationCaseDetailPage({
         <ScopeIndicator scope="Hospital Admin" stationName="Verification Audit Console" />
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/30 px-3 py-1.5 rounded-md border border-border">
           <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
-          <span>Rule 13-CANNOT-1: Platform credentials verified independently from hospital affiliation</span>
+          <span>Regulatory Protocol: Platform credentials verified independently from hospital affiliation</span>
         </div>
       </div>
 
@@ -538,7 +538,7 @@ export default function VerificationCaseDetailPage({
               {decisionType === "Suspend" && (
                 <div className="p-2.5 rounded border border-destructive/40 bg-destructive/10 text-destructive text-[11px] font-medium space-y-1">
                   <span className="font-bold flex items-center gap-1">
-                    <AlertOctagon className="h-3.5 w-3.5" /> Rule 13.1 Immediate Enforcement
+                    <AlertOctagon className="h-3.5 w-3.5" /> Mandatory Immediate Compliance Enforcement
                   </span>
                   <p>Suspending this case will instantly downgrade and revoke its public verified badge in real time.</p>
                 </div>

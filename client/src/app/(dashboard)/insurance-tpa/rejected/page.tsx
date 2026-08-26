@@ -143,7 +143,7 @@ export default function RejectedClaimsPage() {
         <ScopeIndicator scope="Hospital Admin" stationName="Dispute Remediation &amp; Query Desk" />
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/30 px-3 py-1.5 rounded-md border border-border">
           <ShieldAlert className="h-3.5 w-3.5 text-rose-600" />
-          <span>F17 Rule 6–9 • Captures mandatory clinical justifications; transitions Rejected ➔ Under Review</span>
+          <span>Grievance &amp; Appeals • Captures mandatory clinical justifications; transitions Rejected ➔ Under Review</span>
         </div>
       </div>
 

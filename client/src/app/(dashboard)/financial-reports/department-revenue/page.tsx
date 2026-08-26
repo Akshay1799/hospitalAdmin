@@ -86,7 +86,7 @@ export default function DepartmentRevenueReportPage() {
             />
           </div>
           <Badge variant="outline" className="text-xs bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-500/30">
-            Ground Truth: F11 Invoices × Department Records
+            Integrated Source: Department Revenue Allocation
           </Badge>
         </div>
       </div>

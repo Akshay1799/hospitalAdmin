@@ -144,7 +144,7 @@ export default function TpaReportsPage() {
         <ScopeIndicator scope="Hospital Admin" stationName="TPA Performance Intelligence Cockpit" />
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/30 px-3 py-1.5 rounded-md border border-border">
           <ShieldAlert className="h-3.5 w-3.5 text-primary" />
-          <span>F17 Analytics • Feeds hospital-wide Finance category; benchmarks private TPAs against PM-JAY/CGHS</span>
+          <span>TPA Analytics • Feeds hospital-wide Finance category; benchmarks private TPAs against PM-JAY/CGHS</span>
         </div>
       </div>
 

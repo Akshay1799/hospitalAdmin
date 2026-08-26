@@ -158,7 +158,7 @@ export default function PaymentHistoryPage() {
     doc.line(15, y, 195, y);
     doc.setFontSize(7.5);
     doc.setTextColor(148, 163, 184);
-    doc.text("OFFICIAL FINANCIAL AUDIT LEDGER — F16 RULES STANDARDS", 15, y + 5);
+    doc.text("OFFICIAL FINANCIAL AUDIT LEDGER — HOSPITAL ACCOUNTING STANDARDS", 15, y + 5);
     doc.text("Authorized by Hospital Administration • Central Cash Office", 15, y + 9);
 
     doc.save(`Hospital_Payment_Ledger_${new Date().toISOString().split("T")[0]}.pdf`);
@@ -215,7 +215,7 @@ export default function PaymentHistoryPage() {
         <ScopeIndicator scope="Hospital Admin" stationName="Historical Collection Ledger Archive" />
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/30 px-3 py-1.5 rounded-md border border-border">
           <ShieldAlert className="h-3.5 w-3.5 text-primary" />
-          <span>F16 History View • Multi-period historical records with complete audit trails</span>
+          <span>Historical Collection Ledger • Multi-period historical records with complete audit trails</span>
         </div>
       </div>
 

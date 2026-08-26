@@ -101,7 +101,7 @@ export default function RadiologyHistoryPage() {
         <ScopeIndicator scope="Hospital Admin" stationName="Radiology Quality &amp; Utilization Analytics" />
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/30 px-3 py-1.5 rounded-md border border-border">
           <ShieldAlert className="h-3.5 w-3.5 text-emerald-600" />
-          <span>Rules F14-CANNOT-4 &amp; 10: Immutable study archive with recorded outcomes and turnaround timestamps</span>
+          <span>Diagnostic Study Archive: Immutable study archive with recorded outcomes and turnaround timestamps</span>
         </div>
       </div>
 

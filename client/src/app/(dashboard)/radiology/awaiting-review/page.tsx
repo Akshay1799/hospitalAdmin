@@ -170,7 +170,7 @@ export default function RadiologyAwaitingReviewPage() {
         <ScopeIndicator scope="Hospital Admin" stationName="Radiology Reading &amp; Validation Worklist" />
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/30 px-3 py-1.5 rounded-md border border-border">
           <ShieldAlert className="h-3.5 w-3.5 text-amber-600" />
-          <span>Rule F14-CANNOT-2: Diagnostic reports cannot transition to Report Ready without licensed Radiologist authorization</span>
+          <span>Authorization Gate: Diagnostic reports require verified Radiologist digital authorization before release</span>
         </div>
       </div>
 
@@ -398,7 +398,7 @@ export default function RadiologyAwaitingReviewPage() {
                     onChange={(e) => setIsCritical(e.target.checked)}
                     className="rounded border-destructive text-destructive focus:ring-destructive"
                   />
-                  <span>Flag as Life-Threatening Critical Finding (Rule F14-CANNOT-5)</span>
+                  <span>Flag as Life-Threatening Critical Finding (Immediate Doctor Escalation)</span>
                 </label>
                 {isCritical && (
                   <Input

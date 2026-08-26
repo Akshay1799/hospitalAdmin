@@ -91,7 +91,7 @@ export default function CollectionsReportPage() {
             />
           </div>
           <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/30">
-            Ground Truth: F16 Payment Transactions
+            Integrated Source: Realized Payment Collections
           </Badge>
         </div>
       </div>
@@ -129,7 +129,7 @@ export default function CollectionsReportPage() {
             <div>
               <CardTitle className="text-sm font-bold">Payment Method &amp; Gateway Distribution</CardTitle>
               <CardDescription className="text-xs">
-                Derived directly from F16 Payments ledger and bank reconciliation files.
+                Derived directly from hospital payment collections ledger and bank reconciliation files.
               </CardDescription>
             </div>
             <div className="relative w-full sm:max-w-xs">

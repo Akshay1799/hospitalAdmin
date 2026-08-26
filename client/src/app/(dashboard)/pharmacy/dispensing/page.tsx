@@ -96,7 +96,7 @@ export default function PharmacyDispensingPage() {
     if (hasScheduleH1 && !verifiedScheduleH1) {
       toast({
         title: "Schedule H1 Verification Required",
-        description: "Rule 12: Controlled antibiotics and narcotics require verified licensed pharmacist sign-off.",
+        description: "Controlled Drug Protocol: Controlled antibiotics and narcotics require verified licensed pharmacist sign-off.",
         variant: "destructive",
       });
       return;
@@ -173,7 +173,7 @@ export default function PharmacyDispensingPage() {
         <ScopeIndicator scope="Hospital Admin" stationName="Dispensing &amp; Clinical Verification Counter" />
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/30 px-3 py-1.5 rounded-md border border-border">
           <ShieldAlert className="h-3.5 w-3.5 text-amber-600" />
-          <span>Rule 12: Dispensing decisions and Schedule H1 sign-offs strictly remain with authorized clinical pharmacists</span>
+          <span>Dispensing Standard: Clinical dispensing decisions and Schedule H1 sign-offs strictly remain with authorized clinical pharmacists</span>
         </div>
       </div>
 
@@ -347,7 +347,7 @@ export default function PharmacyDispensingPage() {
                     <ShieldAlert className="h-3.5 w-3.5" /> Schedule H1 Controlled Substance Sign-Off Required
                   </span>
                   <p>
-                    Rule 12: Controlled antibiotic or narcotic included. State Pharmacy Council registration must be verified.
+                    Controlled antibiotic or narcotic included. State Pharmacy Council registration must be verified before fulfillment.
                   </p>
                 </div>
               )}

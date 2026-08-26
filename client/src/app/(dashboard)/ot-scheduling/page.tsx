@@ -44,7 +44,7 @@ export default function OTSchedulingPage() {
     if (c.status !== 'Ready') {
       toast({
         title: "Warning: Case Not Ready",
-        description: "OT scheduled, but case still has pre-op blockers. Rule F6-1 Acknowledged.",
+        description: "OT scheduled, but case still has pre-op blockers pending clearance.",
         variant: "destructive"
       });
     }

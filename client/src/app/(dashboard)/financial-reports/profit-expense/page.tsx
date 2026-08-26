@@ -176,7 +176,7 @@ export default function ProfitExpenseReportPage() {
           <p className="text-2xl font-bold font-mono text-emerald-600 mt-1">
             ₹{(totalGrossRevenue / 100000).toFixed(2)} L
           </p>
-          <span className="text-[10px] text-muted-foreground">Billed across all clinical departments (F11)</span>
+          <span className="text-[10px] text-muted-foreground">Billed across all clinical departments</span>
         </Card>
 
         <Card className="p-4 border-border bg-card shadow-xs">

@@ -67,46 +67,46 @@ export default function PublicProfilePreviewPage() {
     <div className="space-y-4 animate-fade-in pb-12">
       <PageHeader
         title="Public Profile &amp; Search Preview Workstation"
-        description="Simulate exactly how verified institution and doctor credentials appear in Qlyno Public Search, enforcing Rule 13.1 data leak prevention."
+        description="Simulate exactly how verified institution and doctor credentials appear in Qlyno Public Search, enforcing strict data-leak prevention and privacy standards."
         crumbs={[{ label: "Administration" }, { label: "Verifications", href: "/verification" }, { label: "Public Preview" }]}
       />
 
       <VerificationNav />
 
-      {/* Scope Indicator & Rules 13-CANNOT-6 to 9 */}
+      {/* Scope Indicator & Privacy Guards */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
         <ScopeIndicator scope="Hospital Admin" stationName="Public Search &amp; Data Privacy Simulator" />
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/30 px-3 py-1.5 rounded-md border border-border">
           <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
-          <span>Rule 13.1: Strict Data-Leak Prevention Gate active across all public endpoints</span>
+          <span>Data Protection Gate: Strict public sanitization active across all endpoints</span>
         </div>
       </div>
 
-      {/* Mandatory Data Leak Sanitization Verification Checklist (Rules 13-CANNOT-6 to 9) */}
+      {/* Mandatory Data Leak Sanitization Verification Checklist */}
       <Card className="border-emerald-500/30 bg-emerald-500/5 shadow-xs">
         <CardHeader className="p-3.5 pb-2">
           <CardTitle className="text-xs font-bold text-emerald-950 dark:text-emerald-300 flex items-center gap-1.5">
             <ShieldCheck className="h-4 w-4 text-emerald-600" />
-            Rule 13.1 Mandatory Public Data Sanitization Audit (Automated Pre-Publish Check)
+            Mandatory Public Data Sanitization Audit (Pre-Publish Verification)
           </CardTitle>
         </CardHeader>
         <CardContent className="p-3.5 pt-0">
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 text-[11px]">
             <div className="flex items-center gap-1.5 p-2 rounded bg-card/80 border border-emerald-500/20 text-emerald-800 dark:text-emerald-300">
               <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
-              <span>Zero Private Patient Data (Rule CANNOT-6)</span>
+              <span>Zero Private Patient Data (Protected PHI Policy)</span>
             </div>
             <div className="flex items-center gap-1.5 p-2 rounded bg-card/80 border border-emerald-500/20 text-emerald-800 dark:text-emerald-300">
               <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
-              <span>Zero Internal Staffing / Shifts (Rule CANNOT-7)</span>
+              <span>Zero Internal Staffing / Shifts (Internal Duty Policy)</span>
             </div>
             <div className="flex items-center gap-1.5 p-2 rounded bg-card/80 border border-emerald-500/20 text-emerald-800 dark:text-emerald-300">
               <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
-              <span>Zero Bed-Level Details (Rule CANNOT-8)</span>
+              <span>Zero Bed-Level Details (Inpatient Privacy Policy)</span>
             </div>
             <div className="flex items-center gap-1.5 p-2 rounded bg-card/80 border border-emerald-500/20 text-emerald-800 dark:text-emerald-300">
               <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
-              <span>Zero Internal Triage Logs (Rule CANNOT-9)</span>
+              <span>Zero Internal Triage Logs (Clinical Triage Policy)</span>
             </div>
           </div>
         </CardContent>

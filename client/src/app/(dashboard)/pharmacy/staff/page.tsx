@@ -110,7 +110,7 @@ export default function PharmacyStaffPage() {
         <ScopeIndicator scope="Hospital Admin" stationName="Pharmacy Workforce &amp; Regulatory Compliance" />
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/30 px-3 py-1.5 rounded-md border border-border">
           <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
-          <span>Rule 12: Controlled antibiotics (Schedule H1) and narcotics require verified registered pharmacist authorization</span>
+          <span>Licensure Requirement: Controlled antibiotics (Schedule H1) and narcotics require verified registered pharmacist authorization</span>
         </div>
       </div>
 

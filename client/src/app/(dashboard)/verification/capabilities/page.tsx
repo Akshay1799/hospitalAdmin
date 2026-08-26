@@ -126,7 +126,7 @@ export default function CapabilitiesVerificationPage() {
         <ScopeIndicator scope="Hospital Admin" stationName="Emergency &amp; Fleet Capability Gate" />
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/30 px-3 py-1.5 rounded-md border border-border">
           <ShieldAlert className="h-3.5 w-3.5 text-amber-600" />
-          <span>Rule 13-CANNOT-10: Ambulance &amp; emergency capabilities cannot be displayed publicly until verified</span>
+          <span>Emergency Accreditation Policy: Ambulance &amp; trauma capabilities cannot be displayed publicly until verified</span>
         </div>
       </div>
 

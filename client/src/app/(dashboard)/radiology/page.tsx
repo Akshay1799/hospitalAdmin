@@ -100,7 +100,7 @@ export default function RadiologyPage() {
     if (targetSuite && (targetSuite.status === "Maintenance" || targetSuite.status === "Offline")) {
       toast({
         title: "Suite Maintenance Lock",
-        description: `${selectedRoom} is currently under Maintenance. Slot allocation blocked. (Rule F14-CANNOT-3)`,
+        description: `${selectedRoom} is currently under Maintenance. Slot allocation blocked.`,
         variant: "destructive",
       });
       return;
@@ -156,7 +156,7 @@ export default function RadiologyPage() {
         <ScopeIndicator scope="Hospital Admin" stationName="Central Radiology &amp; PACS Console" />
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/30 px-3 py-1.5 rounded-md border border-border">
           <ShieldAlert className="h-3.5 w-3.5 text-amber-600" />
-          <span>Rule F14-CANNOT-1: Operational schedule coordination • Clinical reporting stays with qualified radiologists</span>
+          <span>Operational Schedule Coordination • Clinical reporting authorized by licensed Radiologists</span>
         </div>
       </div>
 

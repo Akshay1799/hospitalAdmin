@@ -83,7 +83,7 @@ export default function OutstandingReportPage() {
             />
           </div>
           <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30">
-            Ground Truth: F11 Receivables &amp; F17 Claims
+            Integrated Source: Receivables Ledger &amp; TPA Claims
           </Badge>
         </div>
       </div>

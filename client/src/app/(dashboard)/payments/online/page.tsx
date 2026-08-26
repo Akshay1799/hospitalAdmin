@@ -109,7 +109,7 @@ export default function OnlinePaymentsPage() {
         <ScopeIndicator scope="Hospital Admin" stationName="Bank Wire &amp; TPA Cashless Remittances" />
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/30 px-3 py-1.5 rounded-md border border-border">
           <ShieldAlert className="h-3.5 w-3.5 text-purple-600" />
-          <span>F16 &amp; TPA Module • TPA settlements arriving via bank transfer are mapped directly to insurance claims</span>
+          <span>TPA &amp; Insurance Remittance • Settlements arriving via bank transfer are mapped directly to insurance claims</span>
         </div>
       </div>
 

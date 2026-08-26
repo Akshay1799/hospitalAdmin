@@ -90,7 +90,7 @@ export default function DoctorRevenueReportPage() {
             />
           </div>
           <Badge variant="outline" className="text-xs bg-purple-500/10 text-purple-700 dark:text-purple-300 border-purple-500/30">
-            Ground Truth: F11 Invoices × Doctor Management
+            Integrated Source: Clinician Invoicing &amp; Consultation Ledger
           </Badge>
         </div>
       </div>

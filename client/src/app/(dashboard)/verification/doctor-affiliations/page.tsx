@@ -108,7 +108,7 @@ export default function DoctorAffiliationsVerificationPage() {
       title: willBeAffirmed ? "Hospital Affiliation Confirmed" : "Affiliation Revoked",
       description: `${targetDoc?.doctorName}: Hospital affiliation has been ${
         willBeAffirmed ? "confirmed" : "revoked"
-      }. (Rule F13-CAN-6 / F13-CANNOT-1: Hospital-side confirmation only). (${DELEGATION_STRING})`,
+      }. (${DELEGATION_STRING})`,
     });
   };
 

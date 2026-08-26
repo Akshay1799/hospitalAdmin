@@ -88,7 +88,7 @@ export function SidebarNav({
                         ? "bg-primary/10 text-foreground"
                         : "text-sidebar-muted hover:bg-muted hover:text-sidebar-foreground"
                     )}
-                    title={collapsed ? item.label : undefined}
+                    title={item.label}
                   >
                     <Icon
                       className={cn(

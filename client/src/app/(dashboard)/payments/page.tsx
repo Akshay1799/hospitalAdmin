@@ -198,7 +198,7 @@ export default function PaymentsPage() {
         <ScopeIndicator scope="Hospital Admin" stationName="Central Cash Office &amp; Collection Gateway" />
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/30 px-3 py-1.5 rounded-md border border-border">
           <ShieldAlert className="h-3.5 w-3.5 text-primary" />
-          <span>F16 &amp; F8 • Counter registry linked to Billing Staff; receipts mapped 1-to-1 with Invoices</span>
+          <span>Counter Ledger &amp; Cashier Reconciliation • Receipts mapped 1-to-1 with Billing Invoices</span>
         </div>
       </div>
 

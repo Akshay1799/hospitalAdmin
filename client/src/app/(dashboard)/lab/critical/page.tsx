@@ -134,7 +134,7 @@ export default function CriticalReportsLogPage() {
         <ScopeIndicator scope="Hospital Admin" stationName="Hospital-Wide Panic Alert Console" />
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/30 px-3 py-1.5 rounded-md border border-border">
           <ShieldAlert className="h-3.5 w-3.5 text-destructive" />
-          <span>Rule F13-CANNOT-5: Critical values permanently archived with mandatory clinician notification tracking</span>
+          <span>Critical Finding Protocol: Critical values permanently archived with mandatory clinician notification tracking</span>
         </div>
       </div>
 

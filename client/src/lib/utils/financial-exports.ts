@@ -19,7 +19,7 @@ export function exportFinancialReportToCSV(
   let csvContent = "";
   let filename = "";
 
-  const metadata = `# QLYNO MULTISPECIALTY HOSPITAL - FINANCIAL LEDGER EXPORT\n# Report Type: ${reportType}\n# Accounting Period: ${period}\n# Generated At: ${new Date().toLocaleString()}\n# Single Source of Truth: F11 / F16 / F17 Integrated Data\n\n`;
+  const metadata = `# QLYNO MULTISPECIALTY HOSPITAL - FINANCIAL LEDGER EXPORT\n# Report Type: ${reportType}\n# Accounting Period: ${period}\n# Generated At: ${new Date().toLocaleString()}\n# Single Source of Truth: Integrated Hospital Billing, Payments & TPA Claims Data\n\n`;
 
   if (reportType.includes("revenue") && !reportType.includes("department") && !reportType.includes("doctor") && !reportType.includes("service")) {
     filename = `Hospital_Revenue_Report_${period.replace(/\s+/g, "_")}_${timestamp}.csv`;
