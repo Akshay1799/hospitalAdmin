@@ -2206,8 +2206,79 @@ export interface ExtendedRevenueAnalyticsSummary {
   payerMix: PayerMixShare[];
 }
 
+// ==========================================
+// MODULE F22: REPORTS AWAITING REVIEW (CARE COORDINATION)
+// ==========================================
 
+export type ReportReviewSourceModule = "lab" | "radiology";
+export type ReportReviewStatus = "pending_review" | "reviewed" | "clarification_requested";
+export type PatientNotificationChannel = "sms" | "whatsapp" | "phone_call" | "portal";
+export type ClarificationRequestType = "re-test" | "stain_reevaluation" | "radiologist_addendum";
 
+export interface CareCoordinationReportReviewItem {
+  id: string;
+  reportId: string;
+  sourceModule: ReportReviewSourceModule;
+  orderId: string;
+  patientId: string;
+  patientName: string;
+  patientUhid: string;
+  patientPhone: string;
+  patientAgeGender: string;
+  testOrStudyName: string;
+  modalityOrCategory: string;
+  department: string;
+  attendingDoctorId: string;
+  attendingDoctorName: string;
+  doctorSpecialty: string;
+  releasedAt: string;
+  waitingDuration: string;
+  waitingDurationMinutes: number;
+  isCritical: boolean;
+  criticalDetails?: string;
+  slaDeadlineMinutes: number;
+  isOverdue: boolean;
+  status: ReportReviewStatus;
+  keyFindings: string;
+  impression: string;
+  referenceRangesOrSummary?: string;
+  signedOffAt?: string;
+  signedOffBy?: string;
+  signedOffDoctorRegNo?: string;
+  signOffNote?: string;
+  auditStamp?: string;
+  isPatientNotified?: boolean;
+  patientNotificationId?: string;
+  clarificationRequestId?: string;
+}
 
+export interface PatientNotificationRecord {
+  id: string;
+  reviewItemId: string;
+  reportId: string;
+  patientId: string;
+  patientName: string;
+  patientPhone: string;
+  testName: string;
+  channel: PatientNotificationChannel;
+  notifiedBy: string;
+  notifiedByRole: string;
+  notifiedAt: string;
+  notes?: string;
+  deliveryStatus: "Delivered" | "Pending" | "Failed";
+}
 
-
+export interface AddendumClarificationRequest {
+  id: string;
+  reviewItemId: string;
+  reportId: string;
+  sourceModule: ReportReviewSourceModule;
+  patientName: string;
+  testOrStudyName: string;
+  requestedBy: string;
+  requestedAt: string;
+  requestType: ClarificationRequestType;
+  clinicalReason: string;
+  status: "sent_to_lab" | "sent_to_radiology" | "resolved";
+  responseSummary?: string;
+}
