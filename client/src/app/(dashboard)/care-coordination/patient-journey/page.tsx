@@ -235,8 +235,8 @@ export default function PatientJourneyPage() {
 
                 <div className="flex items-center gap-2">
                   <Button size="sm" variant="outline" className="h-8 text-xs font-semibold" asChild>
-                    <Link href={`/patients/${patientWorkflow.patientId}`}>
-                      <ExternalLink className="h-3.5 w-3.5 mr-1" /> Open Patient Hub
+                    <Link href="/patients">
+                      <Users className="h-3.5 w-3.5 mr-1" /> Open Patient Hub
                     </Link>
                   </Button>
                 </div>
