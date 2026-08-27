@@ -274,6 +274,22 @@ export default function PatientsPage() {
                       <Input id="pat-dob" type="date" required />
                     </div>
                     <div className="grid gap-1.5">
+                      <Label htmlFor="pat-channel">Acquisition Channel (Discovery Avenue)</Label>
+                      <Select defaultValue="Self-Referral">
+                        <SelectTrigger id="pat-channel">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Self-Referral">Self-Referral</SelectItem>
+                          <SelectItem value="Doctor Referral">Doctor Referral (External Consultant)</SelectItem>
+                          <SelectItem value="Insurance Network">Insurance Network / TPA</SelectItem>
+                          <SelectItem value="Online Booking">Online Booking / Mobile App</SelectItem>
+                          <SelectItem value="Walk-in">Walk-in Direct Registration</SelectItem>
+                          <SelectItem value="Corporate Health Partner">Corporate Health Partner</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid gap-1.5">
                       <Label htmlFor="pat-consent">Initial Consent Status</Label>
                       <Select defaultValue="granted">
                         <SelectTrigger id="pat-consent">

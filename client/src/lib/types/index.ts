@@ -931,6 +931,14 @@ export interface HospitalRelationship {
   };
 }
 
+export type AcquisitionChannel =
+  | "Self-Referral"
+  | "Doctor Referral"
+  | "Insurance Network"
+  | "Walk-in"
+  | "Online Booking"
+  | "Corporate Health Partner";
+
 export interface Patient {
   id: string;
   qlynoPatientId: string;
@@ -943,6 +951,7 @@ export interface Patient {
   email: string;
   bloodGroup: string;
   address: string;
+  acquisitionChannel?: AcquisitionChannel;
   emergencyContact?: {
     name: string;
     phone: string;
@@ -1965,6 +1974,238 @@ export interface ScheduledReportConfig {
   lastSentAt?: string;
   nextRunAt: string;
 }
+
+// ==========================================
+// MODULE F21 — ANALYTICS (EXECUTIVE & STRATEGIC COCKPIT) EXTENDED
+// ==========================================
+
+export interface PatientAcquisitionChannelMetric {
+  channel: AcquisitionChannel;
+  volume: number;
+  sharePercent: number;
+  conversionRate: number;
+  avgRevenuePerPatient: number;
+  growthYoY: string;
+}
+
+export interface PatientAcquisitionMonthlyTrend {
+  month: string;
+  selfReferral: number;
+  doctorReferral: number;
+  insuranceNetwork: number;
+  walkIn: number;
+  onlineBooking: number;
+  corporate: number;
+  total: number;
+}
+
+export interface PatientAcquisitionSummary {
+  totalAcquired: number;
+  topChannel: AcquisitionChannel;
+  channelConversionRate: number;
+  channelBreakdown: PatientAcquisitionChannelMetric[];
+  monthlyTrends: PatientAcquisitionMonthlyTrend[];
+}
+
+export interface AppointmentConversionStageMetric {
+  stage: "Booked" | "Checked-in" | "Completed" | "Cancelled" | "No-show" | "Rescheduled";
+  count: number;
+  percentage: number;
+  dropOffRate?: number;
+}
+
+export interface SpecialtyConversionMetric {
+  department: string;
+  booked: number;
+  completed: number;
+  cancelled: number;
+  noShow: number;
+  conversionRate: number;
+}
+
+export interface AppointmentConversionSummary {
+  totalBooked: number;
+  overallConversionRate: number;
+  leadTimeHoursAvg: number;
+  stages: AppointmentConversionStageMetric[];
+  bySpecialty: SpecialtyConversionMetric[];
+  monthlyFunnelTrend: {
+    month: string;
+    booked: number;
+    completed: number;
+    conversionRate: number;
+  }[];
+}
+
+export interface NewVsReturningCohortMetric {
+  period: string;
+  newPatients: number;
+  returningPatients: number;
+  newPatientShare: number;
+  returningPatientShare: number;
+}
+
+export interface NewVsReturningSpecialtySplit {
+  department: string;
+  newPatients: number;
+  returningPatients: number;
+  newPatientRatio: number;
+}
+
+export interface NewVsReturningSummary {
+  totalUniquePatients: number;
+  newPatientsYTD: number;
+  returningPatientsYTD: number;
+  repeatVisitRatio: number;
+  monthlyTrend: NewVsReturningCohortMetric[];
+  specialtySplit: NewVsReturningSpecialtySplit[];
+}
+
+export interface DoctorClinicalPerformanceRecord {
+  doctorId: string;
+  doctorName: string;
+  department: string;
+  appointmentVolume: number;
+  completedConsultations: number;
+  avgConsultDurationMinutes: number;
+  noShowRate: number;
+  patientRating: number;
+  totalReviews: number;
+  otProceduresCount: number;
+  // Financial slice cross-referenced from F18 (Doctor Revenue)
+  f18GrossRevenue: number;
+  f18NetRealized: number;
+}
+
+export interface DoctorPerformanceSummary {
+  totalActiveDoctors: number;
+  hospitalAvgConsultDuration: number;
+  avgDoctorRating: number;
+  avgNoShowRate: number;
+  doctors: DoctorClinicalPerformanceRecord[];
+}
+
+export interface DepartmentOperationalPerformanceRecord {
+  departmentId: string;
+  departmentName: string;
+  totalPatientVolume: number;
+  opdConsultations: number;
+  ipdAdmissions: number;
+  bedOccupancyRate: number;
+  alosDays: number;
+  readmissionRate30Day: number;
+  otSurgeriesPerformed: number;
+  // Financial slice cross-referenced from F18 (Department Revenue)
+  f18GrossRevenue: number;
+  f18ContributionMargin: number;
+}
+
+export interface DepartmentPerformanceSummary {
+  hospitalBedOccupancy: number;
+  hospitalAlosDays: number;
+  hospitalReadmissionRate: number;
+  departments: DepartmentOperationalPerformanceRecord[];
+}
+
+export interface PatientRetentionCohortMetric {
+  timeframe: "30 Days" | "60 Days" | "90 Days" | "180 Days" | "365 Days";
+  eligibleCohortSize: number;
+  returnedCount: number;
+  retentionRate: number;
+  benchmarkRate: number;
+}
+
+export interface FollowUpAdherenceMetric {
+  department: string;
+  scheduledFollowUps: number;
+  completedFollowUps: number;
+  adherenceRate: number;
+}
+
+export interface PatientRetentionSummary {
+  overall30DayRetention: number;
+  overall90DayRetention: number;
+  annualChurnRate: number;
+  avgDaysBetweenVisits: number;
+  cohorts: PatientRetentionCohortMetric[];
+  followUpAdherence: FollowUpAdherenceMetric[];
+  monthlyRetentionTrend: {
+    cohortMonth: string;
+    m1Retention: number;
+    m3Retention: number;
+    m6Retention: number;
+    m12Retention: number;
+  }[];
+}
+
+export interface NoShowMetric {
+  totalScheduled: number;
+  totalNoShows: number;
+  overallNoShowRate: number;
+  estimatedRevenueLoss: number;
+}
+
+export interface NoShowByDepartmentMetric {
+  department: string;
+  scheduled: number;
+  noShows: number;
+  noShowRate: number;
+}
+
+export interface NoShowByDoctorMetric {
+  doctorId: string;
+  doctorName: string;
+  department: string;
+  scheduled: number;
+  noShows: number;
+  noShowRate: number;
+}
+
+export interface NoShowBySlotMetric {
+  timeSlot: string;
+  scheduled: number;
+  noShows: number;
+  noShowRate: number;
+}
+
+export interface NoShowSummary {
+  metrics: NoShowMetric;
+  byDepartment: NoShowByDepartmentMetric[];
+  byDoctor: NoShowByDoctorMetric[];
+  byTimeSlot: NoShowBySlotMetric[];
+  byDayOfWeek: {
+    day: string;
+    noShowRate: number;
+  }[];
+}
+
+export interface ExtendedRevenueTrajectoryMetric {
+  quarter: string;
+  realizedRevenueLakhs: number;
+  budgetedTargetLakhs: number;
+  variancePercent: number;
+  opdRevenueLakhs: number;
+  ipdRevenueLakhs: number;
+  pharmacyDiagnosticsLakhs: number;
+}
+
+export interface PayerMixShare {
+  payerCategory: "Cash & Self-Pay" | "Private TPA / Cashless" | "Government Schemes (PM-JAY/CGHS)" | "Corporate Empanelment";
+  revenueLakhs: number;
+  sharePercent: number;
+  settlementTurnaroundDays: number;
+}
+
+export interface ExtendedRevenueAnalyticsSummary {
+  currentQuarterRealizedLakhs: number;
+  currentQuarterTargetLakhs: number;
+  quarterlyGrowthYoY: string;
+  annualProjectedLakhs: number;
+  revPABDaily: number;
+  trajectory: ExtendedRevenueTrajectoryMetric[];
+  payerMix: PayerMixShare[];
+}
+
 
 
 

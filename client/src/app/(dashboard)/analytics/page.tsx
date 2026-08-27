@@ -22,6 +22,11 @@ import {
   Users,
   Wallet,
   Zap,
+  UserPlus,
+  GitFork,
+  Stethoscope,
+  RotateCcw,
+  UserX,
 } from "lucide-react";
 import {
   Area,
@@ -45,10 +50,69 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PageHeader } from "@/components/shared/page-header";
 import { ScopeIndicator } from "@/components/shared/ScopeIndicator";
+import { AnalyticsNav } from "@/components/analytics/analytics-nav";
 import { mockExecutiveAnalytics } from "@/lib/mock-data/reports-analytics";
-import { formatCurrency } from "@/lib/utils";
 
 const COLORS = ["#0d9488", "#0284c7", "#f59e0b", "#f43f5e", "#8b5cf6"];
+
+const SUB_REPORTS = [
+  {
+    title: "Patient Acquisition",
+    description: "Volume and trend by referral channel (self, doctor, insurance, digital)",
+    href: "/analytics/patient-acquisition",
+    icon: UserPlus,
+    badge: "6 Channels",
+  },
+  {
+    title: "Appointment Conversion",
+    description: "Funnel progression from booking to reception check-in and completed consults",
+    href: "/analytics/appointment-conversion",
+    icon: GitFork,
+    badge: "83.4% Conv",
+  },
+  {
+    title: "New vs Returning Patients",
+    description: "Monthly split between first-time registrations and repeat clinical visits",
+    href: "/analytics/new-vs-returning",
+    icon: Users,
+    badge: "58% Repeat",
+  },
+  {
+    title: "Doctor Performance",
+    description: "Physician consult durations, no-shows, reviews, and F18 financial cross-reference",
+    href: "/analytics/doctor-performance",
+    icon: Stethoscope,
+    badge: "48 Doctors",
+  },
+  {
+    title: "Department Performance",
+    description: "Bed occupancy, ALOS, 30-day readmissions, and F18 specialty revenue",
+    href: "/analytics/department-performance",
+    icon: Building2,
+    badge: "84.6% Occupancy",
+  },
+  {
+    title: "Patient Retention",
+    description: "Longitudinal cohort curves (30d, 90d, 365d) and F5 follow-up adherence",
+    href: "/analytics/patient-retention",
+    icon: RotateCcw,
+    badge: "78.4% 30d",
+  },
+  {
+    title: "No-shows",
+    description: "Missed appointment patterns by specialty, physician, time slots, and days",
+    href: "/analytics/no-shows",
+    icon: UserX,
+    badge: "5.2% Rate",
+  },
+  {
+    title: "Revenue Analytics",
+    description: "Quarterly realized revenue vs. budget trajectory and institutional payer mix",
+    href: "/analytics/revenue-analytics",
+    icon: TrendingUp,
+    badge: "+14.2% YoY",
+  },
+];
 
 export default function AnalyticsPage() {
   const [mounted, setMounted] = useState(false);
@@ -94,6 +158,8 @@ export default function AnalyticsPage() {
           </div>
         }
       />
+
+      <AnalyticsNav />
 
       {/* Scope Indicator */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
@@ -215,6 +281,48 @@ export default function AnalyticsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* 8 Sub-Reports Quick Drill-Down Grid */}
+      <Card className="border-border shadow-xs">
+        <CardHeader className="p-4 pb-2">
+          <CardTitle className="text-sm font-bold flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-primary" /> Strategic &amp; Operational Analytics Sub-Decks
+          </CardTitle>
+          <CardDescription className="text-xs">
+            Deep-dive operational telemetry reports across conversion pipelines, physician performance, and patient cohorts.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-4 pt-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {SUB_REPORTS.map((sub) => {
+              const Icon = sub.icon;
+              return (
+                <Link
+                  key={sub.href}
+                  href={sub.href}
+                  className="p-3.5 rounded-xl border border-border bg-muted/15 hover:bg-muted/30 hover:border-primary/40 transition-all flex flex-col justify-between space-y-2 group shadow-xs"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="h-8 w-8 rounded-lg bg-primary/10 group-hover:bg-primary/20 flex items-center justify-center transition-colors border border-primary/20">
+                      <Icon className="h-4 w-4 text-primary transition-transform group-hover:scale-110" />
+                    </div>
+                    <Badge variant="outline" className="font-mono text-[10px]">
+                      {sub.badge}
+                    </Badge>
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-foreground group-hover:text-primary transition-colors flex items-center justify-between">
+                      <span>{sub.title}</span>
+                      <ArrowUpRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </h4>
+                    <p className="text-[11px] text-muted-foreground line-clamp-2 mt-0.5">{sub.description}</p>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Clinical Quality & Infection Benchmarks */}
       <Card className="border-border shadow-xs">
