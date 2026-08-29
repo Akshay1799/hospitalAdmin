@@ -2533,3 +2533,5 @@ export interface MedicationReminderItem {
   status: "Pending" | "Sent";
 }
 
+export * from "./content-resources";
+
