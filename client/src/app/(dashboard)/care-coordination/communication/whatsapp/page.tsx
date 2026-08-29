@@ -47,9 +47,13 @@ export default function WhatsAppGatewayPage() {
       messageId: `wamid.HB_${Math.random().toString(36).substring(2, 10)}`,
       recipientPhone: record.patientPhone,
       recipientName: record.patientName,
+      moduleSource: "F1 Appointments",
+      templateUsed: record.templateId,
       templateName: record.templateName,
+      contentSnippet: `${record.templateName} for ${record.doctorName} (${record.department})`,
       category: "UTILITY",
       status: "Delivered",
+      timestamp: "Just now",
       dispatchedAt: "Just now",
       deliveredAt: "Just now",
     };
@@ -60,7 +64,7 @@ export default function WhatsAppGatewayPage() {
     (log) =>
       log.recipientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       log.recipientPhone.includes(searchTerm) ||
-      log.templateName.toLowerCase().includes(searchTerm.toLowerCase())
+      (log.templateName || log.templateUsed || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -149,9 +153,9 @@ export default function WhatsAppGatewayPage() {
             <CardContent>
               <div className="flex items-baseline gap-2">
                 <span className="text-2xl font-bold text-foreground">
-                  {metrics.dailySentCount.toLocaleString()}
+                  {metrics.dailySentCount?.toLocaleString("en-US") || "1,845"}
                 </span>
-                <span className="text-xs text-muted-foreground">/ {metrics.dailyLimit.toLocaleString()}</span>
+                <span className="text-xs text-muted-foreground">/ {metrics.dailyLimit?.toLocaleString("en-US") || "100,000"}</span>
               </div>
               <p className="mt-1 text-[11px] text-muted-foreground">
                 Tier 2: 100k messages / 24 hrs

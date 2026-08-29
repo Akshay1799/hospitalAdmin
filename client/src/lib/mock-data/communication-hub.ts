@@ -116,11 +116,17 @@ export const mockWhatsAppGatewayMetrics: WhatsAppGatewayMetrics = {
   deliveryRate: 99.4,
   readRate: 88.2,
   apiHealth: "Operational",
+  status: "Operational",
   latencyMs: 340,
+  averageLatencyMs: 340,
   activeSessions: 64,
   totalSentToday: 1845,
+  dailySentCount: 1845,
+  dailyLimit: 100000,
   totalFailedToday: 11,
+  phoneNumber: "+91 80 4911 2200 (Verified Business)",
   webhookStatus: "Connected",
+  lastPing: "Just now (42ms)",
 };
 
 export const mockWhatsAppMessageLogs: WhatsAppMessageLog[] = [

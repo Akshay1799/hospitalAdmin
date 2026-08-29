@@ -47,16 +47,21 @@ export default function CommunicationLogsPage() {
   const [selectedLog, setSelectedLog] = useState<DeliveryAuditLog | null>(null);
 
   const filteredLogs = logs.filter((log) => {
+    const content = (log.contentSnippet || log.messageSummary || "").toLowerCase();
+    const source = (log.triggerSource || log.sourceModule || "").toLowerCase();
+    const status = (log.status || log.deliveryStatus || "").toLowerCase();
+    const channel = (log.channel || "").toLowerCase();
+
     const matchesSearch =
       log.recipientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       log.recipientContact.includes(searchTerm) ||
-      log.contentSnippet.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      log.triggerSource.toLowerCase().includes(searchTerm.toLowerCase());
+      content.includes(searchTerm.toLowerCase()) ||
+      source.includes(searchTerm.toLowerCase());
 
     const matchesStatus =
-      statusFilter === "all" || log.status.toLowerCase() === statusFilter.toLowerCase();
+      statusFilter === "all" || status === statusFilter.toLowerCase();
     const matchesChannel =
-      channelFilter === "all" || log.channel.toLowerCase() === channelFilter.toLowerCase();
+      channelFilter === "all" || channel === channelFilter.toLowerCase();
 
     return matchesSearch && matchesStatus && matchesChannel;
   });
@@ -286,29 +291,29 @@ export default function CommunicationLogsPage() {
                       </td>
                       <td className="px-4 py-3">
                         <Badge variant="secondary" className="text-[10px] font-mono">
-                          {log.triggerSource}
+                          {log.triggerSource || log.sourceModule || "General"}
                         </Badge>
                       </td>
                       <td className="px-4 py-3 max-w-xs truncate text-muted-foreground">
-                        {log.contentSnippet}
+                        {log.contentSnippet || log.messageSummary || "-"}
                       </td>
                       <td className="px-4 py-3">
-                        {log.status === "Read" && (
+                        {(log.status === "Read" || log.deliveryStatus === "Read") && (
                           <Badge className="bg-blue-500/10 text-blue-600 border border-blue-500/20 text-[10px]">
                             Read
                           </Badge>
                         )}
-                        {log.status === "Delivered" && (
+                        {(log.status === "Delivered" || log.deliveryStatus === "Delivered") && (
                           <Badge className="bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 text-[10px]">
                             Delivered
                           </Badge>
                         )}
-                        {log.status === "Sent" && (
+                        {(log.status === "Sent" || log.deliveryStatus === "Sent") && (
                           <Badge className="bg-amber-500/10 text-amber-600 border border-amber-500/20 text-[10px]">
                             Sent
                           </Badge>
                         )}
-                        {log.status === "Failed" && (
+                        {(log.status === "Failed" || log.deliveryStatus === "Failed") && (
                           <Badge variant="destructive" className="text-[10px]">
                             Failed
                           </Badge>
@@ -363,7 +368,7 @@ export default function CommunicationLogsPage() {
                 </div>
                 <div>
                   <span className="text-muted-foreground block text-[10px] uppercase font-bold">Trigger Source</span>
-                  <span className="font-mono">{selectedLog.triggerSource}</span>
+                  <span className="font-mono">{selectedLog.triggerSource || selectedLog.sourceModule}</span>
                 </div>
                 <div>
                   <span className="text-muted-foreground block text-[10px] uppercase font-bold">Dispatch Timestamp</span>
@@ -371,7 +376,7 @@ export default function CommunicationLogsPage() {
                 </div>
                 <div>
                   <span className="text-muted-foreground block text-[10px] uppercase font-bold">Delivery Status</span>
-                  <span className="font-semibold text-emerald-600">{selectedLog.status}</span>
+                  <span className="font-semibold text-emerald-600">{selectedLog.status || selectedLog.deliveryStatus}</span>
                 </div>
               </div>
 
@@ -380,7 +385,7 @@ export default function CommunicationLogsPage() {
                   Dispatched Text Content
                 </label>
                 <div className="p-3 bg-muted/50 rounded border border-border text-foreground font-sans leading-relaxed">
-                  {selectedLog.contentSnippet}
+                  {selectedLog.contentSnippet || selectedLog.messageSummary || "-"}
                 </div>
               </div>
 

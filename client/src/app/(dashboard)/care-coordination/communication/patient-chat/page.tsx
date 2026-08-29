@@ -81,7 +81,7 @@ export default function PatientChatPage() {
     (t) =>
       t.patientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       t.patientUhid.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      t.department.toLowerCase().includes(searchTerm.toLowerCase())
+      (t.department || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -240,7 +240,15 @@ export default function PatientChatPage() {
             {/* Message Stream */}
             <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-muted/10">
               {activeThread.messages.map((msg) => {
-                const isPatient = msg.senderType === "Patient";
+                const isPatient =
+                  msg.senderType === "Patient" || msg.senderType === "patient";
+                const messageBody = msg.content || msg.text || "";
+                const attachmentName =
+                  msg.attachment?.name || msg.attachmentName || "Attachment";
+                const attachmentType =
+                  msg.attachment?.type || msg.attachmentType || "file";
+                const hasAttachment = Boolean(msg.attachment || msg.isAttachment);
+
                 return (
                   <div
                     key={msg.id}
@@ -262,9 +270,9 @@ export default function PatientChatPage() {
                           : "bg-primary text-primary-foreground rounded-tr-sm"
                       }`}
                     >
-                      <p>{msg.content}</p>
+                      {messageBody && <p>{messageBody}</p>}
 
-                      {msg.attachment && (
+                      {hasAttachment && (
                         <div
                           className={`mt-2 rounded-lg border p-2 flex items-center gap-2 ${
                             isPatient
@@ -275,10 +283,10 @@ export default function PatientChatPage() {
                           <ImageIcon className="h-4 w-4 shrink-0" />
                           <div className="min-w-0 flex-1">
                             <span className="text-[11px] font-medium block truncate">
-                              {msg.attachment.name}
+                              {attachmentName}
                             </span>
                             <span className="text-[9px] opacity-80 uppercase font-mono">
-                              {msg.attachment.type} attachment
+                              {attachmentType} attachment
                             </span>
                           </div>
                         </div>

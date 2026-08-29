@@ -64,14 +64,14 @@ export default function CommunicationHubOverviewPage() {
   const filteredLogs = logs.filter((log) => {
     const matchesSearch =
       log.recipientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      log.sourceModule.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      log.messageSummary.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (log.sourceModule || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (log.messageSummary || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
       (log.recipientUhid && log.recipientUhid.toLowerCase().includes(searchTerm.toLowerCase()));
 
     const matchesChannel =
-      channelFilter === "all" || log.channel.toLowerCase() === channelFilter.toLowerCase();
+      channelFilter === "all" || (log.channel || "").toLowerCase() === channelFilter.toLowerCase();
     const matchesStatus =
-      statusFilter === "all" || log.deliveryStatus.toLowerCase() === statusFilter.toLowerCase();
+      statusFilter === "all" || (log.deliveryStatus || "").toLowerCase() === statusFilter.toLowerCase();
 
     return matchesSearch && matchesChannel && matchesStatus;
   });

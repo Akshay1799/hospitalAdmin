@@ -2314,32 +2314,52 @@ export interface WhatsAppGatewayMetrics {
   totalSentToday: number;
   totalFailedToday: number;
   webhookStatus: "Connected" | "Disconnected";
+  status?: "Operational" | "Degraded" | "Down";
+  phoneNumber?: string;
+  dailySentCount?: number;
+  dailyLimit?: number;
+  averageLatencyMs?: number;
+  lastPing?: string;
 }
 
 export interface WhatsAppMessageLog {
   id: string;
+  messageId?: string;
   recipientName: string;
   recipientPhone: string;
   moduleSource: string;
-  templateUsed: string;
+  templateUsed?: string;
+  templateName?: string;
+  category?: string;
   contentSnippet: string;
   status: "Sent" | "Delivered" | "Read" | "Failed";
   timestamp: string;
+  dispatchedAt?: string;
+  deliveredAt?: string;
+  readAt?: string;
   errorMessage?: string;
+  failureReason?: string;
   cost?: number;
 }
 
-export interface ChatMessage {
+export type WhatsAppAuditLogItem = WhatsAppMessageLog;
+
+export interface PatientChatMessage {
   id: string;
-  senderType: "patient" | "care_coordinator" | "nurse" | "doctor";
+  senderType: "patient" | "care_coordinator" | "nurse" | "doctor" | "Patient" | "Staff";
   senderName: string;
-  text: string;
+  content?: string;
+  text?: string;
   timestamp: string;
   readAt?: string;
+  status?: "Sent" | "Delivered" | "Read" | "Failed";
+  attachment?: { name: string; type: string };
   isAttachment?: boolean;
   attachmentName?: string;
   attachmentType?: string;
 }
+
+export type ChatMessage = PatientChatMessage;
 
 export interface PatientChatThread {
   id: string;
@@ -2353,12 +2373,18 @@ export interface PatientChatThread {
   lastMessageTime: string;
   unreadCount: number;
   channel: "Portal";
-  messages: ChatMessage[];
+  messages: PatientChatMessage[];
   department?: string;
   attendingDoctor?: string;
 }
 
-export type AppointmentMessageTrigger = "booking_confirmation" | "reminder_24h" | "reminder_2h" | "reschedule" | "cancellation";
+export type AppointmentMessageTrigger =
+  | "booking_confirmation"
+  | "reminder_24h"
+  | "reminder_2h"
+  | "reschedule"
+  | "rescheduled"
+  | "cancellation";
 
 export interface AppointmentMessageRecord {
   id: string;
@@ -2373,10 +2399,11 @@ export interface AppointmentMessageRecord {
   triggerType: AppointmentMessageTrigger;
   templateId: string;
   templateName: string;
-  channel: "WhatsApp" | "SMS";
-  status: "Scheduled" | "Sent" | "Delivered" | "Failed";
+  channel: "WhatsApp" | "SMS" | MessageChannel;
+  status: "Scheduled" | "Sent" | "Delivered" | "Failed" | "Read";
   dispatchedAt?: string;
   scheduledFor?: string;
+  sentAt?: string;
 }
 
 export interface ClinicalNote {
@@ -2426,17 +2453,33 @@ export interface BroadcastRecord {
 
 export interface UnifiedDeliveryLogItem {
   id: string;
-  sourceModule: "F1 Appointments" | "F3 Emergency" | "F5 Follow-ups" | "F13 Lab" | "F14 Radiology" | "F22 Reports Review" | "Reception" | "Care Team";
+  sourceModule?:
+    | "F1 Appointments"
+    | "F3 Emergency"
+    | "F5 Follow-ups"
+    | "F13 Lab"
+    | "F14 Radiology"
+    | "F22 Reports Review"
+    | "Reception"
+    | "Care Team"
+    | "Hospital Operations"
+    | string;
+  triggerSource?: string;
   recipientName: string;
   recipientUhid?: string;
   recipientContact: string;
-  channel: "WhatsApp" | "SMS" | "Portal" | "Phone Call" | "Broadcast";
-  templateUsed: string;
-  messageSummary: string;
-  deliveryStatus: "Delivered" | "Read" | "Sent" | "Failed";
+  channel: "WhatsApp" | "SMS" | "Portal" | "Phone Call" | "Broadcast" | string;
+  templateUsed?: string;
+  messageSummary?: string;
+  contentSnippet?: string;
+  deliveryStatus?: "Delivered" | "Read" | "Sent" | "Failed" | string;
+  status?: "Delivered" | "Read" | "Sent" | "Failed" | string;
   timestamp: string;
+  failureReason?: string;
   metadata?: Record<string, any>;
 }
+
+export type DeliveryAuditLog = UnifiedDeliveryLogItem;
 
 export type ReportNotificationKind = "sign_off" | "panic_value" | "portal_ready";
 

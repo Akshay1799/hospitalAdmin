@@ -290,9 +290,14 @@ export default function AppointmentMessagesPage() {
                             2h Token Alert
                           </Badge>
                         )}
-                        {msg.triggerType === "rescheduled" && (
+                        {(msg.triggerType === "rescheduled" || msg.triggerType === "reschedule") && (
                           <Badge variant="outline" className="text-[10px] text-amber-600 border-amber-500/30 bg-amber-500/10">
                             Rescheduled Notice
+                          </Badge>
+                        )}
+                        {msg.triggerType === "cancellation" && (
+                          <Badge variant="outline" className="text-[10px] text-rose-600 border-rose-500/30 bg-rose-500/10">
+                            Cancelled Notice
                           </Badge>
                         )}
                       </td>
@@ -322,9 +327,19 @@ export default function AppointmentMessagesPage() {
                             Sent
                           </Badge>
                         )}
+                        {msg.status === "Scheduled" && (
+                          <Badge className="bg-purple-500/10 text-purple-600 border border-purple-500/20 text-[10px]">
+                            Scheduled
+                          </Badge>
+                        )}
+                        {msg.status === "Failed" && (
+                          <Badge className="bg-rose-500/10 text-rose-600 border border-rose-500/20 text-[10px]">
+                            Failed
+                          </Badge>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-right font-mono text-[11px] text-muted-foreground">
-                        {msg.sentAt}
+                        {msg.dispatchedAt || msg.scheduledFor || msg.sentAt || "-"}
                       </td>
                     </tr>
                   ))}
