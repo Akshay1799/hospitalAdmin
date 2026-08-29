@@ -40,34 +40,34 @@ import { BookConsultationModal } from "@/components/verification/BookConsultatio
 import { mockPublicHospitalProfile, mockDoctorAffiliations } from "@/lib/mock-data/verification-cases";
 import { DoctorAffiliationVerification } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
+import { useSelector } from "react-redux";
+import { RootState } from "@/store/store";
 
 export default function PublicProfilePreviewPage() {
   const { toast } = useToast();
-  const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState("hospital-card");
+  const profileState = useSelector((state: RootState) => state.hospitalProfile);
 
   // Booking Modal State
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   const [selectedDoctorForBooking, setSelectedDoctorForBooking] = useState<DoctorAffiliationVerification | null>(null);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted) {
-    return (
-      <div className="space-y-4 animate-fade-in pb-12">
-        <PageHeader
-          title="Public Profile &amp; Search Preview Workstation"
-          description="Simulate exactly how verified institution and doctor credentials appear in Qlyno Public Search."
-          crumbs={[{ label: "Administration" }, { label: "Verifications", href: "/verification" }, { label: "Public Preview" }]}
-        />
-        <div className="h-48 flex items-center justify-center text-xs text-muted-foreground">
-          Loading preview workstation...
-        </div>
-      </div>
-    );
-  }
+  const hospitalName = profileState?.basicInfo?.hospitalName || mockPublicHospitalProfile.hospitalName;
+  const tagline = profileState?.basicInfo?.tagline || mockPublicHospitalProfile.tagline;
+  const address = profileState?.contactInfo?.address
+    ? `${profileState.contactInfo.address}, ${profileState.contactInfo.city || ""} ${profileState.contactInfo.postalCode || ""}`.trim()
+    : mockPublicHospitalProfile.address;
+  const contactPhone = profileState?.contactInfo?.generalPhone || mockPublicHospitalProfile.contactPhone;
+  const emergencyHelpline = profileState?.contactInfo?.emergencyHelpline || mockPublicHospitalProfile.emergencyHelpline;
+  const accreditations = profileState?.basicInfo?.accreditationBadges?.length
+    ? profileState.basicInfo.accreditationBadges
+    : mockPublicHospitalProfile.accreditations;
+  const verifiedCapabilities = profileState?.facilityHighlights?.length
+    ? profileState.facilityHighlights.map((f) => f.name)
+    : mockPublicHospitalProfile.verifiedCapabilities;
+  const specialties = profileState?.departmentFeatures?.filter((d) => d.featured)?.length
+    ? profileState.departmentFeatures.filter((d) => d.featured).map((d) => d.name)
+    : mockPublicHospitalProfile.specialties;
 
   const liveDoctors = mockDoctorAffiliations.filter((d) => d.publicSearchStatus === "Live / Searchable");
 
@@ -181,12 +181,12 @@ export default function PublicProfilePreviewPage() {
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <h3 className="text-base font-bold text-foreground flex items-center gap-1.5">
-                      {mockPublicHospitalProfile.hospitalName}
+                      {hospitalName}
                       <Badge className="bg-emerald-600 text-white text-[9px] px-1.5 py-0">
                         ✓ Verified
                       </Badge>
                     </h3>
-                    <p className="text-muted-foreground text-xs">{mockPublicHospitalProfile.tagline}</p>
+                    <p className="text-muted-foreground text-xs">{tagline}</p>
                   </div>
                   <div className="flex items-center gap-1 bg-amber-500/10 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded font-bold text-xs">
                     <Star className="h-3 w-3 fill-amber-500 text-amber-500" /> 4.9 (1,240 Reviews)
@@ -195,11 +195,11 @@ export default function PublicProfilePreviewPage() {
 
                 <div className="flex items-center gap-1 text-muted-foreground text-[11px]">
                   <MapPin className="h-3.5 w-3.5 shrink-0 text-primary" />
-                  <span>{mockPublicHospitalProfile.address}</span>
+                  <span>{address}</span>
                 </div>
 
                 <div className="flex flex-wrap gap-1.5 pt-1">
-                  {mockPublicHospitalProfile.accreditations.map((acc, idx) => (
+                  {accreditations.map((acc, idx) => (
                     <Badge key={idx} variant="outline" className="text-[10px] bg-muted/30">
                       {acc}
                     </Badge>
@@ -211,7 +211,7 @@ export default function PublicProfilePreviewPage() {
             <div className="p-3 rounded-lg bg-muted/20 border border-border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs">
               <div className="flex items-center gap-2 text-primary font-semibold">
                 <HeartPulse className="h-4 w-4 text-rose-600" />
-                <span>24/7 Emergency Helpline: <strong>{mockPublicHospitalProfile.emergencyHelpline}</strong></span>
+                <span>24/7 Emergency Helpline: <strong>{emergencyHelpline}</strong></span>
               </div>
               <Button
                 size="sm"
@@ -231,13 +231,13 @@ export default function PublicProfilePreviewPage() {
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
                 <div>
                   <CardTitle className="text-lg font-bold text-foreground flex items-center gap-2">
-                    {mockPublicHospitalProfile.hospitalName}
+                    {hospitalName}
                     <Badge className="bg-emerald-600 text-white text-[10px]">
                       ✓ Qlyno Verified Institution
                     </Badge>
                   </CardTitle>
                   <CardDescription className="text-xs mt-0.5">
-                    {mockPublicHospitalProfile.address} • Phone: {mockPublicHospitalProfile.contactPhone}
+                    {address} • Phone: {contactPhone}
                   </CardDescription>
                 </div>
                 <div className="flex items-center gap-2">
@@ -254,7 +254,7 @@ export default function PublicProfilePreviewPage() {
                   Verified Clinical Capabilities &amp; Infrastructure
                 </span>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  {mockPublicHospitalProfile.verifiedCapabilities.map((cap, idx) => (
+                  {verifiedCapabilities.map((cap, idx) => (
                     <div key={idx} className="p-2.5 rounded-lg border border-border bg-card flex items-center gap-2">
                       <ShieldCheck className="h-4 w-4 text-emerald-600 shrink-0" />
                       <span className="font-medium text-foreground">{cap}</span>
@@ -269,7 +269,7 @@ export default function PublicProfilePreviewPage() {
                   Accredited Clinical Specialties
                 </span>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {mockPublicHospitalProfile.specialties.map((spec, idx) => (
+                  {specialties.map((spec, idx) => (
                     <div key={idx} className="p-2 rounded bg-muted/20 border border-border flex items-center gap-1.5">
                       <Stethoscope className="h-3.5 w-3.5 text-primary shrink-0" />
                       <span>{spec}</span>

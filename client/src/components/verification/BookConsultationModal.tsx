@@ -96,11 +96,12 @@ export function BookConsultationModal({
     }
   }, [isOpen, doctor]);
 
-  if (!doctor && !isOpen) return null;
+  if (!isOpen) return null;
 
-  const consultationFee = doctor?.specialty.includes("Cardiology") || doctor?.specialty.includes("Neurology")
-    ? 1200
-    : 800;
+  const consultationFee =
+    doctor?.specialty?.includes("Cardiology") || doctor?.specialty?.includes("Neurology")
+      ? 1200
+      : 800;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -123,6 +124,10 @@ export function BookConsultationModal({
     }, 300);
   };
 
+  const doctorInitials = doctor?.doctorName
+    ? doctor.doctorName.split(" ").filter(Boolean).map((n) => n[0]).join("")
+    : "DR";
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[520px] max-h-[90vh] overflow-y-auto">
@@ -143,7 +148,7 @@ export function BookConsultationModal({
             <Avatar className="h-12 w-12 border border-border shrink-0">
               <AvatarImage src={doctor.avatarUrl} alt={doctor.doctorName} />
               <AvatarFallback className="text-xs font-bold bg-primary/10 text-primary">
-                {doctor.doctorName.split(" ").map((n) => n[0]).join("")}
+                {doctorInitials}
               </AvatarFallback>
             </Avatar>
             <div className="space-y-0.5 flex-1 min-w-0">

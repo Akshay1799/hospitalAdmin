@@ -36,11 +36,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { CommunicationNav } from "@/components/care-coordination/communication/communication-nav";
-import { mockDeliveryLogs } from "@/lib/mock-data/communication-hub";
+import { mockUnifiedDeliveryLogs } from "@/lib/mock-data/communication-hub";
 import { DeliveryAuditLog } from "@/lib/types";
 
 export default function CommunicationLogsPage() {
-  const [logs, setLogs] = useState<DeliveryAuditLog[]>(mockDeliveryLogs);
+  const [logs, setLogs] = useState<DeliveryAuditLog[]>(mockUnifiedDeliveryLogs);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [channelFilter, setChannelFilter] = useState("all");

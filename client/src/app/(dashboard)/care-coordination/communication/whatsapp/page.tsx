@@ -23,13 +23,13 @@ import { CommunicationNav } from "@/components/care-coordination/communication/c
 import { SendAppointmentMessageModal } from "@/components/care-coordination/communication/SendAppointmentMessageModal";
 import {
   mockWhatsAppGatewayMetrics,
-  mockWhatsAppLogs,
+  mockWhatsAppMessageLogs,
 } from "@/lib/mock-data/communication-hub";
 import { WhatsAppAuditLogItem, AppointmentMessageRecord } from "@/lib/types";
 
 export default function WhatsAppGatewayPage() {
   const [metrics, setMetrics] = useState(mockWhatsAppGatewayMetrics);
-  const [logs, setLogs] = useState<WhatsAppAuditLogItem[]>(mockWhatsAppLogs);
+  const [logs, setLogs] = useState<WhatsAppAuditLogItem[]>(mockWhatsAppMessageLogs);
   const [searchTerm, setSearchTerm] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isSendOpen, setIsSendOpen] = useState(false);
