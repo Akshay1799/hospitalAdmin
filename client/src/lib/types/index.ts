@@ -2282,3 +2282,211 @@ export interface AddendumClarificationRequest {
   status: "sent_to_lab" | "sent_to_radiology" | "resolved";
   responseSummary?: string;
 }
+
+// ==========================================
+// MODULE F23: COMMUNICATION HUB TYPES
+// ==========================================
+
+export type MessageTemplateCategory = "Appointment" | "Report" | "Follow-up" | "Broadcast" | "Clinical";
+export type MessageChannel = "WhatsApp" | "SMS" | "Portal" | "Broadcast" | "Phone Call";
+export type MessageTemplateStatus = "Active" | "Draft" | "Archived";
+
+export interface MessageTemplate {
+  id: string;
+  templateId: string;
+  name: string;
+  category: MessageTemplateCategory;
+  channel: MessageChannel;
+  content: string;
+  variables: string[];
+  status: MessageTemplateStatus;
+  createdBy: string;
+  createdAt: string;
+  usageCount?: number;
+}
+
+export interface WhatsAppGatewayMetrics {
+  deliveryRate: number;
+  readRate: number;
+  apiHealth: "Operational" | "Degraded" | "Down";
+  latencyMs: number;
+  activeSessions: number;
+  totalSentToday: number;
+  totalFailedToday: number;
+  webhookStatus: "Connected" | "Disconnected";
+}
+
+export interface WhatsAppMessageLog {
+  id: string;
+  recipientName: string;
+  recipientPhone: string;
+  moduleSource: string;
+  templateUsed: string;
+  contentSnippet: string;
+  status: "Sent" | "Delivered" | "Read" | "Failed";
+  timestamp: string;
+  errorMessage?: string;
+  cost?: number;
+}
+
+export interface ChatMessage {
+  id: string;
+  senderType: "patient" | "care_coordinator" | "nurse" | "doctor";
+  senderName: string;
+  text: string;
+  timestamp: string;
+  readAt?: string;
+  isAttachment?: boolean;
+  attachmentName?: string;
+  attachmentType?: string;
+}
+
+export interface PatientChatThread {
+  id: string;
+  threadId: string;
+  patientId: string;
+  patientName: string;
+  patientUhid: string;
+  patientPhone: string;
+  avatarUrl?: string;
+  lastMessage: string;
+  lastMessageTime: string;
+  unreadCount: number;
+  channel: "Portal";
+  messages: ChatMessage[];
+  department?: string;
+  attendingDoctor?: string;
+}
+
+export type AppointmentMessageTrigger = "booking_confirmation" | "reminder_24h" | "reminder_2h" | "reschedule" | "cancellation";
+
+export interface AppointmentMessageRecord {
+  id: string;
+  appointmentId: string;
+  patientName: string;
+  patientUhid: string;
+  patientPhone: string;
+  doctorName: string;
+  department: string;
+  appointmentDate: string;
+  appointmentTime: string;
+  triggerType: AppointmentMessageTrigger;
+  templateId: string;
+  templateName: string;
+  channel: "WhatsApp" | "SMS";
+  status: "Scheduled" | "Sent" | "Delivered" | "Failed";
+  dispatchedAt?: string;
+  scheduledFor?: string;
+}
+
+export interface ClinicalNote {
+  id: string;
+  noteId: string;
+  patientId: string;
+  patientName: string;
+  patientUhid: string;
+  authorDoctorId: string;
+  authorDoctorName: string;
+  doctorSpecialty: string;
+  noteText: string;
+  visibility: "Care Team" | "Specific Recipients";
+  recipientRoles?: string[];
+  priority: "Routine" | "Urgent";
+  createdAt: string;
+  readBy: {
+    staffId: string;
+    staffName: string;
+    staffRole: string;
+    readAt: string;
+  }[];
+  isAddendum?: boolean;
+  parentNoteId?: string;
+}
+
+export type BroadcastType = "Code Blue" | "Operational" | "Emergency" | "Clinical Alert";
+export type BroadcastScope = "Hospital-wide" | "Department" | "Floor" | "ICU / OT Complex";
+export type BroadcastChannel = "SMS" | "WhatsApp" | "PA Screens" | "App Push";
+
+export interface BroadcastRecord {
+  id: string;
+  broadcastId: string;
+  type: BroadcastType;
+  title: string;
+  message: string;
+  channels: BroadcastChannel[];
+  targetScope: BroadcastScope;
+  targetDetail?: string;
+  triggeredBy: string;
+  triggeredByRole: string;
+  triggeredAt: string;
+  status: "Delivered" | "Active" | "Expired";
+  acknowledgedCount?: number;
+  targetAudienceSize?: number;
+}
+
+export interface UnifiedDeliveryLogItem {
+  id: string;
+  sourceModule: "F1 Appointments" | "F3 Emergency" | "F5 Follow-ups" | "F13 Lab" | "F14 Radiology" | "F22 Reports Review" | "Reception" | "Care Team";
+  recipientName: string;
+  recipientUhid?: string;
+  recipientContact: string;
+  channel: "WhatsApp" | "SMS" | "Portal" | "Phone Call" | "Broadcast";
+  templateUsed: string;
+  messageSummary: string;
+  deliveryStatus: "Delivered" | "Read" | "Sent" | "Failed";
+  timestamp: string;
+  metadata?: Record<string, any>;
+}
+
+export type ReportNotificationKind = "sign_off" | "panic_value" | "portal_ready";
+
+export interface ReportNotificationRecord {
+  id: string;
+  reportId: string;
+  patientName: string;
+  patientUhid: string;
+  patientPhone: string;
+  testName: string;
+  sourceModule: "F13 Lab" | "F14 Radiology" | "F22 Reports Review";
+  signedOffBy: string;
+  kind: ReportNotificationKind;
+  isCritical: boolean;
+  channel: "WhatsApp" | "SMS" | "Portal" | "Phone Call";
+  templateId: string;
+  status: "Scheduled" | "Sent" | "Delivered" | "Read" | "Failed";
+  dispatchedAt: string;
+}
+
+export type FollowUpReminderKind = "PostOp" | "ChronicReview" | "DiagnosticRepeat";
+
+export interface FollowUpReminderRecord {
+  id: string;
+  patientName: string;
+  patientUhid: string;
+  patientPhone: string;
+  doctorName: string;
+  department: string;
+  dueDate: string;
+  recallType: FollowUpReminderKind;
+  procedureOrCondition: string;
+  channel: "WhatsApp" | "SMS";
+  status: "Pending" | "Sent" | "Confirmed" | "Overdue";
+  scheduledFor: string;
+}
+
+export type MedicationReminderType = "Medication" | "FollowUp" | "LabTest";
+
+export interface MedicationReminderItem {
+  id: string;
+  patientName: string;
+  patientUhid: string;
+  patientPhone: string;
+  doctorName: string;
+  type: MedicationReminderType;
+  medicationOrService: string;
+  frequency: string;
+  scheduledTime: string;
+  channel: "WhatsApp" | "SMS";
+  status: "Pending" | "Sent";
+}
+
