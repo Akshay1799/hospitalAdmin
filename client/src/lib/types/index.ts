@@ -2534,4 +2534,5 @@ export interface MedicationReminderItem {
 }
 
 export * from "./content-resources";
+export * from "./patient-reviews";
 

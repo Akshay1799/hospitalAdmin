@@ -6,6 +6,7 @@ import surgicalReducer from './slices/surgicalSlice';
 import wardsBedsReducer from './slices/wardsBedsSlice';
 import hospitalProfileReducer from './slices/hospitalProfileSlice';
 import contentResourcesReducer from './slices/contentResourcesSlice';
+import patientReviewsReducer from './slices/patientReviewsSlice';
 
 export const store = configureStore({
   reducer: {
@@ -16,6 +17,7 @@ export const store = configureStore({
     wardsBeds: wardsBedsReducer,
     hospitalProfile: hospitalProfileReducer,
     contentResources: contentResourcesReducer,
+    patientReviews: patientReviewsReducer,
   },
 });
 
