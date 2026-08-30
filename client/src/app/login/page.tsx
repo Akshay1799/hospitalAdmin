@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Activity, Eye, EyeOff, Lock, Mail, ShieldCheck } from "lucide-react";
+import { Activity, Building2, Eye, EyeOff, HeartPulse, Lock, Mail, ShieldCheck } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -13,15 +13,20 @@ import { Separator } from "@/components/ui/separator";
 
 export default function LoginPage() {
   const router = useRouter();
+  const [role, setRole] = useState<"admin" | "nurse">("admin");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    // Frontend-only demo flow — wire this up to real authentication later.
+    // Role-based demo flow — redirect to appropriate console
     setTimeout(() => {
-      router.push("/dashboard");
+      if (role === "nurse") {
+        router.push("/nurses");
+      } else {
+        router.push("/dashboard");
+      }
     }, 600);
   }
 
@@ -63,14 +68,84 @@ export default function LoginPage() {
               </span>
             </div>
 
-            <h2 className="font-display text-xl font-semibold">Sign in to Hospital Admin</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Enter your credentials to access the admin panel.</p>
+            <h2 className="font-display text-xl font-semibold">Sign in to Portal</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Select your role and enter credentials to continue.</p>
 
             <form onSubmit={handleSubmit} className="mt-6 grid gap-4">
+              {/* Role Selection */}
+              <div className="grid gap-2">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Select Role</Label>
+                <div className="grid grid-cols-2 gap-3">
+                  <label
+                    htmlFor="role-admin"
+                    className={`relative flex cursor-pointer flex-col rounded-xl border p-3 transition-all ${
+                      role === "admin"
+                        ? "border-primary bg-primary/5 shadow-sm ring-1 ring-primary"
+                        : "border-border bg-card hover:bg-accent/40"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Building2 className={`h-4 w-4 ${role === "admin" ? "text-primary" : "text-muted-foreground"}`} />
+                        <span className="text-sm font-semibold">Hospital Admin</span>
+                      </div>
+                      <input
+                        id="role-admin"
+                        type="radio"
+                        name="portalRole"
+                        value="admin"
+                        checked={role === "admin"}
+                        onChange={() => setRole("admin")}
+                        className="h-4 w-4 accent-primary"
+                      />
+                    </div>
+                    <span className="mt-1 text-[11px] text-muted-foreground leading-snug">
+                      Full management & operations
+                    </span>
+                  </label>
+
+                  <label
+                    htmlFor="role-nurse"
+                    className={`relative flex cursor-pointer flex-col rounded-xl border p-3 transition-all ${
+                      role === "nurse"
+                        ? "border-primary bg-primary/5 shadow-sm ring-1 ring-primary"
+                        : "border-border bg-card hover:bg-accent/40"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <HeartPulse className={`h-4 w-4 ${role === "nurse" ? "text-primary" : "text-muted-foreground"}`} />
+                        <span className="text-sm font-semibold">Nurse Panel</span>
+                      </div>
+                      <input
+                        id="role-nurse"
+                        type="radio"
+                        name="portalRole"
+                        value="nurse"
+                        checked={role === "nurse"}
+                        onChange={() => setRole("nurse")}
+                        className="h-4 w-4 accent-primary"
+                      />
+                    </div>
+                    <span className="mt-1 text-[11px] text-muted-foreground leading-snug">
+                      Stations, roster & ward care
+                    </span>
+                  </label>
+                </div>
+              </div>
+
               <div className="grid gap-1.5">
                 <Label htmlFor="login-email">Work email</Label>
-                <Input id="login-email" type="email" icon={<Mail />} placeholder="admin@qlyno.health" required autoComplete="email" />
+                <Input
+                  id="login-email"
+                  type="email"
+                  icon={<Mail />}
+                  placeholder={role === "nurse" ? "nurse@qlyno.health" : "admin@qlyno.health"}
+                  required
+                  autoComplete="email"
+                />
               </div>
+
               <div className="grid gap-1.5">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="login-password">Password</Label>
@@ -97,8 +172,9 @@ export default function LoginPage() {
                   </button>
                 </div>
               </div>
+
               <Button type="submit" loading={loading} className="mt-2">
-                Sign in
+                Sign in to {role === "nurse" ? "Nurse Panel" : "Hospital Admin"}
               </Button>
             </form>
 
