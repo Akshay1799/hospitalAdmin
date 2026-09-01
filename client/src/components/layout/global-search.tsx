@@ -46,6 +46,9 @@ import {
 } from "@/lib/search/global-search-indexer";
 import { cn } from "@/lib/utils";
 
+import { useSelector } from "react-redux";
+import { RootState } from "@/store/store";
+
 const CATEGORIES = [
   "All",
   "Patients",
@@ -99,30 +102,60 @@ function getCategoryIcon(cat: SearchEntityCategory) {
     case "Bed / Ward":
       return <Bed className="h-4 w-4 text-cyan-600" />;
     case "Surgery & OT":
-      return <Zap className="h-4 w-4 text-purple-600" />;
+      return <Activity className="h-4 w-4 text-purple-600" />;
     case "Billing / Invoice":
-      return <CreditCard className="h-4 w-4 text-emerald-600" />;
+      return <CreditCard className="h-4 w-4 text-amber-600" />;
     case "Procurement & PO":
       return <ShoppingBag className="h-4 w-4 text-orange-600" />;
     case "Emergency SOS":
-      return <Flame className="h-4 w-4 text-rose-600" />;
+      return <ShieldAlert className="h-4 w-4 text-rose-600" />;
     case "Vendor":
-      return <Building2 className="h-4 w-4 text-slate-600" />;
+      return <Building2 className="h-4 w-4 text-blue-500" />;
     case "Report":
       return <FileBarChart className="h-4 w-4 text-sky-600" />;
-    case "Quick Action":
-      return <Sparkles className="h-4 w-4 text-primary" />;
     default:
-      return <Search className="h-4 w-4 text-muted-foreground" />;
+      return <FileText className="h-4 w-4 text-muted-foreground" />;
   }
 }
 
 export function GlobalSearch() {
   const router = useRouter();
+  const currentRole = useSelector((state: RootState) => state.nursingOperations.currentRole);
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [filterCategory, setFilterCategory] = useState<string>("All");
   const [selectedIndex, setSelectedIndex] = useState(0);
+
+  const roleSearchConfig = useMemo(() => {
+    switch (currentRole) {
+      case "nurse_lead":
+      case "senior_nurse":
+        return {
+          triggerPlaceholder: "Search nurses, patients, tasks, rosters...",
+          inputPlaceholder: "Search station nurses, support staff, inpatient beds, care tasks, rosters...",
+          categories: ["All", "Staff", "Patients", "Beds & Wards", "Tasks", "Emergency SOS"],
+        };
+      case "nurse":
+        return {
+          triggerPlaceholder: "Search assigned patients, MAR, tasks...",
+          inputPlaceholder: "Search assigned patients, vitals, MAR, care tasks, rosters...",
+          categories: ["All", "Patients", "Beds & Wards", "Tasks", "Emergency SOS"],
+        };
+      case "support_staff":
+        return {
+          triggerPlaceholder: "Search operational tasks, duty rosters...",
+          inputPlaceholder: "Search assigned operational tasks, room cleaning, duty rosters...",
+          categories: ["All", "Tasks", "Beds & Wards"],
+        };
+      case "admin":
+      default:
+        return {
+          triggerPlaceholder: "Search patients, doctors, beds, invoices, SOS...",
+          inputPlaceholder: "Type to search patients, doctors, beds, surgeries, invoices, emergency...",
+          categories: CATEGORIES,
+        };
+    }
+  }, [currentRole]);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -201,9 +234,9 @@ export function GlobalSearch() {
         onClick={() => setIsOpen(true)}
         className="flex h-9 w-full max-w-sm items-center justify-between rounded-lg border border-input bg-background/80 px-3 text-xs text-muted-foreground shadow-xs transition-colors hover:bg-accent/40 hover:text-foreground focus:outline-hidden"
       >
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 min-w-0">
           <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
-          <span className="truncate">Search patients, doctors, beds, invoices, SOS...</span>
+          <span className="truncate">{roleSearchConfig.triggerPlaceholder}</span>
         </div>
         <kbd className="pointer-events-none hidden h-5 select-none items-center gap-1 rounded-sm border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground sm:flex">
           <span className="text-xs">⌘</span>K
@@ -213,14 +246,14 @@ export function GlobalSearch() {
       {/* SPOTLIGHT COMMAND PALETTE DIALOG */}
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent className="sm:max-w-2xl p-0 gap-0 overflow-hidden border-border bg-card shadow-2xl rounded-2xl">
-          <DialogTitle className="sr-only">Global Hospital Search &amp; Command Palette</DialogTitle>
+          <DialogTitle className="sr-only">Hospital Search &amp; Command Palette</DialogTitle>
 
           {/* SEARCH INPUT BAR */}
           <div className="flex items-center gap-2 border-b border-border px-4 py-3 bg-muted/20">
             <Search className="h-5 w-5 shrink-0 text-primary" />
             <Input
               ref={inputRef}
-              placeholder="Type to search patients, doctors, beds, surgeries, invoices, emergency..."
+              placeholder={roleSearchConfig.inputPlaceholder}
               className="border-0 shadow-none text-sm focus-visible:ring-0 px-0 h-8 bg-transparent"
               value={query}
               onChange={(e) => {
@@ -244,7 +277,7 @@ export function GlobalSearch() {
 
           {/* CATEGORY FILTER PILLS */}
           <div className="flex items-center gap-1 overflow-x-auto px-4 py-2 border-b border-border/50 bg-muted/10 scrollbar-none text-[11px]">
-            {CATEGORIES.map((cat) => (
+            {roleSearchConfig.categories.map((cat) => (
               <button
                 key={cat}
                 onClick={() => {

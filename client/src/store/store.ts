@@ -9,6 +9,7 @@ import contentResourcesReducer from './slices/contentResourcesSlice';
 import patientReviewsReducer from './slices/patientReviewsSlice';
 import documentsReducer from './slices/documentsSlice';
 import integrationsReducer from './slices/integrationsSlice';
+import nursingOperationsReducer from './slices/nursingOperationsSlice';
 
 export const store = configureStore({
   reducer: {
@@ -22,6 +23,7 @@ export const store = configureStore({
     patientReviews: patientReviewsReducer,
     documents: documentsReducer,
     integrations: integrationsReducer,
+    nursingOperations: nursingOperationsReducer,
   },
 });
 

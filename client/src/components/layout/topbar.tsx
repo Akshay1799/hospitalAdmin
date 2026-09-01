@@ -1,23 +1,37 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Activity,
+  AlertTriangle,
+  Ambulance,
+  ArrowRight,
   Bed,
   Bell,
   Building2,
+  Calendar,
+  CalendarClock,
+  CalendarDays,
+  CheckCircle2,
   ChevronDown,
+  Clock,
   FileBarChart,
+  FileText,
+  HeartPulse,
   Menu,
+  Pill,
   Plus,
+  Radio,
   Search,
   ShieldAlert,
   ShoppingBag,
   Siren,
+  Sparkles,
   Stethoscope,
   UserPlus,
   Users,
+  UsersRound,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -38,13 +52,37 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useSelector } from "react-redux";
+import { RootState } from "@/store/store";
+import { getWorkspaceMetaForRole } from "@/components/layout/nav-items";
 import { SidebarNav } from "@/components/layout/sidebar";
 import { mockExtendedNotifications } from "@/lib/mock-data/notifications-extended";
 import { GlobalSearch } from "@/components/layout/global-search";
 
 export function Topbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const currentRole = useSelector((state: RootState) => state.nursingOperations.currentRole);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const effectiveRole = mounted ? currentRole : "nurse_lead";
+  const meta = getWorkspaceMetaForRole(effectiveRole);
   const unread = mockExtendedNotifications.filter((n) => n.status === "Unread").length;
+
+  const dispatchStationAction = (action: string) => {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("nurse-station-action", { detail: action }));
+    }
+  };
+
+  const dispatchNurseAction = (action: string) => {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("nurse-action", { detail: action }));
+    }
+  };
 
   return (
     <TooltipProvider delayDuration={200}>
@@ -59,8 +97,11 @@ export function Topbar() {
           </SheetContent>
         </Sheet>
 
-        <div className="hidden flex-1 sm:block">
+        <div className="hidden flex-1 sm:flex items-center gap-3">
           <GlobalSearch />
+          <Badge variant="outline" className="hidden xl:inline-flex text-[11px] font-semibold text-muted-foreground border-border bg-muted/40 py-1">
+            Role: <span className="text-foreground ml-1 font-bold">{meta.profileRole}</span>
+          </Badge>
         </div>
         <div className="flex-1 sm:hidden" />
 
@@ -98,27 +139,28 @@ export function Topbar() {
                         <span className="text-xs font-semibold text-foreground truncate">{n.title}</span>
                         {n.status === "Unread" && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />}
                       </div>
-                      <p className="line-clamp-2 text-[11px] text-muted-foreground">{n.message}</p>
+                      <span className="text-[11px] text-muted-foreground line-clamp-1">{n.message}</span>
+                      <span className="text-[10px] text-muted-foreground/70">
+                        {new Date(n.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      </span>
                     </Link>
                   </DropdownMenuItem>
                 ))}
               </div>
               <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link href="/notifications" className="justify-center text-center text-xs font-semibold text-primary">
-                  Open Full Notification Center &rarr;
-                </Link>
+              <DropdownMenuItem asChild className="justify-center text-center text-xs font-semibold text-primary">
+                <Link href="/notifications">View All Notifications</Link>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* 2. Emergency Button with Icon & Text (with Tooltip) */}
+          {/* 2. Emergency Direct Action Button */}
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
                 variant="outline"
                 size="sm"
-                className="relative gap-1.5 h-9 font-semibold text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive shadow-sm"
+                className="h-9 gap-1.5 text-xs font-semibold text-destructive border-destructive/30 bg-destructive/5 hover:bg-destructive/10 hover:border-destructive/50"
                 asChild
               >
                 <Link href="/emergency">
@@ -132,7 +174,7 @@ export function Topbar() {
             </TooltipContent>
           </Tooltip>
 
-          {/* 3. Quick Action Button & Dropdown */}
+          {/* 3. Role-Based Quick Action Button & Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button size="sm" className="gap-1.5 h-9 font-medium shadow-sm">
@@ -141,79 +183,271 @@ export function Topbar() {
                 <ChevronDown className="h-3.5 w-3.5 opacity-70" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-64">
-              <DropdownMenuLabel className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-                Quick Actions
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuGroup>
-                <DropdownMenuItem asChild>
-                  <Link href="/verification" className="flex items-center gap-2.5 cursor-pointer text-xs">
-                    <UserPlus className="h-4 w-4 text-teal-600" />
-                    <span>Add Doctor</span>
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/staff" className="flex items-center gap-2.5 cursor-pointer text-xs">
-                    <Users className="h-4 w-4 text-blue-600" />
-                    <span>Add Staff</span>
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/departments" className="flex items-center gap-2.5 cursor-pointer text-xs">
-                    <Building2 className="h-4 w-4 text-indigo-600" />
-                    <span>Create Department</span>
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/wards-beds" className="flex items-center gap-2.5 cursor-pointer text-xs">
-                    <Bed className="h-4 w-4 text-cyan-600" />
-                    <span>Allocate Bed</span>
-                  </Link>
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-              <DropdownMenuSeparator />
-              <DropdownMenuGroup>
-                <DropdownMenuItem asChild>
-                  <Link href="/surgical-cases/create" className="flex items-center gap-2.5 cursor-pointer text-xs">
-                    <Activity className="h-4 w-4 text-purple-600" />
-                    <span>Create Surgery Case</span>
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/surgical-cases/surgeon-requests" className="flex items-center gap-2.5 cursor-pointer text-xs">
-                    <Stethoscope className="h-4 w-4 text-primary" />
-                    <span>Request Surgeon</span>
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/procurement/create" className="flex items-center gap-2.5 cursor-pointer text-xs">
-                    <ShoppingBag className="h-4 w-4 text-orange-600" />
-                    <span>Request Vendor</span>
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/reports" className="flex items-center gap-2.5 cursor-pointer text-xs">
-                    <FileBarChart className="h-4 w-4 text-sky-600" />
-                    <span>Generate Report</span>
-                  </Link>
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-              <DropdownMenuSeparator />
-              <DropdownMenuGroup>
-                <DropdownMenuItem asChild>
-                  <Link href="/emergency" className="flex items-center gap-2.5 cursor-pointer text-xs text-destructive font-semibold focus:text-destructive">
-                    <ShieldAlert className="h-4 w-4 text-destructive" />
-                    <span>Emergency Control</span>
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/ambulance" className="flex items-center gap-2.5 cursor-pointer text-xs text-rose-600 font-semibold focus:text-rose-600">
-                    <Siren className="h-4 w-4 text-rose-600" />
-                    <span>Dispatch Ambulance</span>
-                  </Link>
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
+            
+            <DropdownMenuContent align="end" className="w-68">
+              {/* NURSE STATION LEAD QUICK ACTIONS (All 9 Source-Defined Actions) */}
+              {currentRole === "nurse_lead" && (
+                <>
+                  <DropdownMenuLabel className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+                    Nurse Station Quick Actions
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuGroup>
+                    <DropdownMenuItem asChild onClick={() => dispatchStationAction("add-nurse")}>
+                      <Link href="/nurse-station?action=add-nurse" className="flex items-center gap-2.5 cursor-pointer text-xs">
+                        <UserPlus className="h-4 w-4 text-blue-600" />
+                        <span>Add Nurse</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild onClick={() => dispatchStationAction("add-support-staff")}>
+                      <Link href="/nurse-station?action=add-support-staff" className="flex items-center gap-2.5 cursor-pointer text-xs">
+                        <Sparkles className="h-4 w-4 text-purple-600" />
+                        <span>Add Support Staff</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild onClick={() => dispatchStationAction("create-shift")}>
+                      <Link href="/nurse-station?action=create-shift" className="flex items-center gap-2.5 cursor-pointer text-xs">
+                        <Calendar className="h-4 w-4 text-indigo-600" />
+                        <span>Create Shift</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild onClick={() => dispatchStationAction("roster")}>
+                      <Link href="/roster" className="flex items-center gap-2.5 cursor-pointer text-xs">
+                        <CalendarDays className="h-4 w-4 text-teal-600" />
+                        <span>Create Roster</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuGroup>
+                    <DropdownMenuItem asChild onClick={() => dispatchStationAction("assign-patient")}>
+                      <Link href="/nurse-station?action=assign-patient" className="flex items-center gap-2.5 cursor-pointer text-xs">
+                        <Users className="h-4 w-4 text-cyan-600" />
+                        <span>Assign Patient</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild onClick={() => dispatchStationAction("assign-task")}>
+                      <Link href="/nurse-station?action=assign-task" className="flex items-center gap-2.5 cursor-pointer text-xs">
+                        <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                        <span>Assign Task</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild onClick={() => dispatchStationAction("start-handover")}>
+                      <Link href="/nurse-station?action=start-handover" className="flex items-center gap-2.5 cursor-pointer text-xs">
+                        <ArrowRight className="h-4 w-4 text-amber-600" />
+                        <span>Start Handover</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild onClick={() => dispatchStationAction("broadcast")}>
+                      <Link href="/nurse-station?action=broadcast" className="flex items-center gap-2.5 cursor-pointer text-xs">
+                        <Radio className="h-4 w-4 text-violet-600" />
+                        <span>Broadcast Message</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild onClick={() => dispatchStationAction("exceptions")}>
+                      <Link href="/nurse-station?action=exceptions" className="flex items-center gap-2.5 cursor-pointer text-xs text-destructive font-semibold">
+                        <AlertTriangle className="h-4 w-4 text-destructive" />
+                        <span>View Exceptions</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
+                </>
+              )}
+
+              {/* SENIOR NURSE QUICK ACTIONS */}
+              {currentRole === "senior_nurse" && (
+                <>
+                  <DropdownMenuLabel className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+                    Care Coordination Quick Actions
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuGroup>
+                    <DropdownMenuItem asChild onClick={() => dispatchStationAction("roster")}>
+                      <Link href="/roster" className="flex items-center gap-2.5 cursor-pointer text-xs">
+                        <CalendarDays className="h-4 w-4 text-teal-600" />
+                        <span>Create Roster</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild onClick={() => dispatchStationAction("assign-patient")}>
+                      <Link href="/nurse-station?action=assign-patient" className="flex items-center gap-2.5 cursor-pointer text-xs">
+                        <Users className="h-4 w-4 text-cyan-600" />
+                        <span>Assign Patient</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild onClick={() => dispatchStationAction("assign-task")}>
+                      <Link href="/nurse-station?action=assign-task" className="flex items-center gap-2.5 cursor-pointer text-xs">
+                        <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                        <span>Assign Task</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuGroup>
+                    <DropdownMenuItem asChild onClick={() => dispatchStationAction("start-handover")}>
+                      <Link href="/nurse-station?action=start-handover" className="flex items-center gap-2.5 cursor-pointer text-xs">
+                        <ArrowRight className="h-4 w-4 text-amber-600" />
+                        <span>Start Handover</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild onClick={() => dispatchStationAction("broadcast")}>
+                      <Link href="/nurse-station?action=broadcast" className="flex items-center gap-2.5 cursor-pointer text-xs">
+                        <Radio className="h-4 w-4 text-violet-600" />
+                        <span>Broadcast Message</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild onClick={() => dispatchStationAction("exceptions")}>
+                      <Link href="/nurse-station?action=exceptions" className="flex items-center gap-2.5 cursor-pointer text-xs text-destructive font-semibold">
+                        <AlertTriangle className="h-4 w-4 text-destructive" />
+                        <span>View Exceptions</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
+                </>
+              )}
+
+              {/* STAFF NURSE QUICK ACTIONS */}
+              {currentRole === "nurse" && (
+                <>
+                  <DropdownMenuLabel className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+                    Bedside Quick Actions
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuGroup>
+                    <DropdownMenuItem asChild onClick={() => dispatchNurseAction("vitals")}>
+                      <Link href="/nurse?action=vitals" className="flex items-center gap-2.5 cursor-pointer text-xs">
+                        <Activity className="h-4 w-4 text-rose-600" />
+                        <span>Record Vitals</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild onClick={() => dispatchNurseAction("emar")}>
+                      <Link href="/nurse?action=emar" className="flex items-center gap-2.5 cursor-pointer text-xs">
+                        <Pill className="h-4 w-4 text-emerald-600" />
+                        <span>Administer Med (eMAR)</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild onClick={() => dispatchNurseAction("note")}>
+                      <Link href="/nurse?action=note" className="flex items-center gap-2.5 cursor-pointer text-xs">
+                        <FileText className="h-4 w-4 text-blue-600" />
+                        <span>Add Nursing Care Note</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild onClick={() => dispatchNurseAction("handover")}>
+                      <Link href="/nurse?action=handover" className="flex items-center gap-2.5 cursor-pointer text-xs">
+                        <ArrowRight className="h-4 w-4 text-amber-600" />
+                        <span>Start Shift Handover</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild onClick={() => dispatchNurseAction("escalate")}>
+                      <Link href="/nurse?action=escalate" className="flex items-center gap-2.5 cursor-pointer text-xs text-destructive font-semibold">
+                        <ShieldAlert className="h-4 w-4 text-destructive" />
+                        <span>Escalate Clinical Concern</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
+                </>
+              )}
+
+              {/* SUPPORT STAFF QUICK ACTIONS */}
+              {currentRole === "support_staff" && (
+                <>
+                  <DropdownMenuLabel className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+                    Support Staff Quick Actions
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuGroup>
+                    <DropdownMenuItem asChild>
+                      <Link href="/support-staff" className="flex items-center gap-2.5 cursor-pointer text-xs">
+                        <CheckCircle2 className="h-4 w-4 text-blue-600" />
+                        <span>My Task Queue</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/roster" className="flex items-center gap-2.5 cursor-pointer text-xs">
+                        <Clock className="h-4 w-4 text-indigo-600" />
+                        <span>View Duty Roster</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
+                </>
+              )}
+
+              {/* HOSPITAL ADMIN QUICK ACTIONS (Preserved) */}
+              {(currentRole === "admin" || !currentRole) && (
+                <>
+                  <DropdownMenuLabel className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+                    Admin Quick Actions
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuGroup>
+                    <DropdownMenuItem asChild>
+                      <Link href="/verification" className="flex items-center gap-2.5 cursor-pointer text-xs">
+                        <UserPlus className="h-4 w-4 text-teal-600" />
+                        <span>Add Doctor</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/staff" className="flex items-center gap-2.5 cursor-pointer text-xs">
+                        <Users className="h-4 w-4 text-blue-600" />
+                        <span>Add Staff</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/departments" className="flex items-center gap-2.5 cursor-pointer text-xs">
+                        <Building2 className="h-4 w-4 text-indigo-600" />
+                        <span>Create Department</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/wards-beds" className="flex items-center gap-2.5 cursor-pointer text-xs">
+                        <Bed className="h-4 w-4 text-cyan-600" />
+                        <span>Allocate Bed</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuGroup>
+                    <DropdownMenuItem asChild>
+                      <Link href="/surgical-cases/create" className="flex items-center gap-2.5 cursor-pointer text-xs">
+                        <Activity className="h-4 w-4 text-purple-600" />
+                        <span>Create Surgery Case</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/surgical-cases/surgeon-requests" className="flex items-center gap-2.5 cursor-pointer text-xs">
+                        <Stethoscope className="h-4 w-4 text-primary" />
+                        <span>Request Surgeon</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/procurement/create" className="flex items-center gap-2.5 cursor-pointer text-xs">
+                        <ShoppingBag className="h-4 w-4 text-orange-600" />
+                        <span>Request Vendor</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/reports" className="flex items-center gap-2.5 cursor-pointer text-xs">
+                        <FileBarChart className="h-4 w-4 text-sky-600" />
+                        <span>Generate Report</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuGroup>
+                    <DropdownMenuItem asChild>
+                      <Link href="/emergency" className="flex items-center gap-2.5 cursor-pointer text-xs text-destructive font-semibold focus:text-destructive">
+                        <ShieldAlert className="h-4 w-4 text-destructive" />
+                        <span>Emergency Control</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/ambulance" className="flex items-center gap-2.5 cursor-pointer text-xs text-rose-600 font-semibold focus:text-rose-600">
+                        <Siren className="h-4 w-4 text-rose-600" />
+                        <span>Dispatch Ambulance</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
+                </>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
