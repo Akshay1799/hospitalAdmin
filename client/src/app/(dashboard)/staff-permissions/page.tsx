@@ -7,11 +7,17 @@ import { PermissionMatrix } from "@/components/permissions/PermissionMatrix";
 import { AdminPermissionMatrixView } from "@/components/security/admin-permission-matrix-view";
 import { ShieldCheck, Users } from "lucide-react";
 
+import { RoleGate } from "@/components/nursing/role-gate";
+
 export default function StaffPermissionsPage() {
   const [activeTab, setActiveTab] = useState<"staff" | "admin_matrix">("staff");
 
   return (
-    <div className="space-y-6">
+    <RoleGate
+      allowed={["admin"]}
+      message="Staff and role permissions configuration is strictly restricted to Hospital Admin (PRD Section 12)."
+    >
+      <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Staff &amp; Role Permissions</h1>
@@ -56,5 +62,6 @@ export default function StaffPermissionsPage() {
         <AdminPermissionMatrixView />
       )}
     </div>
-  );
+  </RoleGate>
+);
 }

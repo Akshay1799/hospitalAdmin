@@ -32,24 +32,26 @@ export function DeactivateStationModal({
             The station <span className="font-semibold text-foreground">{stationName}</span> cannot be deactivated because it has <span className="font-bold">{activeRosterCount} active roster assignments</span>. 
             <br/><br/>
             You must clear the roster or force-reassign the staff before deactivating this station.
-            <div className="mt-4 space-y-2 text-left">
-              <span className="text-sm font-medium text-foreground">Target Station for Reassignment:</span>
-              <Select>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select target station..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {mockStations.filter(s => s.name !== stationName && s.status === 'Active').map(s => (
-                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
           </DialogDescription>
         </DialogHeader>
+
+        <div className="space-y-2 text-left pt-2">
+          <span className="text-sm font-medium text-foreground">Target Station for Reassignment:</span>
+          <Select>
+            <SelectTrigger>
+              <SelectValue placeholder="Select target station..." />
+            </SelectTrigger>
+            <SelectContent>
+              {mockStations.filter(s => s.name !== stationName && s.status === 'Active').map(s => (
+                <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
         <DialogFooter className="mt-4">
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button variant="destructive" onClick={onConfirm}>Force Reassign & Deactivate</Button>
+          <Button variant="destructive" onClick={onConfirm}>Force Reassign &amp; Deactivate</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

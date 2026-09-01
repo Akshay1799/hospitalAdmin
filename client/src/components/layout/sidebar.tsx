@@ -1,10 +1,16 @@
 "use client";
 
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { ChevronsUpDown, LogOut, PanelLeftClose, PanelLeftOpen, Settings, User } from "lucide-react";
-import { usePathname } from "next/navigation";
+import { useSelector, useDispatch } from "react-redux";
+import { RootState } from "@/store/store";
+import { ChevronsUpDown, LogOut, PanelLeftClose, PanelLeftOpen, Settings, User, ShieldCheck, HeartPulse, UserCheck, Bed, Sparkles } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { setCurrentRole } from "@/store/slices/nursingOperationsSlice";
+import { AppUserRole } from "@/lib/types/nursing-module";
+import { NURSING_STORAGE_KEY } from "@/store/provider";
 
-import { navGroups } from "@/components/layout/nav-items";
+import { getNavigationForRole, getWorkspaceMetaForRole } from "@/components/layout/nav-items";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,16 +23,31 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
-function Logo({ collapsed }: { collapsed: boolean }) {
+function Logo({ collapsed, role }: { collapsed: boolean; role?: any }) {
+  const meta = getWorkspaceMetaForRole(role);
+  const homeHref =
+    role === "nurse_lead" || role === "senior_nurse"
+      ? "/nurse-station"
+      : role === "nurse"
+      ? "/nurse"
+      : role === "support_staff"
+      ? "/support-staff"
+      : "/dashboard";
+
   return (
-    <Link href="/dashboard" className={cn("flex items-center gap-2.5 px-2 py-1", collapsed && "justify-center px-0")}>
+    <Link href={homeHref} className={cn("flex items-center gap-2.5 px-2 py-1", collapsed && "justify-center px-0")}>
       <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-active/20 text-sidebar-active">
         <span className="h-4 w-4 rounded-sm bg-sidebar-active" />
       </span>
       {!collapsed && (
-        <span className="font-display text-[15px] font-semibold tracking-tight text-sidebar-foreground">
-          Qlyno <span className="text-sidebar-active">Admin</span>
-        </span>
+        <div className="flex flex-col">
+          <span className="font-display text-[15px] font-bold tracking-tight text-sidebar-foreground leading-none">
+            {meta.appName} <span className="text-sidebar-active">{meta.appSubname}</span>
+          </span>
+          <span className="text-[10px] text-sidebar-muted font-medium mt-0.5 leading-none">
+            {meta.tagline}
+          </span>
+        </div>
       )}
     </Link>
   );
@@ -41,12 +62,42 @@ export function SidebarNav({
   collapsed?: boolean;
   onToggleCollapse?: () => void;
 }) {
+  const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
+  const dispatch = useDispatch();
+  const currentRole = useSelector((state: RootState) => state.nursingOperations.currentRole);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const effectiveRole = mounted ? currentRole : "nurse_lead";
+  const navGroups = getNavigationForRole(effectiveRole);
+  const meta = getWorkspaceMetaForRole(effectiveRole);
+
+  const handleSwitchRole = (role: AppUserRole, userId: string, userName: string, targetRoute: string) => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = window.localStorage.getItem(NURSING_STORAGE_KEY);
+        const existing = saved ? JSON.parse(saved) : {};
+        window.localStorage.setItem(
+          NURSING_STORAGE_KEY,
+          JSON.stringify({ ...existing, currentRole: role, currentUserId: userId, currentUserName: userName })
+        );
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    dispatch(setCurrentRole({ role, userId, userName }));
+    router.push(targetRoute);
+    if (onNavigate) onNavigate();
+  };
 
   return (
     <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
       <div className={cn("flex h-16 shrink-0 items-center justify-between border-b border-sidebar-border px-3 transition-all duration-300 ease-out", collapsed && "justify-center px-2")}>
-        <Logo collapsed={Boolean(collapsed)} />
+        <Logo collapsed={Boolean(collapsed)} role={currentRole} />
         {!collapsed && onToggleCollapse && (
           <Button
             type="button"
@@ -63,18 +114,15 @@ export function SidebarNav({
 
       <nav className="flex-1 overflow-y-auto scrollbar-thin px-2 py-4">
         {navGroups.map((group) => (
-          <div key={group.title} className={cn("mb-5", collapsed && "mb-3")}>
+          <div key={group.title} className="mb-6">
             {!collapsed && (
-              <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-sidebar-muted">
+              <h2 className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-wider text-sidebar-muted">
                 {group.title}
-              </p>
+              </h2>
             )}
-            <div className="flex flex-col gap-0.5">
+            <div className="space-y-1">
               {group.items.map((item) => {
-                const active =
-                  item.href === "/dashboard"
-                    ? pathname === "/dashboard"
-                    : pathname === item.href || pathname.startsWith(item.href + "/");
+                const isActive = pathname === item.href;
                 const Icon = item.icon;
                 return (
                   <Link
@@ -82,28 +130,16 @@ export function SidebarNav({
                     href={item.href}
                     onClick={onNavigate}
                     className={cn(
-                      "group flex items-center gap-2.5 rounded-md px-2.5 py-2.5 text-sm font-medium transition-all duration-200 ease-out",
-                      collapsed && "justify-center px-2.5",
-                      active
-                        ? "bg-primary/10 text-foreground"
-                        : "text-sidebar-muted hover:bg-muted hover:text-sidebar-foreground"
+                      "flex items-center gap-3 rounded-lg px-3 py-2 text-xs font-medium transition-all duration-200 ease-out",
+                      isActive
+                        ? "bg-sidebar-active/15 text-sidebar-active font-semibold shadow-xs"
+                        : "text-sidebar-foreground/80 hover:bg-sidebar-muted/10 hover:text-sidebar-foreground",
+                      collapsed && "justify-center px-0 py-2.5"
                     )}
-                    title={item.label}
+                    title={collapsed ? item.label : undefined}
                   >
-                    <Icon
-                      className={cn(
-                        "h-4 w-4 shrink-0 transition-all duration-200 ease-out",
-                        collapsed && "h-5 w-5",
-                        active ? "text-primary" : "text-sidebar-muted group-hover:text-sidebar-foreground"
-                      )}
-                    />
-                    {!collapsed && <span className="truncate">{item.label}</span>}
-                    {!collapsed && item.badge && (
-                      <span className="ml-auto text-[9px] px-1 py-0 rounded bg-primary/15 text-primary font-medium border border-primary/20">
-                        {item.badge}
-                      </span>
-                    )}
-                    {!collapsed && active && !item.badge && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary" />}
+                    <Icon className={cn("h-4 w-4 shrink-0 transition-transform duration-200", isActive && "scale-110")} />
+                    {!collapsed && <span>{item.label}</span>}
                   </Link>
                 );
               })}
@@ -112,26 +148,26 @@ export function SidebarNav({
         ))}
       </nav>
 
-      {/* Hospital Admin Profile at bottom of sidebar */}
+      {/* User Profile & Workspace Selector Footer */}
       <div className="border-t border-sidebar-border p-2">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
-              type="button"
               className={cn(
-                "flex w-full items-center gap-3 rounded-lg p-2 text-left transition-colors hover:bg-white/5 focus:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-                collapsed ? "justify-center px-1" : "justify-between"
+                "flex w-full items-center justify-between rounded-lg p-2 text-left transition-all duration-200 ease-out hover:bg-sidebar-muted/10",
+                collapsed && "justify-center p-1"
               )}
             >
               <div className="flex items-center gap-2.5 min-w-0">
-                <Avatar className="h-8 w-8 shrink-0 rounded-lg">
-                  <AvatarImage src="https://i.pravatar.cc/150?img=68" alt="Hospital Admin" />
-                  <AvatarFallback className="rounded-lg bg-primary/20 text-xs font-semibold text-primary">HA</AvatarFallback>
+                <Avatar className="h-8 w-8 shrink-0 border border-sidebar-border">
+                  <AvatarFallback className="bg-primary/20 text-primary font-bold text-xs">
+                    {meta.profileName.slice(0, 2).toUpperCase()}
+                  </AvatarFallback>
                 </Avatar>
                 {!collapsed && (
                   <div className="min-w-0 flex-1 truncate">
-                    <p className="truncate text-xs font-medium text-sidebar-foreground">Hospital Admin</p>
-                    <p className="truncate text-[11px] text-sidebar-muted">admin@qlyno.health</p>
+                    <p className="truncate text-xs font-bold text-sidebar-foreground">{meta.profileName}</p>
+                    <p className="truncate text-[10px] text-sidebar-muted">{meta.profileRole}</p>
                   </div>
                 )}
               </div>
@@ -141,23 +177,62 @@ export function SidebarNav({
           <DropdownMenuContent
             side={collapsed ? "right" : "top"}
             align={collapsed ? "end" : "center"}
-            className="w-56"
+            className="w-64"
           >
             <DropdownMenuLabel>
-              <p className="text-sm font-medium">Hospital Admin</p>
-              <p className="text-xs font-normal text-muted-foreground">admin@qlyno.health</p>
+              <p className="text-sm font-bold">{meta.profileName}</p>
+              <p className="text-xs font-normal text-muted-foreground">{meta.profileRole}</p>
+              <p className="text-[10px] font-mono text-muted-foreground mt-0.5">{meta.profileEmail}</p>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
-              <Link href="/settings" onClick={onNavigate}>
-                <User className="mr-2 h-4 w-4" /> My Profile
+              <Link href={currentRole === "nurse" ? "/nurse" : currentRole === "support_staff" ? "/support-staff" : currentRole === "nurse_lead" || currentRole === "senior_nurse" ? "/nurse-station" : "/settings"} onClick={onNavigate}>
+                <User className="mr-2 h-4 w-4" /> My Workspace
               </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link href="/settings" onClick={onNavigate}>
-                <Settings className="mr-2 h-4 w-4" /> Settings
-              </Link>
+            {currentRole === "admin" && (
+              <DropdownMenuItem asChild>
+                <Link href="/settings" onClick={onNavigate}>
+                  <Settings className="mr-2 h-4 w-4" /> Global Settings
+                </Link>
+              </DropdownMenuItem>
+            )}
+
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
+              Quick Switch Role
+            </DropdownMenuLabel>
+            <DropdownMenuItem
+              className={cn("text-xs cursor-pointer gap-2", currentRole === "admin" && "font-bold text-primary bg-primary/10")}
+              onClick={() => handleSwitchRole("admin", "usr-admin-1", "Dr. Vikram Seth (Super Admin)", "/dashboard")}
+            >
+              <ShieldCheck className="h-3.5 w-3.5 text-teal-600" /> Hospital Admin
             </DropdownMenuItem>
+            <DropdownMenuItem
+              className={cn("text-xs cursor-pointer gap-2", currentRole === "nurse_lead" && "font-bold text-primary bg-primary/10")}
+              onClick={() => handleSwitchRole("nurse_lead", "nurse-1", "Sister Anita Joseph (Station Lead)", "/nurse-station")}
+            >
+              <HeartPulse className="h-3.5 w-3.5 text-rose-600" /> Nurse Station Lead
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className={cn("text-xs cursor-pointer gap-2", currentRole === "senior_nurse" && "font-bold text-primary bg-primary/10")}
+              onClick={() => handleSwitchRole("senior_nurse", "nurse-2", "Sister Sneha Kulkarni (Senior Nurse)", "/nurse-station")}
+            >
+              <UserCheck className="h-3.5 w-3.5 text-blue-600" /> Senior Nurse
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className={cn("text-xs cursor-pointer gap-2", currentRole === "nurse" && "font-bold text-primary bg-primary/10")}
+              onClick={() => handleSwitchRole("nurse", "nurse-3", "Nurse Rahul Shinde", "/nurse")}
+            >
+              <Bed className="h-3.5 w-3.5 text-emerald-600" /> Staff Nurse (Bedside)
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className={cn("text-xs cursor-pointer gap-2", currentRole === "support_staff" && "font-bold text-primary bg-primary/10")}
+              onClick={() => handleSwitchRole("support_staff", "sup-1", "Ramesh Pawar (Ward Attendant)", "/support-staff")}
+            >
+              <Sparkles className="h-3.5 w-3.5 text-amber-600" /> Support Staff
+            </DropdownMenuItem>
+
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
               <Link href="/login" onClick={onNavigate} className="text-destructive focus:text-destructive">

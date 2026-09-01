@@ -10,6 +10,7 @@ import { DeleteShiftTemplateModal } from "@/components/shift-templates/DeleteShi
 import { Badge } from "@/components/ui/badge";
 import { Clock, Edit, Plus, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { RoleGate } from "@/components/nursing/role-gate";
 
 export default function ShiftTemplatesPage() {
   const { toast } = useToast();
@@ -46,99 +47,98 @@ export default function ShiftTemplatesPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Shift Templates</h1>
-          <p className="text-muted-foreground mt-1">Configure hospital-wide default shift timings.</p>
+    <RoleGate
+      allowed={["admin", "nurse_lead"]}
+      message="Shift template design and timing configuration is restricted to Nurse Station Lead and Hospital Admin (PRD Section 6 & Section 20)."
+    >
+      <div className="space-y-6 animate-fade-in">
+        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Shift Patterns &amp; Templates</h1>
+            <p className="text-xs text-muted-foreground mt-1">
+              Define reusable shift windows, rotation periods, break entitlements, and grace thresholds.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <ScopeIndicator scope="Station Lead" />
+            <Button size="sm" className="text-xs font-semibold" onClick={handleCreateNew}>
+              <Plus className="h-4 w-4 mr-1.5" /> Create Shift Template
+            </Button>
+          </div>
         </div>
-        <ScopeIndicator scope="Hospital Admin" />
-      </div>
 
-      <div className="flex justify-end">
-        <Button onClick={handleCreateNew} className="gap-1.5">
-          <Plus className="h-4 w-4" /> Create Template
-        </Button>
-      </div>
-
-      <div className="rounded-md border bg-card">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Template Name</TableHead>
-              <TableHead>Start Time</TableHead>
-              <TableHead>End Time</TableHead>
-              <TableHead>Default</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {templates.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground text-sm">
-                  No shift templates available. Click &quot;Create Template&quot; to add one.
-                </TableCell>
+        {/* Templates Table */}
+        <div className="rounded-md border border-border bg-card shadow-xs overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-muted/40">
+                <TableHead className="text-xs font-bold">Shift Name</TableHead>
+                <TableHead className="text-xs font-bold">Start Time</TableHead>
+                <TableHead className="text-xs font-bold">End Time</TableHead>
+                <TableHead className="text-xs font-bold">Default Scope</TableHead>
+                <TableHead className="text-xs font-bold text-right">Actions</TableHead>
               </TableRow>
-            ) : (
-              templates.map((template) => (
-                <TableRow key={template.id}>
-                  <TableCell className="font-semibold text-foreground flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-primary" />
-                    {template.name}
-                  </TableCell>
-                  <TableCell className="font-mono text-sm">{template.startTime}</TableCell>
-                  <TableCell className="font-mono text-sm">{template.endTime}</TableCell>
-                  <TableCell>
-                    {template.isDefault ? (
-                      <Badge variant="secondary">Hospital Default</Badge>
-                    ) : (
-                      <span className="text-muted-foreground text-xs">Custom</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1.5">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-8 gap-1 text-xs"
-                        onClick={() => handleEdit(template)}
-                      >
-                        <Edit className="h-3.5 w-3.5" />
-                        Edit
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive gap-1"
-                        onClick={() => handleDeleteClick(template)}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                        Delete
-                      </Button>
+            </TableHeader>
+            <TableBody>
+              {templates.map((template) => (
+                <TableRow key={template.id} className="hover:bg-muted/20">
+                  <TableCell className="font-semibold text-xs text-foreground">
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-primary" />
+                      {template.name}
                     </div>
                   </TableCell>
+                  <TableCell className="text-xs font-mono">{template.startTime}</TableCell>
+                  <TableCell className="text-xs font-mono">{template.endTime}</TableCell>
+                  <TableCell>
+                    {template.isDefault ? (
+                      <Badge variant="secondary" className="text-[10px]">Hospital Default</Badge>
+                    ) : (
+                      <span className="text-muted-foreground text-xs">Custom Shift</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right space-x-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                      onClick={() => handleEdit(template)}
+                      title="Edit template"
+                    >
+                      <Edit className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-destructive hover:bg-destructive/10"
+                      onClick={() => handleDeleteClick(template)}
+                      title="Delete template"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+
+        <ShiftTemplateForm
+          isOpen={isFormOpen}
+          onClose={() => setIsFormOpen(false)}
+          template={editingTemplate}
+        />
+
+        <DeleteShiftTemplateModal
+          isOpen={isDeleteModalOpen}
+          onClose={() => {
+            setIsDeleteModalOpen(false);
+            setTemplateToDelete(null);
+          }}
+          onConfirm={handleConfirmDelete}
+          template={templateToDelete}
+        />
       </div>
-
-      <ShiftTemplateForm
-        isOpen={isFormOpen}
-        onClose={() => setIsFormOpen(false)}
-        template={editingTemplate}
-      />
-
-      <DeleteShiftTemplateModal
-        isOpen={isDeleteModalOpen}
-        onClose={() => {
-          setIsDeleteModalOpen(false);
-          setTemplateToDelete(null);
-        }}
-        onConfirm={handleConfirmDelete}
-        template={templateToDelete}
-      />
-    </div>
+    </RoleGate>
   );
 }

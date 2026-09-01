@@ -118,6 +118,123 @@ const REPORT_CATEGORIES: Array<{ id: string; label: string; icon: any }> = [
   { id: "Security", label: "Security & Audits", icon: ShieldAlert },
 ];
 
+export interface GeneratedAdHocReport {
+  id: string;
+  category: string;
+  dimension: string;
+  primaryMetric: string;
+  chartType: "bar" | "line" | "area";
+  timestamp: string;
+  totalVal: string;
+  avgVal: string;
+  data: Array<{
+    dimension: string;
+    metricVal: number;
+    formattedVal: string;
+    sharePercent: number;
+    status: "Optimal" | "High Load" | "Review";
+  }>;
+}
+
+function generateAdHocReportData(
+  category: string,
+  dimension: string,
+  metric: string,
+  chartType: "bar" | "line" | "area"
+): GeneratedAdHocReport {
+  const reportId = `adhoc_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+  const timestamp = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+
+  let dimensionItems: string[] = [];
+  if (dimension.includes("Department")) {
+    dimensionItems = ["Emergency & Trauma", "Cardiology & CCU", "General Surgery OT", "Orthopaedics", "Critical Care (ICU)", "Paediatrics & Neonatal"];
+  } else if (dimension.includes("Doctor") || dimension.includes("Surgeon")) {
+    dimensionItems = ["Dr. Ananya Patel (Lead)", "Dr. Rohan Varma (Ortho)", "Dr. Kavita Verma (Neuro)", "Dr. Rajesh Iyer (Cardio)", "Dr. Priya Sen (Peds)"];
+  } else if (dimension.includes("Shift") || dimension.includes("Station")) {
+    dimensionItems = ["Morning Shift (07:00-15:00)", "Evening Shift (15:00-23:00)", "Night Shift (23:00-07:00)", "General Floor", "Trauma Unit"];
+  } else if (dimension.includes("Ward") || dimension.includes("Bed")) {
+    dimensionItems = ["General Medical Ward (Ward A)", "Surgical Inpatient (Ward B)", "Intensive Care Unit (ICU)", "Coronary Care (CCU)", "Deluxe Suites"];
+  } else if (dimension.includes("Payment") || dimension.includes("TPA")) {
+    dimensionItems = ["Star Health TPA", "HDFC ERGO Cashless", "Direct UPI / Card", "Ayushman Bharat PMJAY", "Corporate Cashless"];
+  } else {
+    dimensionItems = ["Critical Priority", "High Priority", "Medium / Urgent", "Routine Standard", "Observation"];
+  }
+
+  const isCurrency = metric.includes("₹") || metric.includes("Revenue");
+  const isPercent = metric.includes("%") || metric.includes("Percentage") || metric.includes("Adherence") || metric.includes("Rate");
+  const isTime = metric.includes("TAT") || metric.includes("Time");
+
+  let baseRange = [60, 480];
+  if (isCurrency) baseRange = [45000, 320000];
+  else if (isPercent) baseRange = [74, 99];
+  else if (isTime) baseRange = [12, 55];
+  else if (category === "Emergency") baseRange = [18, 95];
+  else if (category === "Pharmacy") baseRange = [150, 920];
+  else if (category === "Bed/Ward") baseRange = [8, 36];
+
+  const rawValues = dimensionItems.map((_, idx) => {
+    const seed = (idx + 1) * 31 + category.length * 17 + metric.length * 11 + Math.floor(Math.random() * 25);
+    const variance = (seed % 70) / 100;
+    const span = baseRange[1] - baseRange[0];
+    return Math.round(baseRange[0] + span * (0.3 + variance * 0.7));
+  });
+
+  const totalRaw = rawValues.reduce((a, b) => a + b, 0);
+
+  const data = dimensionItems.map((item, idx) => {
+    const rawVal = rawValues[idx];
+    const sharePercent = totalRaw > 0 ? Math.round((rawVal / totalRaw) * 100) : 20;
+
+    let formattedVal = `${rawVal}`;
+    if (isCurrency) formattedVal = `₹${rawVal.toLocaleString("en-IN")}`;
+    else if (isPercent) formattedVal = `${rawVal}%`;
+    else if (isTime) formattedVal = `${rawVal} mins`;
+    else formattedVal = `${rawVal} units`;
+
+    const status: "Optimal" | "High Load" | "Review" =
+      rawVal > baseRange[0] + (baseRange[1] - baseRange[0]) * 0.75
+        ? "High Load"
+        : rawVal < baseRange[0] + (baseRange[1] - baseRange[0]) * 0.35
+        ? "Review"
+        : "Optimal";
+
+    return {
+      dimension: item,
+      metricVal: rawVal,
+      formattedVal,
+      sharePercent,
+      status,
+    };
+  });
+
+  const avg = Math.round(totalRaw / data.length);
+
+  let totalVal = `${totalRaw.toLocaleString("en-IN")}`;
+  let avgVal = `${avg.toLocaleString("en-IN")}`;
+  if (isCurrency) {
+    totalVal = `₹${totalRaw.toLocaleString("en-IN")}`;
+    avgVal = `₹${avg.toLocaleString("en-IN")}`;
+  } else if (isPercent) {
+    totalVal = `${avg}%`;
+    avgVal = `${avg}% avg`;
+  } else if (isTime) {
+    totalVal = `${avg} mins avg`;
+    avgVal = `${avg} mins`;
+  }
+
+  return {
+    id: reportId,
+    category,
+    dimension,
+    primaryMetric: metric,
+    chartType,
+    timestamp,
+    totalVal,
+    avgVal,
+    data,
+  };
+}
+
 export default function ReportsAnalyticsPage() {
   const [mounted, setMounted] = useState(false);
   const { toast } = useToast();
@@ -146,7 +263,11 @@ export default function ReportsAnalyticsPage() {
   const [builderDimension, setBuilderDimension] = useState<string>("Department / Specialty");
   const [builderPrimaryMetric, setBuilderPrimaryMetric] = useState<string>("Volume Footfall");
   const [builderChartType, setBuilderChartType] = useState<"bar" | "line" | "area">("bar");
-  const [builderPreviewReady, setBuilderPreviewReady] = useState(false);
+  const [generatedReports, setGeneratedReports] = useState<GeneratedAdHocReport[]>([
+    generateAdHocReportData("Patient Flow", "Department / Specialty", "Volume Footfall", "bar"),
+  ]);
+  const [reportToDelete, setReportToDelete] = useState<GeneratedAdHocReport | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -477,6 +598,71 @@ export default function ReportsAnalyticsPage() {
     toast({
       title: "PDF Report Generated",
       description: `${report.title} exported for ${dateRange} (${selectedDepartment}). (${DELEGATION_STRING})`,
+    });
+  };
+
+  // Ad-Hoc Report CSV Export Generator
+  const handleExportAdHocCSV = (report: GeneratedAdHocReport) => {
+    const headers = ["Dimension", `${report.primaryMetric} Value`, "Formatted Value", "Share (%)", "Operational Status"];
+    const rows = report.data.map((r) => `"${r.dimension}",${r.metricVal},"${r.formattedVal}","${r.sharePercent}%","${r.status}"`);
+    const metadata = `# Ad-Hoc Report: ${report.primaryMetric} across ${report.dimension}\n# Domain: ${report.category} | Generated: ${report.timestamp} | Total: ${report.totalVal} | Average: ${report.avgVal}\n`;
+    const csvContent = "data:text/csv;charset=utf-8," + encodeURIComponent(metadata + [headers.join(","), ...rows].join("\n"));
+    const link = document.createElement("a");
+    link.setAttribute("href", csvContent);
+    link.setAttribute("download", `AdHoc_${report.category.replace(/[^a-zA-Z0-9]/g, "_")}_${new Date().toISOString().split("T")[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    toast({
+      title: "Ad-Hoc CSV Downloaded",
+      description: `Exported ${report.data.length} dimension rows for ${report.primaryMetric}.`,
+    });
+  };
+
+  // Ad-Hoc Report PDF Export Generator
+  const handleExportAdHocPDF = (report: GeneratedAdHocReport) => {
+    const doc = new jsPDF();
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(15);
+    doc.setTextColor(13, 148, 136);
+    doc.text("QLYNO HOSPITAL • AD-HOC METRIC REPORT", 15, 20);
+
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(100, 116, 139);
+    doc.text(`Domain: ${report.category} | Dimension: ${report.dimension} | Metric: ${report.primaryMetric}`, 15, 27);
+    doc.text(`Generated At: ${report.timestamp} | Total Metric: ${report.totalVal} | Average: ${report.avgVal}`, 15, 33);
+
+    doc.line(15, 37, 195, 37);
+
+    let y = 47;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(30, 41, 59);
+    doc.text("Dimension Breakdown", 15, y);
+    doc.text("Value", 120, y);
+    doc.text("Formatted", 150, y);
+    doc.text("Share", 180, y);
+
+    y += 4;
+    doc.line(15, y, 195, y);
+    y += 6;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    report.data.forEach((item) => {
+      doc.text(item.dimension, 15, y);
+      doc.text(String(item.metricVal), 120, y);
+      doc.text(item.formattedVal, 150, y);
+      doc.text(`${item.sharePercent}%`, 180, y);
+      y += 7;
+    });
+
+    doc.save(`AdHoc_${report.category.replace(/[^a-zA-Z0-9]/g, "_")}_${new Date().toISOString().split("T")[0]}.pdf`);
+    toast({
+      title: "Ad-Hoc PDF Downloaded",
+      description: `Downloaded formatted report for ${report.primaryMetric}.`,
     });
   };
 
@@ -1014,6 +1200,8 @@ export default function ReportsAnalyticsPage() {
                       <SelectItem value="Pharmacy">Pharmacy Stock &amp; Dispensing</SelectItem>
                       <SelectItem value="Finance">Financial Collections</SelectItem>
                       <SelectItem value="Emergency">Emergency SOS Activations</SelectItem>
+                      <SelectItem value="Nursing">Nursing Workload &amp; Station</SelectItem>
+                      <SelectItem value="Diagnostics">Lab &amp; Diagnostic TAT</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -1030,6 +1218,7 @@ export default function ReportsAnalyticsPage() {
                       <SelectItem value="Shift / Floor Station">Shift / Floor Station</SelectItem>
                       <SelectItem value="Ward / Bed Category">Ward / Bed Category</SelectItem>
                       <SelectItem value="Payment Method / TPA">Payment Method / TPA</SelectItem>
+                      <SelectItem value="Acuity / Priority Level">Acuity / Priority Level</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -1065,60 +1254,217 @@ export default function ReportsAnalyticsPage() {
                 </div>
               </div>
 
-              <div className="flex justify-end">
-                <Button
-                  size="sm"
-                  className="bg-primary text-primary-foreground font-semibold text-xs gap-1.5"
-                  onClick={() => {
-                    setBuilderPreviewReady(true);
-                    toast({
-                      title: "Ad-Hoc Report Generated",
-                      description: `Generated cross-tabulation of ${builderPrimaryMetric} by ${builderDimension}.`,
-                    });
-                  }}
-                >
-                  <Sparkles className="h-3.5 w-3.5" /> Generate Ad-Hoc Report
-                </Button>
-              </div>
-
-              {builderPreviewReady && (
-                <div className="p-4 rounded-xl border border-primary/30 bg-card space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <span className="font-bold text-sm text-foreground">
-                        Ad-Hoc Report: {builderPrimaryMetric} across {builderDimension}
-                      </span>
-                      <p className="text-[11px] text-muted-foreground">Domain: {builderCategory} • Filter: Current Month</p>
-                    </div>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                <div className="flex items-center gap-2 text-muted-foreground text-xs">
+                  <span className="font-semibold text-foreground">{generatedReports.length}</span> Ad-Hoc Report{generatedReports.length !== 1 ? "s" : ""} in active session
+                </div>
+                <div className="flex items-center gap-2">
+                  {generatedReports.length > 1 && (
                     <Button
                       size="sm"
-                      variant="outline"
-                      className="h-8 text-xs font-semibold gap-1"
-                      onClick={() => handleExportPDF(mockHospitalReports[0])}
+                      variant="ghost"
+                      className="h-8 text-xs text-muted-foreground hover:text-destructive gap-1"
+                      onClick={() => {
+                        setGeneratedReports([]);
+                        toast({ title: "Reports Cleared", description: "Cleared all ad-hoc reports from this session." });
+                      }}
                     >
-                      <Download className="h-3.5 w-3.5" /> Export Result
+                      <Trash2 className="h-3.5 w-3.5" /> Clear All
                     </Button>
-                  </div>
+                  )}
+                  <Button
+                    size="sm"
+                    className="bg-primary text-primary-foreground font-semibold text-xs gap-1.5"
+                    onClick={() => {
+                      const newReport = generateAdHocReportData(
+                        builderCategory,
+                        builderDimension,
+                        builderPrimaryMetric,
+                        builderChartType
+                      );
+                      setGeneratedReports((prev) => [newReport, ...prev]);
+                      toast({
+                        title: "Ad-Hoc Report Generated",
+                        description: `Generated #${newReport.id.slice(-4)}: ${newReport.primaryMetric} across ${newReport.dimension}.`,
+                      });
+                    }}
+                  >
+                    <Sparkles className="h-3.5 w-3.5" /> Generate Ad-Hoc Report
+                  </Button>
+                </div>
+              </div>
 
-                  <div className="h-60 w-full bg-muted/10 p-3 rounded-lg border border-border">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart
-                        data={[
-                          { dimension: "Emergency & Critical", metricVal: 380 },
-                          { dimension: "Cardiology", metricVal: 290 },
-                          { dimension: "Surgical OT", metricVal: 240 },
-                          { dimension: "Orthopaedics", metricVal: 210 },
-                          { dimension: "General Medicine", metricVal: 340 },
-                        ]}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                        <XAxis dataKey="dimension" tickLine={false} axisLine={false} fontSize={11} />
-                        <YAxis tickLine={false} axisLine={false} fontSize={11} />
-                        <RechartsTooltip contentStyle={{ borderRadius: 8, fontSize: 12 }} />
-                        <Bar dataKey="metricVal" name={builderPrimaryMetric} fill="#0d9488" radius={[4, 4, 0, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
+              {/* Multi-Report Results Feed */}
+              {generatedReports.length === 0 ? (
+                <div className="p-8 text-center rounded-xl border border-dashed border-border bg-muted/10 space-y-2">
+                  <Sparkles className="h-6 w-6 text-muted-foreground mx-auto" />
+                  <p className="text-xs font-semibold text-foreground">No Ad-Hoc Reports Generated Yet</p>
+                  <p className="text-[11px] text-muted-foreground max-w-sm mx-auto">
+                    Select your domain, dimension, and metric above, then click <strong>Generate Ad-Hoc Report</strong>. You can generate multiple reports in succession.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {generatedReports.map((report, idx) => (
+                    <div
+                      key={report.id}
+                      className="p-4 rounded-xl border border-border bg-card shadow-xs space-y-4 transition-all"
+                    >
+                      {/* Report Card Header */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-3">
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-bold text-sm text-foreground">
+                              Ad-Hoc Report #{generatedReports.length - idx}: {report.primaryMetric}
+                            </span>
+                            <Badge variant="outline" className="text-[9px] font-mono">
+                              {report.category}
+                            </Badge>
+                            <Badge className="bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 text-[9px] border-cyan-500/30">
+                              {report.chartType.toUpperCase()} Chart
+                            </Badge>
+                          </div>
+                          <p className="text-[11px] text-muted-foreground mt-0.5">
+                            Cross-tabulated by <strong>{report.dimension}</strong> • Generated at {report.timestamp}
+                          </p>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs font-medium gap-1"
+                            onClick={() => handleExportAdHocCSV(report)}
+                          >
+                            <FileSpreadsheet className="h-3 w-3 text-emerald-600" /> Export CSV
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs font-medium gap-1"
+                            onClick={() => handleExportAdHocPDF(report)}
+                          >
+                            <FileText className="h-3 w-3 text-primary" /> Download PDF
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                            onClick={() => {
+                              setReportToDelete(report);
+                              setIsDeleteModalOpen(true);
+                            }}
+                            aria-label="Delete ad-hoc report"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* KPI Summary Strip */}
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                        <div className="p-2.5 rounded-lg bg-muted/20 border border-border/60">
+                          <span className="text-[10px] text-muted-foreground font-medium">Domain Category</span>
+                          <p className="font-bold text-foreground mt-0.5">{report.category}</p>
+                        </div>
+                        <div className="p-2.5 rounded-lg bg-muted/20 border border-border/60">
+                          <span className="text-[10px] text-muted-foreground font-medium">Primary Dimension</span>
+                          <p className="font-bold text-foreground mt-0.5 truncate">{report.dimension}</p>
+                        </div>
+                        <div className="p-2.5 rounded-lg bg-primary/5 border border-primary/20">
+                          <span className="text-[10px] text-primary font-semibold">Total Aggregated</span>
+                          <p className="font-bold text-primary font-mono mt-0.5">{report.totalVal}</p>
+                        </div>
+                        <div className="p-2.5 rounded-lg bg-cyan-500/5 border border-cyan-500/20">
+                          <span className="text-[10px] text-cyan-600 font-semibold">Dimension Average</span>
+                          <p className="font-bold text-cyan-600 font-mono mt-0.5">{report.avgVal}</p>
+                        </div>
+                      </div>
+
+                      {/* Dynamic Visualization Canvas */}
+                      <div className="h-64 w-full bg-muted/10 p-3 rounded-lg border border-border">
+                        <ResponsiveContainer width="100%" height="100%">
+                          {report.chartType === "bar" ? (
+                            <BarChart data={report.data}>
+                              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                              <XAxis dataKey="dimension" tickLine={false} axisLine={false} fontSize={10} interval={0} />
+                              <YAxis tickLine={false} axisLine={false} fontSize={10} />
+                              <RechartsTooltip contentStyle={{ borderRadius: 8, fontSize: 11 }} />
+                              <Bar dataKey="metricVal" name={report.primaryMetric} fill="#0d9488" radius={[4, 4, 0, 0]} />
+                            </BarChart>
+                          ) : report.chartType === "line" ? (
+                            <LineChart data={report.data}>
+                              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                              <XAxis dataKey="dimension" tickLine={false} axisLine={false} fontSize={10} interval={0} />
+                              <YAxis tickLine={false} axisLine={false} fontSize={10} />
+                              <RechartsTooltip contentStyle={{ borderRadius: 8, fontSize: 11 }} />
+                              <Line
+                                type="monotone"
+                                dataKey="metricVal"
+                                name={report.primaryMetric}
+                                stroke="#0284c7"
+                                strokeWidth={2.5}
+                                dot={{ r: 4, fill: "#0284c7" }}
+                                activeDot={{ r: 6 }}
+                              />
+                            </LineChart>
+                          ) : (
+                            <AreaChart data={report.data}>
+                              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                              <XAxis dataKey="dimension" tickLine={false} axisLine={false} fontSize={10} interval={0} />
+                              <YAxis tickLine={false} axisLine={false} fontSize={10} />
+                              <RechartsTooltip contentStyle={{ borderRadius: 8, fontSize: 11 }} />
+                              <Area
+                                type="monotone"
+                                dataKey="metricVal"
+                                name={report.primaryMetric}
+                                fill="#0d9488"
+                                fillOpacity={0.25}
+                                stroke="#0d9488"
+                                strokeWidth={2}
+                              />
+                            </AreaChart>
+                          )}
+                        </ResponsiveContainer>
+                      </div>
+
+                      {/* Tabular Data Breakdown */}
+                      <div className="rounded-md border border-border overflow-hidden">
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="bg-muted/40">
+                              <TableHead className="text-xs font-bold w-[260px]">{report.dimension}</TableHead>
+                              <TableHead className="text-xs font-bold text-right w-[140px]">{report.primaryMetric}</TableHead>
+                              <TableHead className="text-xs font-bold text-right w-[120px]">Share %</TableHead>
+                              <TableHead className="text-xs font-bold text-right w-[120px]">Status</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {report.data.map((row, rIdx) => (
+                              <TableRow key={rIdx} className="hover:bg-muted/30 transition-colors text-xs">
+                                <TableCell className="font-semibold text-foreground">{row.dimension}</TableCell>
+                                <TableCell className="text-right font-mono font-bold text-primary">{row.formattedVal}</TableCell>
+                                <TableCell className="text-right font-mono text-muted-foreground">{row.sharePercent}%</TableCell>
+                                <TableCell className="text-right">
+                                  <Badge
+                                    variant="secondary"
+                                    className={cn(
+                                      "text-[9px]",
+                                      row.status === "Optimal" && "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30",
+                                      row.status === "High Load" && "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30",
+                                      row.status === "Review" && "bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-500/30"
+                                    )}
+                                  >
+                                    {row.status}
+                                  </Badge>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </CardContent>
@@ -1349,6 +1695,72 @@ export default function ReportsAnalyticsPage() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Ad-Hoc Report Confirmation Modal */}
+      <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold flex items-center gap-2 text-destructive">
+              <Trash2 className="h-4 w-4" /> Delete Ad-Hoc Report?
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Are you sure you want to delete this ad-hoc report? This action cannot be undone for this session.
+            </DialogDescription>
+          </DialogHeader>
+
+          {reportToDelete && (
+            <div className="rounded-lg border border-border/80 bg-muted/20 p-3 space-y-1.5 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-foreground">
+                  {reportToDelete.primaryMetric}
+                </span>
+                <Badge variant="outline" className="text-[9px] font-mono">
+                  {reportToDelete.category}
+                </Badge>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Dimension: <strong>{reportToDelete.dimension}</strong> • Type: {reportToDelete.chartType.toUpperCase()}
+              </p>
+              <p className="text-[10px] text-muted-foreground">
+                Generated at: {reportToDelete.timestamp} • {reportToDelete.data.length} data rows
+              </p>
+            </div>
+          )}
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setIsDeleteModalOpen(false);
+                setReportToDelete(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              className="gap-1.5 font-semibold"
+              onClick={() => {
+                if (reportToDelete) {
+                  setGeneratedReports((prev) => prev.filter((r) => r.id !== reportToDelete.id));
+                  toast({
+                    title: "Ad-Hoc Report Deleted",
+                    description: `Deleted report for ${reportToDelete.primaryMetric} across ${reportToDelete.dimension}.`,
+                  });
+                  setIsDeleteModalOpen(false);
+                  setReportToDelete(null);
+                }
+              }}
+            >
+              <Trash2 className="h-3.5 w-3.5" /> Delete Report
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

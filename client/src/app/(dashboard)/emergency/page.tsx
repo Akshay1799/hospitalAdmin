@@ -235,7 +235,12 @@ export default function EmergencyPage() {
         description="Live red-alert triage telemetry, trauma bay allocation, Code Blue readiness & critical patient queues."
         crumbs={[{ label: "Patient Care" }, { label: "Emergency Management" }]}
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" size="sm" asChild className="gap-1.5 font-semibold">
+              <Link href="/nurse-station">
+                <HeartPulse className="h-4 w-4 text-primary" /> Emergency Nurse Station &rarr;
+              </Link>
+            </Button>
             <Button variant="outline" size="sm" asChild>
               <Link href="/emergency/audit">
                 <FileText className="h-4 w-4 mr-1.5" /> Audit Log
@@ -568,7 +573,7 @@ export default function EmergencyPage() {
                 </span>
               </div>
             </CardHeader>
-            <CardContent className="p-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            <CardContent className="p-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
               {erBays.map((bay) => (
                 <div
                   key={bay.id}
@@ -612,30 +617,61 @@ export default function EmergencyPage() {
         </TabsContent>
 
         {/* ========================================================================= */}
-        {/* TAB 4: ER DOCTORS & TRAUMA TEAM                                           */}
+        {/* TAB 4: ER CLINICAL & NURSING TEAM                                         */}
         {/* ========================================================================= */}
-        <TabsContent value="doctors" className="space-y-4 mt-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3.5">
-            {erDoctors.map((doc) => (
-              <Card key={doc.id} className="border-border bg-card shadow-sm p-4 space-y-2.5 text-xs">
-                <div className="flex items-center gap-3">
-                  <Avatar className="h-9 w-9">
-                    <AvatarFallback>{getInitials(doc.name)}</AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <strong className="text-sm font-bold text-foreground block">{doc.name}</strong>
-                    <span className="text-[11px] text-muted-foreground">{doc.role}</span>
+        <TabsContent value="doctors" className="space-y-6 mt-4">
+          <div>
+            <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">Attending Emergency Physicians &amp; Surgeons</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3.5">
+              {erDoctors.map((doc) => (
+                <Card key={doc.id} className="border-border bg-card shadow-sm p-4 space-y-2.5 text-xs">
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-9 w-9">
+                      <AvatarFallback>{getInitials(doc.name)}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <strong className="text-sm font-bold text-foreground block">{doc.name}</strong>
+                      <span className="text-[11px] text-muted-foreground">{doc.role}</span>
+                    </div>
                   </div>
-                </div>
-                <div className="space-y-1 pt-1 border-t border-border/60 text-[11px]">
-                  <p className="text-muted-foreground">Shift: <strong>{doc.shift}</strong></p>
-                  <p className="text-muted-foreground">Contact: <span className="font-mono">{doc.contact}</span></p>
-                </div>
-                <Badge variant="outline" className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 text-[10px] font-semibold">
-                  {doc.status}
-                </Badge>
-              </Card>
-            ))}
+                  <div className="space-y-1 pt-1 border-t border-border/60 text-[11px]">
+                    <p className="text-muted-foreground">Shift: <strong>{doc.shift}</strong></p>
+                    <p className="text-muted-foreground">Contact: <span className="font-mono">{doc.contact}</span></p>
+                  </div>
+                  <Badge variant="outline" className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 text-[10px] font-semibold">
+                    {doc.status}
+                  </Badge>
+                </Card>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Emergency Nursing Station On-Duty Roster</h3>
+              <Button asChild size="sm" variant="ghost" className="h-6 text-xs text-primary font-semibold self-start sm:self-auto">
+                <Link href="/nurse-station">Manage Station in Nurse Module &rarr;</Link>
+              </Button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">
+              {[
+                { name: "Sister Anjali Desai", role: "Nurse Station Lead (Trauma Certified)", shift: "Morning (07:00-15:00)", status: "On Duty", contact: "+91 98206 66778", bays: "Bay 01 & 02 (Red Resuscitation)" },
+                { name: "Nurse Vikram Nair", role: "Senior Triage Nurse (Manchester Specialist)", shift: "Morning (07:00-15:00)", status: "On Duty", contact: "+91 98207 77889", bays: "Bay 03 - 06 (Trauma & Acute)" },
+                { name: "Nurse Pooja Sharma", role: "Emergency Staff Nurse (BLS/ACLS)", shift: "Morning (07:00-15:00)", status: "On Duty", contact: "+91 98208 88990", bays: "Bay 07 - 12 (Observation Yellow)" },
+              ].map((n) => (
+                <Card key={n.name} className="border-border bg-card shadow-sm p-4 space-y-2 text-xs">
+                  <div className="flex items-center justify-between">
+                    <strong className="text-sm font-bold text-foreground">{n.name}</strong>
+                    <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 text-[10px]">{n.status}</Badge>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">{n.role}</p>
+                  <div className="pt-2 border-t border-border/60 text-[11px] space-y-0.5">
+                    <p className="text-muted-foreground">Assigned Area: <strong className="text-foreground">{n.bays}</strong></p>
+                    <p className="text-muted-foreground">Shift: <span>{n.shift}</span></p>
+                  </div>
+                </Card>
+              ))}
+            </div>
           </div>
         </TabsContent>
 

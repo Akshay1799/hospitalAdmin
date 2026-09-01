@@ -1,5 +1,6 @@
 "use client";
 
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -26,8 +27,24 @@ const navItems: NavItem[] = [
   { label: "Staff Permissions", href: "/staff-permissions", icon: ShieldAlert },
 ];
 
+import { useSelector } from "react-redux";
+import { RootState } from "@/store/store";
+
 export function RosterNav() {
+  const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
+  const currentRole = useSelector((state: RootState) => state.nursingOperations.currentRole);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const isLeadOrAdmin = currentRole === "admin" || currentRole === "nurse_lead";
+
+  // Individual staff (Staff Nurse, Support Staff, Senior Nurse) do not see administrative sub-tabs
+  if (!mounted || !isLeadOrAdmin) {
+    return null;
+  }
 
   return (
     <div className="flex items-center gap-1.5 overflow-x-auto border-b border-border pb-2 mb-4 scrollbar-none">
