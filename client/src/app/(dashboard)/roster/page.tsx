@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { RootState } from "@/store/store";
 import Link from "next/link";
 import {
   AlertTriangle,
@@ -43,21 +45,19 @@ import { RosterNav } from "@/components/roster/roster-nav";
 import { RosterGrid } from "@/components/roster/RosterGrid";
 import { ShiftChangeRequests } from "@/components/roster/ShiftChangeRequests";
 import { ShiftOverlapWarning } from "@/components/roster/ShiftOverlapWarning";
-import {
-  mockRoster,
-  mockNurses,
-  mockSupportStaff,
-  mockShiftTemplates,
-  mockShiftChangeRequests,
-  mockStations,
-} from "@/lib/mock/nursing";
+import { reviewStaffRequest, submitStaffRequest } from "@/store/slices/nursingOperationsSlice";
 import { doctorsOnCall as initialDoctorsOnCall, leaveRequests as initialLeaveRequests } from "@/lib/mock-data/staff";
 import { DoctorOnCall, LeaveRequest } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 
 export default function RosterPage() {
+  const dispatch = useDispatch();
+  const nursing = useSelector((state: RootState) => state.nursingOperations);
   const [mounted, setMounted] = useState(false);
-  const staffList = [...mockNurses, ...mockSupportStaff];
+  const staffList = [...nursing.nurses.map((item) => ({ id: item.staff_id, name: item.name, stationId: item.station_id, department: item.department_name, roleScope: item.role, status: item.availability, qualifications: item.qualifications })), ...nursing.supportStaff.map((item) => ({ id: item.staff_id, name: item.name, stationId: item.station_id, type: item.category, status: item.availability }))];
+  const nursingRoster = nursing.roster.map((item) => ({ id: item.roster_id, staffId: item.staff_id, staffType: item.staff_type, shiftTemplateId: item.shift_id, date: item.date, stationId: item.station_id, status: item.status }));
+  const nursingShifts = nursing.shiftTemplates.map((item) => ({ id: item.shift_id, name: item.name, startTime: item.start_time, endTime: item.end_time, isDefault: item.is_default }));
+  const nursingRequests = nursing.staffRequests.map((item) => ({ id: item.request_id, staffId: item.staff_id, rosterEntryId: "", targetShiftTemplateId: nursing.shiftTemplates.find((shift) => shift.name === item.target_shift)?.shift_id || "sh-1", targetDate: item.target_date || "", status: item.status, reason: item.reason }));
 
   const [activeTab, setActiveTab] = useState("roster");
   const [hospitalWide, setHospitalWide] = useState(true);
@@ -68,6 +68,14 @@ export default function RosterPage() {
   const [doctorsOnCallList, setDoctorsOnCallList] = useState<DoctorOnCall[]>(initialDoctorsOnCall);
   const [leavesList, setLeavesList] = useState<LeaveRequest[]>(initialLeaveRequests);
   const [leaveModalOpen, setLeaveModalOpen] = useState(false);
+
+  // Leave Request Form State
+  const [selectedLeaveStaffId, setSelectedLeaveStaffId] = useState("");
+  const [leaveType, setLeaveType] = useState<LeaveRequest["leaveType"]>("Casual Leave");
+  const [leaveStartDate, setLeaveStartDate] = useState("2026-08-25");
+  const [leaveEndDate, setLeaveEndDate] = useState("2026-08-26");
+  const [leaveReason, setLeaveReason] = useState("");
+  const [leaveCoverageGap, setLeaveCoverageGap] = useState(false);
 
   // Coverage Gap dialog state
   const [coverageModalOpen, setCoverageModalOpen] = useState(false);
@@ -80,10 +88,76 @@ export default function RosterPage() {
     setMounted(true);
   }, []);
 
-  // Filter roster
-  let filteredRoster = mockRoster;
+  const handleOpenLeaveModal = () => {
+    setSelectedLeaveStaffId(staffList[0]?.id || "nur_001");
+    setLeaveType("Casual Leave");
+    setLeaveStartDate("2026-08-25");
+    setLeaveEndDate("2026-08-26");
+    setLeaveReason("");
+    setLeaveCoverageGap(false);
+    setLeaveModalOpen(true);
+  };
+
+  const handleCreateLeaveRequest = (e: React.FormEvent) => {
+    e.preventDefault();
+    const staff = staffList.find((s) => s.id === selectedLeaveStaffId);
+    if (!staff) {
+      toast({ title: "Select Staff", description: "Please select a staff member.", variant: "destructive" });
+      return;
+    }
+    if (!leaveReason.trim()) {
+      toast({ title: "Reason Required", description: "Please provide a reason for the leave request.", variant: "destructive" });
+      return;
+    }
+
+    const newLeave: LeaveRequest = {
+      id: `LV-${Date.now().toString().slice(-4)}`,
+      staffId: staff.id,
+      staffName: staff.name,
+      staffRole: "roleScope" in staff ? String(staff.roleScope) : "type" in staff ? String(staff.type) : "Staff",
+      department: "department" in staff ? String(staff.department) : "General Ward",
+      leaveType,
+      startDate: leaveStartDate,
+      endDate: leaveEndDate,
+      reason: leaveReason,
+      status: "Pending",
+      coverageGapDetected: leaveCoverageGap,
+      appliedOn: new Date().toISOString().split("T")[0],
+    };
+
+    setLeavesList((prev) => [newLeave, ...prev]);
+
+    const staffRoleStr = "roleScope" in staff ? String(staff.roleScope) : "type" in staff ? String(staff.type) : "Staff";
+    const deptStr = "department" in staff ? String(staff.department) : "General Ward";
+
+    dispatch(
+      submitStaffRequest({
+        staff_id: staff.id,
+        staff_name: staff.name,
+        staff_role: staffRoleStr,
+        station_id: "stationId" in staff && staff.stationId ? String(staff.stationId) : "st-1",
+        type: "Leave Request",
+        details: `${leaveType} from ${leaveStartDate} to ${leaveEndDate} (${deptStr})`,
+        target_date: leaveStartDate,
+        reason: `${leaveType}: ${leaveReason}`,
+      })
+    );
+
+    toast({
+      title: "Leave Request Logged",
+      description: `Leave request for ${staff.name} (${leaveType}) has been logged and submitted for approval.`,
+    });
+
+    setLeaveModalOpen(false);
+    setLeaveReason("");
+  };
+
+  // Filter roster by role scope (PRD Section 12 & Section 20)
+  const canManageRoster = ["admin", "nurse_lead"].includes(nursing.currentRole);
+  const visibleRoster = canManageRoster ? nursingRoster : nursingRoster.filter((item) => item.staffId === nursing.currentUserId);
+  let filteredRoster = visibleRoster;
   if (!hospitalWide && selectedStation !== "all") {
-    filteredRoster = mockRoster.filter((r) => r.stationId === selectedStation);
+    filteredRoster = visibleRoster.filter((r) => r.stationId === selectedStation);
   }
 
   // Nurse-only roster
@@ -108,7 +182,7 @@ export default function RosterPage() {
 
   const handleConfirmBackupAndApprove = () => {
     if (!targetLeaveForApproval) return;
-    const backupStaff = mockNurses.find((n) => n.id === selectedBackupStaff);
+    const backupStaff = staffList.find((n) => n.id === selectedBackupStaff);
 
     setLeavesList((prev) =>
       prev.map((l) =>
@@ -159,116 +233,173 @@ export default function RosterPage() {
     );
   }
 
+  const visibleRequests = canManageRoster
+    ? nursingRequests
+    : nursingRequests.filter((r) => r.staffId === nursing.currentUserId);
+
+  const visibleLeaves = canManageRoster
+    ? leavesList
+    : leavesList.filter(
+        (l) =>
+          l.staffId === nursing.currentUserId ||
+          l.staffName?.toLowerCase().includes((nursing.currentUserName || "").toLowerCase())
+      );
+
   return (
     <div className="space-y-4 animate-fade-in pb-12">
       <PageHeader
-        title="Hospital Workforce Roster &amp; Duty Schedules"
-        description="Global shift matrix, doctor on-call emergency desks, staff scheduling engine, and leave coverage governance."
-        crumbs={[{ label: "People & Staff" }, { label: "Duty & Shifts" }]}
+        title={canManageRoster ? "Hospital Workforce Roster & Duty Schedules" : "My Shift Schedule & Requests"}
+        description={
+          canManageRoster
+            ? "Global shift matrix, doctor on-call emergency desks, staff scheduling engine, and leave coverage governance."
+            : "View your assigned shift rotation, submit peer shift swap requests, and log leave requests."
+        }
+        crumbs={canManageRoster ? [{ label: "People & Staff" }, { label: "Duty & Shifts" }] : [{ label: "My Bedside Workspace" }, { label: "My Shift Schedule" }]}
         actions={
           <div className="flex items-center gap-2">
-            <Button size="sm" variant="outline" className="text-xs" onClick={() => setOverlapWarningOpen(true)}>
-              <ShieldAlert className="h-3.5 w-3.5 mr-1 text-amber-600" /> Overlap Check
-            </Button>
-            <Button size="sm" className="text-xs font-semibold" onClick={() => setLeaveModalOpen(true)}>
+            {canManageRoster && (
+              <Button size="sm" variant="outline" className="text-xs" onClick={() => setOverlapWarningOpen(true)}>
+                <ShieldAlert className="h-3.5 w-3.5 mr-1 text-amber-600" /> Overlap Check
+              </Button>
+            )}
+            <Button size="sm" className="text-xs font-semibold" onClick={handleOpenLeaveModal}>
               <Plus className="h-3.5 w-3.5 mr-1" /> Log Leave Request
             </Button>
           </div>
         }
       />
 
-      <RosterNav />
+      {canManageRoster && <RosterNav />}
 
       {/* KPI Ribbon */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <Card className="p-3.5 border-border bg-card shadow-xs">
-          <span className="text-[11px] text-muted-foreground uppercase font-bold">Total Staff Scheduled</span>
-          <p className="text-xl font-bold font-mono text-primary mt-0.5">{staffList.length} Personnel</p>
-          <span className="text-[10px] text-muted-foreground">Nurses &amp; Support Workforce</span>
-        </Card>
-        <Card className="p-3.5 border-border bg-card shadow-xs">
-          <span className="text-[11px] text-muted-foreground uppercase font-bold">Doctors On-Call</span>
-          <p className="text-xl font-bold font-mono text-cyan-600 mt-0.5">
-            {doctorsOnCallList.filter((d) => d.status === "On Call").length} On Standby
-          </p>
-          <span className="text-[10px] text-cyan-600 font-medium">Emergency &amp; Trauma Specialists</span>
-        </Card>
-        <Card className="p-3.5 border-border bg-card shadow-xs">
-          <span className="text-[11px] text-muted-foreground uppercase font-bold">Pending Shift Swaps</span>
-          <p className="text-xl font-bold font-mono text-amber-600 mt-0.5">
-            {mockShiftChangeRequests.filter((r) => r.status === "Pending").length} Requests
-          </p>
-          <span className="text-[10px] text-amber-600 font-medium">Awaiting Admin approval</span>
-        </Card>
-        <Card className="p-3.5 border-border bg-card shadow-xs">
-          <span className="text-[11px] text-muted-foreground uppercase font-bold">Coverage Gaps Flagged</span>
-          <p className="text-xl font-bold font-mono text-rose-600 mt-0.5">
-            {leavesList.filter((l) => l.status === "Pending" && l.coverageGapDetected).length} Gaps
-          </p>
-          <span className="text-[10px] text-rose-600 font-medium">Requires replacement assignment</span>
-        </Card>
-      </div>
+      {canManageRoster ? (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <Card className="p-3.5 border-border bg-card shadow-xs">
+            <span className="text-[11px] text-muted-foreground uppercase font-bold">Total Staff Scheduled</span>
+            <p className="text-xl font-bold font-mono text-primary mt-0.5">{staffList.length} Personnel</p>
+            <span className="text-[10px] text-muted-foreground">Nurses &amp; Support Workforce</span>
+          </Card>
+          <Card className="p-3.5 border-border bg-card shadow-xs">
+            <span className="text-[11px] text-muted-foreground uppercase font-bold">Doctors On-Call</span>
+            <p className="text-xl font-bold font-mono text-cyan-600 mt-0.5">
+              {doctorsOnCallList.filter((d) => d.status === "On Call").length} On Standby
+            </p>
+            <span className="text-[10px] text-cyan-600 font-medium">Emergency &amp; Trauma Specialists</span>
+          </Card>
+          <Card className="p-3.5 border-border bg-card shadow-xs">
+            <span className="text-[11px] text-muted-foreground uppercase font-bold">Pending Shift Swaps</span>
+            <p className="text-xl font-bold font-mono text-amber-600 mt-0.5">
+              {nursingRequests.filter((r) => r.status === "Pending").length} Requests
+            </p>
+            <span className="text-[10px] text-amber-600 font-medium">Awaiting Admin approval</span>
+          </Card>
+          <Card className="p-3.5 border-border bg-card shadow-xs">
+            <span className="text-[11px] text-muted-foreground uppercase font-bold">Coverage Gaps Flagged</span>
+            <p className="text-xl font-bold font-mono text-rose-600 mt-0.5">
+              {leavesList.filter((l) => l.status === "Pending" && l.coverageGapDetected).length} Gaps
+            </p>
+            <span className="text-[10px] text-rose-600 font-medium">Requires replacement assignment</span>
+          </Card>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <Card className="p-3.5 border-border bg-card shadow-xs">
+            <span className="text-[11px] text-muted-foreground uppercase font-bold">My Assigned Shifts</span>
+            <p className="text-xl font-bold font-mono text-primary mt-0.5">7 Shifts</p>
+            <span className="text-[10px] text-muted-foreground">Mon 24 Aug – Sun 30 Aug</span>
+          </Card>
+          <Card className="p-3.5 border-border bg-card shadow-xs">
+            <span className="text-[11px] text-muted-foreground uppercase font-bold">Today&apos;s Active Shift</span>
+            <p className="text-xl font-bold font-mono text-emerald-600 mt-0.5">Morning</p>
+            <span className="text-[10px] text-emerald-600 font-medium">07:00 AM – 15:00 PM · On Duty</span>
+          </Card>
+          <Card className="p-3.5 border-border bg-card shadow-xs">
+            <span className="text-[11px] text-muted-foreground uppercase font-bold">My Shift Swaps</span>
+            <p className="text-xl font-bold font-mono text-amber-600 mt-0.5">
+              {visibleRequests.filter((r) => r.status === "Pending").length} Pending
+            </p>
+            <span className="text-[10px] text-amber-600 font-medium">Peer exchange requests</span>
+          </Card>
+          <Card className="p-3.5 border-border bg-card shadow-xs">
+            <span className="text-[11px] text-muted-foreground uppercase font-bold">My Leave Requests</span>
+            <p className="text-xl font-bold font-mono text-primary mt-0.5">
+              {visibleLeaves.length} Logged
+            </p>
+            <span className="text-[10px] text-muted-foreground">Personal leave tracking</span>
+          </Card>
+        </div>
+      )}
 
       {/* Tabs Layout */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="bg-muted/40 p-1 border border-border">
           <TabsTrigger value="roster" className="text-xs">
-            Global Shift Roster
+            {canManageRoster ? "Global Shift Roster" : "My Shift Schedule"}
           </TabsTrigger>
-          <TabsTrigger value="scheduling" className="text-xs">
-            Staff Scheduling Engine
-          </TabsTrigger>
-          <TabsTrigger value="doctors" className="text-xs">
-            Doctor On-Call ({doctorsOnCallList.length})
-          </TabsTrigger>
-          <TabsTrigger value="nurses" className="text-xs">
-            Nurse-Only Roster
-          </TabsTrigger>
+          {canManageRoster && (
+            <>
+              <TabsTrigger value="scheduling" className="text-xs">
+                Staff Scheduling Engine
+              </TabsTrigger>
+              <TabsTrigger value="doctors" className="text-xs">
+                Doctor On-Call ({doctorsOnCallList.length})
+              </TabsTrigger>
+              <TabsTrigger value="nurses" className="text-xs">
+                Nurse-Only Roster
+              </TabsTrigger>
+            </>
+          )}
           <TabsTrigger value="swaps" className="text-xs">
-            Shift Swaps ({mockShiftChangeRequests.length})
+            {canManageRoster ? `Shift Swaps (${nursingRequests.length})` : `My Shift Swaps (${visibleRequests.length})`}
           </TabsTrigger>
           <TabsTrigger value="leave" className="text-xs">
-            Leave Requests ({leavesList.filter((l) => l.status === "Pending").length})
+            {canManageRoster
+              ? `Leave Requests (${leavesList.filter((l) => l.status === "Pending").length})`
+              : `My Leave Requests (${visibleLeaves.length})`}
           </TabsTrigger>
-          <TabsTrigger value="coverage" className="text-xs">
-            Coverage Analyzer
-          </TabsTrigger>
+          {canManageRoster && (
+            <TabsTrigger value="coverage" className="text-xs">
+              Coverage Analyzer
+            </TabsTrigger>
+          )}
         </TabsList>
 
-        {/* Tab 1: Global Shift Roster */}
+        {/* Tab 1: Shift Roster */}
         <TabsContent value="roster" className="space-y-4">
-          <div className="flex justify-between items-center bg-card p-3 rounded-lg border border-border">
-            <div className="flex items-center space-x-6">
-              <div className="flex items-center space-x-2">
-                <Switch id="hospital-wide" checked={hospitalWide} onCheckedChange={setHospitalWide} />
-                <Label htmlFor="hospital-wide" className="text-xs font-semibold cursor-pointer">
-                  Hospital-wide View
-                </Label>
-              </div>
+          {canManageRoster && (
+            <div className="flex justify-between items-center bg-card p-3 rounded-lg border border-border">
+              <div className="flex items-center space-x-6">
+                <div className="flex items-center space-x-2">
+                  <Switch id="hospital-wide" checked={hospitalWide} onCheckedChange={setHospitalWide} />
+                  <Label htmlFor="hospital-wide" className="text-xs font-semibold cursor-pointer">
+                    Hospital-wide View
+                  </Label>
+                </div>
 
-              {!hospitalWide && (
-                <Select value={selectedStation} onValueChange={setSelectedStation}>
-                  <SelectTrigger className="w-[180px] text-xs h-8">
-                    <SelectValue placeholder="Filter by Station" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Stations</SelectItem>
-                    {mockStations.map((s) => (
-                      <SelectItem key={s.id} value={s.id}>
-                        {s.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
+                {!hospitalWide && (
+                  <Select value={selectedStation} onValueChange={setSelectedStation}>
+                    <SelectTrigger className="w-[180px] text-xs h-8">
+                      <SelectValue placeholder="Filter by Station" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Stations</SelectItem>
+                      {nursing.stations.map((s) => (
+                        <SelectItem key={s.station_id} value={s.station_id}>
+                          {s.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                Showing assignments across Morning, Evening &amp; Night shift windows.
+              </div>
             </div>
-            <div className="text-xs text-muted-foreground">
-              Showing assignments across Morning, Evening &amp; Night shift windows.
-            </div>
-          </div>
+          )}
 
           <div className="bg-card rounded-lg border border-border shadow-xs overflow-hidden">
-            <RosterGrid roster={filteredRoster} staffList={staffList} shiftTemplates={mockShiftTemplates} />
+            <RosterGrid roster={filteredRoster as any} staffList={staffList as any} shiftTemplates={nursingShifts as any} />
           </div>
         </TabsContent>
 
@@ -404,7 +535,7 @@ export default function RosterPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="p-4 pt-2">
-              <RosterGrid roster={nurseOnlyRoster} staffList={mockNurses} shiftTemplates={mockShiftTemplates} />
+              <RosterGrid roster={nurseOnlyRoster as any} staffList={staffList.filter((staff) => "roleScope" in staff) as any} shiftTemplates={nursingShifts as any} />
             </CardContent>
           </Card>
         </TabsContent>
@@ -413,16 +544,21 @@ export default function RosterPage() {
         <TabsContent value="swaps" className="space-y-4">
           <Card className="border-border shadow-xs">
             <CardHeader className="p-4 pb-2">
-              <CardTitle className="text-sm font-bold">Peer Shift Swap &amp; Exchange Requests</CardTitle>
+              <CardTitle className="text-sm font-bold">
+                {canManageRoster ? "Peer Shift Swap & Exchange Requests" : "My Shift Swap & Exchange Requests"}
+              </CardTitle>
               <CardDescription className="text-xs">
-                Staff-submitted swap requests with real-time schedule recalculation upon approval.
+                {canManageRoster
+                  ? "Staff-submitted swap requests with real-time schedule recalculation upon approval."
+                  : "Track status of your submitted shift exchange and relief requests with peer nurses."}
               </CardDescription>
             </CardHeader>
             <CardContent className="p-4 pt-2">
               <ShiftChangeRequests
-                requests={mockShiftChangeRequests}
-                staffList={mockNurses}
-                shiftTemplates={mockShiftTemplates}
+                requests={visibleRequests as any}
+                staffList={staffList.filter((staff) => "roleScope" in staff) as any}
+                shiftTemplates={nursingShifts as any}
+                onReview={(requestId, status) => dispatch(reviewStaffRequest({ requestId, status, reviewer: nursing.currentUserName }))}
               />
             </CardContent>
           </Card>
@@ -432,9 +568,13 @@ export default function RosterPage() {
         <TabsContent value="leave" className="space-y-4">
           <Card className="border-border shadow-xs">
             <CardHeader className="p-4 pb-2">
-              <CardTitle className="text-sm font-bold">Leave Requests &amp; Approvals Workflow</CardTitle>
+              <CardTitle className="text-sm font-bold">
+                {canManageRoster ? "Leave Requests & Approvals Workflow" : "My Leave Requests & Absence History"}
+              </CardTitle>
               <CardDescription className="text-xs">
-                Sick, Casual, and Earned leave requests with automatic coverage gap detection.
+                {canManageRoster
+                  ? "Sick, Casual, and Earned leave requests with automatic coverage gap detection."
+                  : "View approval status and coverage tracking for your logged leaves."}
               </CardDescription>
             </CardHeader>
             <CardContent className="p-4 pt-2">
@@ -452,7 +592,7 @@ export default function RosterPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {leavesList.map((leave) => (
+                    {visibleLeaves.map((leave) => (
                       <TableRow key={leave.id}>
                         <TableCell>
                           <div className="font-semibold text-xs text-foreground">{leave.staffName}</div>
@@ -494,25 +634,31 @@ export default function RosterPage() {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right space-x-1">
-                          {leave.status === "Pending" && (
-                            <>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-7 text-xs text-emerald-600 hover:bg-emerald-500/10"
-                                onClick={() => handleApproveLeaveClick(leave)}
-                              >
-                                Approve
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-7 text-xs text-rose-600 hover:bg-rose-500/10"
-                                onClick={() => handleRejectLeave(leave.id)}
-                              >
-                                Reject
-                              </Button>
-                            </>
+                          {canManageRoster ? (
+                            leave.status === "Pending" && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 text-xs text-emerald-600 hover:bg-emerald-500/10"
+                                  onClick={() => handleApproveLeaveClick(leave)}
+                                >
+                                  Approve
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 text-xs text-rose-600 hover:bg-rose-500/10"
+                                  onClick={() => handleRejectLeave(leave.id)}
+                                >
+                                  Reject
+                                </Button>
+                              </>
+                            )
+                          ) : (
+                            <span className="text-[11px] text-muted-foreground">
+                              {leave.status === "Pending" ? "Awaiting Review" : "Processed"}
+                            </span>
                           )}
                         </TableCell>
                       </TableRow>
@@ -576,6 +722,116 @@ export default function RosterPage() {
         </TabsContent>
       </Tabs>
 
+      {/* Log Leave Request Modal */}
+      <Dialog open={leaveModalOpen} onOpenChange={setLeaveModalOpen}>
+        <DialogContent className="sm:max-w-[480px]">
+          <form onSubmit={handleCreateLeaveRequest}>
+            <DialogHeader>
+              <DialogTitle className="text-base font-bold flex items-center gap-2">
+                <Calendar className="h-5 w-5 text-primary" /> Log Staff Leave Request
+              </DialogTitle>
+              <DialogDescription className="text-xs">
+                Submit an employee leave request with automatic shift coverage analysis and approval workflow.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="grid gap-3 py-3 text-xs">
+              <div className="grid gap-1">
+                <Label htmlFor="leave-staff">Staff Member *</Label>
+                <Select value={selectedLeaveStaffId} onValueChange={setSelectedLeaveStaffId}>
+                  <SelectTrigger id="leave-staff" className="text-xs">
+                    <SelectValue placeholder="Select staff member" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {staffList.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.name} ({"roleScope" in s ? s.roleScope : "type" in s ? s.type : "Staff"} • {"department" in s ? s.department : "General"})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="grid gap-1">
+                  <Label htmlFor="leave-type">Leave Type</Label>
+                  <Select value={leaveType} onValueChange={(v: any) => setLeaveType(v)}>
+                    <SelectTrigger id="leave-type" className="text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Casual Leave">Casual Leave (CL)</SelectItem>
+                      <SelectItem value="Sick Leave">Sick / Medical Leave (SL)</SelectItem>
+                      <SelectItem value="Earned Leave">Earned Annual Leave (EL)</SelectItem>
+                      <SelectItem value="Compensatory Off">Compensatory Off (Comp-Off)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid gap-1">
+                  <Label htmlFor="leave-gap">Coverage Gap Alert</Label>
+                  <div className="flex items-center justify-between h-9 px-3 rounded-md border border-border bg-muted/20">
+                    <span className="text-[11px] text-muted-foreground">Flag Understaffing</span>
+                    <Switch
+                      id="leave-gap"
+                      checked={leaveCoverageGap}
+                      onCheckedChange={setLeaveCoverageGap}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="grid gap-1">
+                  <Label htmlFor="leave-start">Start Date *</Label>
+                  <Input
+                    id="leave-start"
+                    type="date"
+                    required
+                    className="text-xs"
+                    value={leaveStartDate}
+                    onChange={(e) => setLeaveStartDate(e.target.value)}
+                  />
+                </div>
+
+                <div className="grid gap-1">
+                  <Label htmlFor="leave-end">End Date *</Label>
+                  <Input
+                    id="leave-end"
+                    type="date"
+                    required
+                    className="text-xs"
+                    value={leaveEndDate}
+                    onChange={(e) => setLeaveEndDate(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="grid gap-1">
+                <Label htmlFor="leave-reason">Reason / Justification *</Label>
+                <Input
+                  id="leave-reason"
+                  required
+                  placeholder="e.g. Scheduled family leave / Medical emergency"
+                  className="text-xs"
+                  value={leaveReason}
+                  onChange={(e) => setLeaveReason(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button type="button" variant="outline" size="sm" onClick={() => setLeaveModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" size="sm" className="font-semibold">
+                Submit Leave Request
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
       {/* Coverage Gap Resolve Modal (Rule F10-CANNOT-2) */}
       <Dialog open={coverageModalOpen} onOpenChange={setCoverageModalOpen}>
         <DialogContent className="sm:max-w-md">
@@ -595,7 +851,7 @@ export default function RosterPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {mockNurses.map((n) => (
+                  {staffList.filter((staff) => "roleScope" in staff).map((n) => (
                     <SelectItem key={n.id} value={n.id}>
                       {n.name} ({n.roleScope} • {n.department})
                     </SelectItem>

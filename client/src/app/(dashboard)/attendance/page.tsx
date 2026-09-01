@@ -40,9 +40,72 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/shared/page-header";
 import { RosterNav } from "@/components/roster/roster-nav";
+import { RoleGate } from "@/components/nursing/role-gate";
 import { attendanceRecords as initialRecords, leaveRequests } from "@/lib/mock-data/staff";
 import { AttendanceRecord } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
+
+// Time calculation & status resolution helpers
+function parseTimeToMinutes(timeStr: string): number | null {
+  if (!timeStr) return null;
+  const clean = timeStr.trim().toUpperCase();
+  const isPM = clean.includes("PM");
+  const isAM = clean.includes("AM");
+  const parts = clean.replace(/[APM\s]/g, "").split(":");
+  if (parts.length < 2) return null;
+  let hours = parseInt(parts[0], 10);
+  const minutes = parseInt(parts[1], 10);
+  if (isNaN(hours) || isNaN(minutes)) return null;
+
+  if (isPM && hours < 12) hours += 12;
+  if (isAM && hours === 12) hours = 0;
+
+  return hours * 60 + minutes;
+}
+
+function parseShiftStartMinutes(scheduledShift: string): number | null {
+  if (!scheduledShift) return null;
+  const match = scheduledShift.match(/\((\d{1,2}:\d{2})/);
+  if (match && match[1]) {
+    const [h, m] = match[1].split(":").map(Number);
+    return h * 60 + m;
+  }
+  return null;
+}
+
+function calculateAttendanceStatus(
+  punchInStr: string,
+  scheduledShift: string,
+  fallbackStatus: AttendanceRecord["status"]
+): { status: AttendanceRecord["status"]; lateMinutes: number } {
+  if (fallbackStatus === "On Leave" || fallbackStatus === "Absent") {
+    return { status: fallbackStatus, lateMinutes: 0 };
+  }
+
+  const punchInMins = parseTimeToMinutes(punchInStr);
+  const shiftStartMins = parseShiftStartMinutes(scheduledShift);
+
+  if (punchInMins === null || shiftStartMins === null) {
+    return { status: "Present", lateMinutes: 0 };
+  }
+
+  // Grace window: within 15 minutes of shift start
+  const diff = punchInMins - shiftStartMins;
+
+  if (shiftStartMins >= 20 * 60 && punchInMins < 6 * 60) {
+    const adjustedDiff = (punchInMins + 24 * 60) - shiftStartMins;
+    if (adjustedDiff > 15) {
+      return { status: "Late", lateMinutes: adjustedDiff };
+    }
+    return { status: "Present", lateMinutes: 0 };
+  }
+
+  if (diff > 15) {
+    return { status: "Late", lateMinutes: diff };
+  }
+
+  return { status: "Present", lateMinutes: 0 };
+}
 
 export default function AttendancePage() {
   const [mounted, setMounted] = useState(false);
@@ -57,6 +120,7 @@ export default function AttendancePage() {
   const [editingRecord, setEditingRecord] = useState<AttendanceRecord | null>(null);
   const [newPunchIn, setNewPunchIn] = useState("");
   const [newPunchOut, setNewPunchOut] = useState("");
+  const [newStatus, setNewStatus] = useState<AttendanceRecord["status"]>("Present");
   const [editReason, setEditReason] = useState("");
 
   const { toast } = useToast();
@@ -69,8 +133,17 @@ export default function AttendancePage() {
     setEditingRecord(rec);
     setNewPunchIn(rec.punchIn || "06:00 AM");
     setNewPunchOut(rec.punchOut || "02:00 PM");
+    setNewStatus(rec.status);
     setEditReason("");
     setEditModalOpen(true);
+  };
+
+  const handlePunchInChange = (val: string) => {
+    setNewPunchIn(val);
+    if (editingRecord) {
+      const calc = calculateAttendanceStatus(val, editingRecord.scheduledShift, editingRecord.status);
+      setNewStatus(calc.status);
+    }
   };
 
   const handleSaveTimestampEdit = (e: React.FormEvent) => {
@@ -85,6 +158,10 @@ export default function AttendancePage() {
       return;
     }
 
+    const calc = calculateAttendanceStatus(newPunchIn, editingRecord.scheduledShift, newStatus);
+    const finalStatus = newStatus || calc.status;
+    const finalLateMins = finalStatus === "Late" ? (calc.lateMinutes || editingRecord.lateMinutes || 15) : undefined;
+
     setRecords((prev) =>
       prev.map((r) =>
         r.id === editingRecord.id
@@ -92,6 +169,8 @@ export default function AttendancePage() {
               ...r,
               punchIn: newPunchIn,
               punchOut: newPunchOut,
+              status: finalStatus,
+              lateMinutes: finalLateMins,
               editedReason: editReason,
               editedBy: "Hospital Admin (Security Logged)",
             }
@@ -100,8 +179,8 @@ export default function AttendancePage() {
     );
 
     toast({
-      title: "Timestamp Corrected & Audit Logged",
-      description: `Updated punch record for ${editingRecord.staffName}. Audit ID: SEC-${Date.now().toString().slice(-4)}.`,
+      title: "Timestamp & Status Corrected",
+      description: `Updated punch record for ${editingRecord.staffName}: Status set to ${finalStatus}. Audit ID: SEC-${Date.now().toString().slice(-4)}.`,
     });
     setEditModalOpen(false);
   };
@@ -164,8 +243,12 @@ export default function AttendancePage() {
   }
 
   return (
-    <div className="space-y-4 animate-fade-in pb-12">
-      <PageHeader
+    <RoleGate
+      allowed={["admin", "nurse_lead", "senior_nurse"]}
+      message="Hospital-wide live attendance tracking and RFID biometric override logs are restricted to Nurse Station Lead and Hospital Admin (PRD Section 6 & Section 20)."
+    >
+      <div className="space-y-4 animate-fade-in pb-12">
+        <PageHeader
         title="Hospital Workforce Attendance &amp; Clock-In Suite"
         description="Live check-in/out boards, RFID biometric logs, late/early flags, and overtime compliance reports."
         crumbs={[{ label: "People & Staff" }, { label: "Attendance" }]}
@@ -538,7 +621,7 @@ export default function AttendancePage() {
                     id="edit-in"
                     className="text-xs font-mono"
                     value={newPunchIn}
-                    onChange={(e) => setNewPunchIn(e.target.value)}
+                    onChange={(e) => handlePunchInChange(e.target.value)}
                     required
                   />
                 </div>
@@ -551,6 +634,30 @@ export default function AttendancePage() {
                     onChange={(e) => setNewPunchOut(e.target.value)}
                     required
                   />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="grid gap-1">
+                  <Label htmlFor="edit-status">Attendance Status</Label>
+                  <Select value={newStatus} onValueChange={(val: any) => setNewStatus(val)}>
+                    <SelectTrigger id="edit-status" className="text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Present">Present (On-Time)</SelectItem>
+                      <SelectItem value="Late">Late Arrival</SelectItem>
+                      <SelectItem value="Early Departure">Early Departure</SelectItem>
+                      <SelectItem value="On Leave">On Leave</SelectItem>
+                      <SelectItem value="Absent">Absent</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-1">
+                  <Label>Status Sync Mode</Label>
+                  <div className="flex items-center h-9 px-2.5 rounded-md border border-border bg-muted/40 text-[11px] text-muted-foreground">
+                    Auto-evaluates on punch time
+                  </div>
                 </div>
               </div>
 
@@ -578,5 +685,6 @@ export default function AttendancePage() {
         </DialogContent>
       </Dialog>
     </div>
-  );
+  </RoleGate>
+);
 }

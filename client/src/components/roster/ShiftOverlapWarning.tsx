@@ -32,10 +32,10 @@ export function ShiftOverlapWarning({
           </div>
           <DialogDescription className="pt-4 text-base">
             The new shift assignment for <span className="font-semibold text-foreground">{staffName}</span> overlaps with an existing shift:
-            <div className="mt-2 p-2 bg-muted rounded-md text-sm border border-border">
+            <span className="block mt-2 p-2 bg-muted rounded-md text-sm border border-border">
               {overlapDetails}
-            </div>
-            Are you sure you want to save this assignment?
+            </span>
+            <span className="block mt-2">Are you sure you want to save this assignment?</span>
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="mt-4">

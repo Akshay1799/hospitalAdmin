@@ -10,16 +10,19 @@ interface ShiftChangeRequestsProps {
   requests: ShiftChangeRequest[];
   staffList: Nurse[];
   shiftTemplates: ShiftTemplate[];
+  onReview?: (requestId: string, status: "Approved" | "Rejected") => void;
 }
 
-export function ShiftChangeRequests({ requests, staffList, shiftTemplates }: ShiftChangeRequestsProps) {
+export function ShiftChangeRequests({ requests, staffList, shiftTemplates, onReview }: ShiftChangeRequestsProps) {
   const { toast } = useToast();
   
-  const handleApprove = (staffName: string) => {
+  const handleApprove = (requestId: string, staffName: string) => {
+    onReview?.(requestId, "Approved");
     toast({ title: "Shift Change Approved", description: `Approved shift change for ${staffName}.` });
   };
 
-  const handleReject = (staffName: string) => {
+  const handleReject = (requestId: string, staffName: string) => {
+    onReview?.(requestId, "Rejected");
     toast({ title: "Shift Change Rejected", description: `Rejected shift change for ${staffName}.`, variant: "destructive" });
   };
 
@@ -57,8 +60,8 @@ export function ShiftChangeRequests({ requests, staffList, shiftTemplates }: Shi
                 <TableCell className="text-right space-x-2">
                   {req.status === 'Pending' && (
                     <>
-                      <Button size="sm" variant="outline" className="text-destructive border-destructive/50 hover:bg-destructive/10" onClick={() => handleReject(staff?.name || 'Unknown')}>Reject</Button>
-                      <Button size="sm" onClick={() => handleApprove(staff?.name || 'Unknown')}>Approve</Button>
+                      <Button size="sm" variant="outline" className="text-destructive border-destructive/50 hover:bg-destructive/10" onClick={() => handleReject(req.id, staff?.name || 'Unknown')}>Reject</Button>
+                      <Button size="sm" onClick={() => handleApprove(req.id, staff?.name || 'Unknown')}>Approve</Button>
                     </>
                   )}
                   {req.status !== 'Pending' && (
