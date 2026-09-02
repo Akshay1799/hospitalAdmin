@@ -970,9 +970,9 @@ const initialNotifications: StaffNotificationEntity[] = [
 ];
 
 const defaultInitialState: NursingOperationsState = {
-  currentRole: "nurse_lead",
-  currentUserId: "nurse-1",
-  currentUserName: "Sister Anita Joseph",
+  currentRole: "admin",
+  currentUserId: "usr-admin-1",
+  currentUserName: "Dr. Vikram Seth (Super Admin)",
   activeStationId: "st-1",
   stations: initialStations,
   nurses: initialNurses,

@@ -43,7 +43,6 @@ const ADMIN_ONLY_ROUTES = [
   "/procurement",
   "/assets",
   "/ambulance",
-  "/hospital-profile",
   "/content-resources",
   "/reviews",
   "/analytics",

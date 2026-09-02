@@ -85,8 +85,6 @@ export const navGroups: NavGroup[] = [
     title: "Clinical Operations",
     items: [
       { label: "Doctors", href: "/doctors", icon: Stethoscope },
-      { label: "Nurse Station (Live)", href: "/nurse-station", icon: HeartPulse },
-      { label: "Nurse Bedside", href: "/nurse", icon: Bed },
       { label: "Departments", href: "/departments", icon: Building2 },
       { label: "Nurse Stations (Admin)", href: "/nurse-stations", icon: ShieldCheck },
       { label: "Wards & Beds", href: "/wards-beds", icon: Bed },
