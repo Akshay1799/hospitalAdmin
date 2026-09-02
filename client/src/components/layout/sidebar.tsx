@@ -204,7 +204,7 @@ export function SidebarNav({
             </DropdownMenuLabel>
             <DropdownMenuItem
               className={cn("text-xs cursor-pointer gap-2", currentRole === "admin" && "font-bold text-primary bg-primary/10")}
-              onClick={() => handleSwitchRole("admin", "usr-admin-1", "Dr. Vikram Seth (Super Admin)", "/dashboard")}
+              onClick={() => handleSwitchRole("admin", "usr-admin-1", "Dr. Vikram Seth (Hospital Admin)", "/dashboard")}
             >
               <ShieldCheck className="h-3.5 w-3.5 text-teal-600" /> Hospital Admin
             </DropdownMenuItem>

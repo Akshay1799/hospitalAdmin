@@ -57,7 +57,7 @@ export function AdminOverrideLogBanner() {
     <Alert className="bg-amber-500/10 border-amber-500/20 text-amber-800 dark:text-amber-200 mb-4 py-2.5">
       <ShieldAlert className="h-4 w-4 text-amber-600 dark:text-amber-400" />
       <AlertDescription className="font-semibold text-xs ml-2">
-        Administrative Override • Performed by Hospital Admin (Super Admin)
+        Administrative Override • Performed by Hospital Admin
       </AlertDescription>
     </Alert>
   );

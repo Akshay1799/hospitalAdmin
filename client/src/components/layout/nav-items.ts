@@ -304,7 +304,7 @@ export function getWorkspaceMetaForRole(role?: AppUserRole): WorkspaceMeta {
         appSubname: "Admin",
         tagline: "Hospital Command Center",
         profileName: "Hospital Admin",
-        profileRole: "Super Admin",
+        profileRole: "Hospital Admin",
         profileEmail: "admin@qlyno.health",
         profileInitials: "HA",
       };

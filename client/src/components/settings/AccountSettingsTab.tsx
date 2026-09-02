@@ -80,7 +80,7 @@ export function AccountSettingsTab() {
     lastName: "Sharma",
     email: "admin@qlyno.health",
     phone: "+91 98200 12345",
-    designation: "Chief Medical Administrator / Super Admin",
+    designation: "Chief Medical Administrator / Hospital Admin",
     language: "en-IN",
     timezone: "Asia/Kolkata",
     dateFormat: "DD/MM/YYYY",
@@ -206,7 +206,7 @@ export function AccountSettingsTab() {
                     {profile.firstName} {profile.lastName}
                   </h4>
                   <Badge className="bg-primary/10 text-primary border-primary/30 text-[11px]">
-                    Super Admin
+                    Hospital Admin
                   </Badge>
                 </div>
                 <p className="text-xs text-muted-foreground">{profile.designation}</p>

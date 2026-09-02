@@ -47,7 +47,7 @@ const ROLES: RoleOption[] = [
     targetRoute: "/dashboard",
     icon: ShieldCheck,
     defaultEmail: "admin@qlyno.health",
-    defaultName: "Dr. Vikram Seth (Super Admin)",
+    defaultName: "Dr. Vikram Seth (Hospital Admin)",
     defaultUserId: "usr-admin-1",
   },
   {
