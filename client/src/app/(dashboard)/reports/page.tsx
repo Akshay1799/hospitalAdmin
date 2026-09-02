@@ -99,6 +99,9 @@ import {
 } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { cn, formatDateTime, formatDate, formatCurrency } from "@/lib/utils";
+import { useSelector } from "react-redux";
+import { RootState } from "@/store/store";
+import { StationReportsView } from "@/components/nursing/StationReportsView";
 
 const DELEGATION_STRING = "Performed by Hospital Admin • acting within Reports & Operational Analytics suite";
 
@@ -235,8 +238,7 @@ function generateAdHocReportData(
   };
 }
 
-export default function ReportsAnalyticsPage() {
-  const [mounted, setMounted] = useState(false);
+function AdminReportsContent() {
   const { toast } = useToast();
 
   const [activeTab, setActiveTab] = useState<"catalog" | "builder" | "schedules" | "governance">("catalog");
@@ -268,10 +270,6 @@ export default function ReportsAnalyticsPage() {
   ]);
   const [reportToDelete, setReportToDelete] = useState<GeneratedAdHocReport | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   // Filtered Catalog
   const filteredReports = useMemo(() => {
@@ -702,21 +700,6 @@ export default function ReportsAnalyticsPage() {
     });
     setScheduleModalOpen(false);
   };
-
-  if (!mounted) {
-    return (
-      <div className="space-y-4 animate-fade-in pb-12">
-        <PageHeader
-          title="Hospital Reports &amp; Analytics Hub"
-          description="Hospital-wide operational, clinical, financial, and workforce reporting engine scoped by permission."
-          crumbs={[{ label: "Finance & Admin" }, { label: "Reports" }]}
-        />
-        <div className="h-48 flex items-center justify-center text-xs text-muted-foreground">
-          Loading reporting catalog...
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-4 animate-fade-in pb-12">
@@ -1765,4 +1748,27 @@ export default function ReportsAnalyticsPage() {
       </Dialog>
     </div>
   );
+}
+
+export default function ReportsAnalyticsPage() {
+  const [mounted, setMounted] = useState(false);
+  const currentRole = useSelector((state: RootState) => state.nursingOperations.currentRole);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return (
+      <div className="min-h-[50vh] flex items-center justify-center p-6 text-xs text-muted-foreground">
+        Loading Reports &amp; Operational Analytics...
+      </div>
+    );
+  }
+
+  if (currentRole !== "admin") {
+    return <StationReportsView />;
+  }
+
+  return <AdminReportsContent />;
 }
