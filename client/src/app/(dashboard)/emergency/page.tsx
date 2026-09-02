@@ -19,7 +19,6 @@ import {
   Flame,
   Bed,
   Stethoscope,
-  HeartPulse,
   History,
   Activity,
   UserPlus,
@@ -236,11 +235,6 @@ export default function EmergencyPage() {
         crumbs={[{ label: "Patient Care" }, { label: "Emergency Management" }]}
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            <Button variant="outline" size="sm" asChild className="gap-1.5 font-semibold">
-              <Link href="/nurse-station">
-                <HeartPulse className="h-4 w-4 text-primary" /> Emergency Nurse Station &rarr;
-              </Link>
-            </Button>
             <Button variant="outline" size="sm" asChild>
               <Link href="/emergency/audit">
                 <FileText className="h-4 w-4 mr-1.5" /> Audit Log
