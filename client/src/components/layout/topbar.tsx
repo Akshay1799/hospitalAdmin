@@ -56,7 +56,7 @@ import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import { getWorkspaceMetaForRole } from "@/components/layout/nav-items";
 import { SidebarNav } from "@/components/layout/sidebar";
-import { mockExtendedNotifications } from "@/lib/mock-data/notifications-extended";
+import { getNotificationsForRole } from "@/lib/mock-data/notifications-extended";
 import { GlobalSearch } from "@/components/layout/global-search";
 
 export function Topbar() {
@@ -68,9 +68,10 @@ export function Topbar() {
     setMounted(true);
   }, []);
 
-  const effectiveRole = mounted ? currentRole : "nurse_lead";
+  const effectiveRole = mounted ? currentRole : "admin";
   const meta = getWorkspaceMetaForRole(effectiveRole);
-  const unread = mockExtendedNotifications.filter((n) => n.status === "Unread").length;
+  const roleNotifications = getNotificationsForRole(effectiveRole);
+  const unread = roleNotifications.filter((n) => n.status === "Unread").length;
 
   const dispatchStationAction = (action: string) => {
     if (typeof window !== "undefined") {
@@ -99,80 +100,88 @@ export function Topbar() {
 
         <div className="hidden flex-1 sm:flex items-center gap-3">
           <GlobalSearch />
-          <Badge variant="outline" className="hidden xl:inline-flex text-[11px] font-semibold text-muted-foreground border-border bg-muted/40 py-1">
-            Role: <span className="text-foreground ml-1 font-bold">{meta.profileRole}</span>
-          </Badge>
         </div>
-        <div className="flex-1 sm:hidden" />
 
-        <div className="flex items-center gap-1.5 sm:gap-2">
-          {/* 1. Notifications Dropdown (with Tooltip) */}
+        <div className="flex items-center gap-2 sm:gap-3">
+          {/* Active Role Scope Badge */}
+          <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-secondary/80 border border-border text-xs">
+            <span className="text-muted-foreground">Role:</span>
+            <span className="font-semibold text-foreground">{meta.profileRole}</span>
+          </div>
+
+          {/* 1. Notifications Dropdown */}
           <DropdownMenu>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="relative" aria-label="Notifications">
-                    <Bell className="h-5 w-5" />
-                    {unread > 0 && (
-                      <span className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-semibold text-white">
-                        {unread}
-                      </span>
-                    )}
-                  </Button>
-                </DropdownMenuTrigger>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Notifications &amp; Escalations</p>
-              </TooltipContent>
-            </Tooltip>
-            <DropdownMenuContent align="end" className="w-88">
-              <DropdownMenuLabel className="flex items-center justify-between">
-                <span className="font-bold text-xs">Alerts &amp; Escalations</span>
-                <Badge variant="secondary" className="text-[10px]">{unread} unread</Badge>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="relative h-9 w-9">
+                <Bell className="h-4 w-4" />
+                {unread > 0 && (
+                  <Badge className="absolute -right-0.5 -top-0.5 h-4 min-w-4 px-1 text-[10px] font-bold bg-destructive text-destructive-foreground">
+                    {unread}
+                  </Badge>
+                )}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-80">
+              <DropdownMenuLabel className="flex items-center justify-between py-2">
+                <span>Notifications</span>
+                {unread > 0 && (
+                  <span className="text-[11px] font-normal text-muted-foreground">{unread} unread alerts</span>
+                )}
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <div className="max-h-80 overflow-y-auto scrollbar-thin">
-                {mockExtendedNotifications.slice(0, 5).map((n) => (
-                  <DropdownMenuItem key={n.id} className="flex flex-col items-start gap-0.5 whitespace-normal py-2" asChild>
-                    <Link href="/notifications" className="cursor-pointer">
-                      <div className="flex w-full items-center justify-between gap-2">
-                        <span className="text-xs font-semibold text-foreground truncate">{n.title}</span>
-                        {n.status === "Unread" && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />}
+              <div className="max-h-[300px] overflow-y-auto space-y-1 p-1">
+                {roleNotifications.slice(0, 4).map((n) => (
+                  <DropdownMenuItem key={n.id} className="flex flex-col items-start gap-1 p-2 cursor-pointer" asChild>
+                    <Link href={n.linkUrl}>
+                      <div className="flex items-center justify-between w-full">
+                        <span className="text-xs font-semibold">{n.title}</span>
+                        <span className="text-[10px] text-muted-foreground">{n.timestamp}</span>
                       </div>
-                      <span className="text-[11px] text-muted-foreground line-clamp-1">{n.message}</span>
-                      <span className="text-[10px] text-muted-foreground/70">
-                        {new Date(n.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                      </span>
+                      <p className="text-[11px] text-muted-foreground line-clamp-2">{n.message}</p>
                     </Link>
                   </DropdownMenuItem>
                 ))}
               </div>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild className="justify-center text-center text-xs font-semibold text-primary">
-                <Link href="/notifications">View All Notifications</Link>
+                <Link
+                  href={
+                    effectiveRole === "admin"
+                      ? "/notifications"
+                      : effectiveRole === "support_staff"
+                      ? "/support-staff"
+                      : effectiveRole === "nurse"
+                      ? "/nurse"
+                      : "/nurse-station"
+                  }
+                >
+                  View All Notifications
+                </Link>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* 2. Emergency Direct Action Button */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-9 gap-1.5 text-xs font-semibold text-destructive border-destructive/30 bg-destructive/5 hover:bg-destructive/10 hover:border-destructive/50"
-                asChild
-              >
-                <Link href="/emergency">
-                  <ShieldAlert className="h-4 w-4 text-destructive" />
-                  <span>Emergency</span>
-                </Link>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Emergency / SOS Command</p>
-            </TooltipContent>
-          </Tooltip>
+          {/* 2. Emergency Direct Action Button - Hospital Admin Only */}
+          {effectiveRole === "admin" && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-9 gap-1.5 text-xs font-semibold text-destructive border-destructive/30 bg-destructive/5 hover:bg-destructive/10 hover:border-destructive/50"
+                  asChild
+                >
+                  <Link href="/emergency">
+                    <ShieldAlert className="h-4 w-4 text-destructive" />
+                    <span>Emergency</span>
+                  </Link>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Emergency / SOS Command</p>
+              </TooltipContent>
+            </Tooltip>
+          )}
 
           {/* 3. Role-Based Quick Action Button & Dropdown */}
           <DropdownMenu>

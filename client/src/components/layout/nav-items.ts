@@ -292,10 +292,10 @@ export function getWorkspaceMetaForRole(role?: AppUserRole): WorkspaceMeta {
         appName: "Qlyno",
         appSubname: "Support Staff",
         tagline: "Operational Service Queue",
-        profileName: "Ramesh Pawar / Sunita G.",
-        profileRole: "Ward Attendant / Housekeeping",
+        profileName: "Ramesh Pawar",
+        profileRole: "Ward Attendant",
         profileEmail: "ramesh.p@qlyno.health",
-        profileInitials: "SP",
+        profileInitials: "RP",
       };
     case "admin":
     default:

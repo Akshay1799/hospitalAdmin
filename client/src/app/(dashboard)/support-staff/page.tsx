@@ -168,12 +168,12 @@ export default function SupportStaffPage() {
           <div className="flex items-center gap-3">
             <Avatar className="h-10 w-10 border-2 border-purple-500/30">
               <AvatarFallback className="bg-purple-500/10 text-purple-600 font-bold text-sm">
-                SP
+                RP
               </AvatarFallback>
             </Avatar>
             <div>
               <h1 className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
-                Sunita Ghorpade / Ramesh Pawar
+                Ramesh Pawar
                 <Badge className="bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30 text-[10px]">
                   Support Staff Workspace
                 </Badge>

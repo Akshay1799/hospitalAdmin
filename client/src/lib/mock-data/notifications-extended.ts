@@ -4,6 +4,7 @@ import {
   EscalationLadder,
   EscalationRecord,
 } from "@/lib/types";
+import { AppUserRole } from "@/lib/types/nursing-module";
 
 // ==========================================
 // 16.1 NOTIFICATION CENTER LIVE FEED
@@ -237,6 +238,202 @@ export const mockExtendedNotifications: HospitalNotification[] = [
     acknowledgedAt: "2026-08-24T09:45:00Z",
   },
 ];
+
+// ==========================================
+// ROLE-SCOPED NOTIFICATION FEEDS
+// ==========================================
+
+export const mockSupportStaffNotifications: HospitalNotification[] = [
+  {
+    id: "notif_sup_01",
+    title: "Bed Sanitization: Bed GW-104 Vacated",
+    message: "General Medical Ward Bed 104 is vacated and ready for terminal cleaning and fresh linen preparation.",
+    eventType: "Bed shortage",
+    category: "Operational",
+    severity: "medium",
+    timestamp: "10m ago",
+    status: "Unread",
+    targetRoles: ["Ward Attendant", "Housekeeping"],
+    adminRecipient: false,
+    linkUrl: "/support-staff",
+    sourceDepartment: "General Medical Ward",
+  },
+  {
+    id: "notif_sup_02",
+    title: "Patient Transport: Wheelchair Assistance",
+    message: "Escort patient Vijay Varma (P-1004) from OPD Consulting Room 3 to Radiology Ultrasound Bay.",
+    eventType: "Ambulance dispatch",
+    category: "Operational",
+    severity: "high",
+    timestamp: "25m ago",
+    status: "Unread",
+    targetRoles: ["Ward Attendant"],
+    adminRecipient: false,
+    linkUrl: "/support-staff",
+    sourceDepartment: "OPD Services",
+  },
+  {
+    id: "notif_sup_03",
+    title: "Linen Restock: ICU Clean Utility Closet",
+    message: "Clean linen delivery arrived at basement storage. Transfer 10 sets to ICU station closet.",
+    eventType: "Vendor quote",
+    category: "Operational",
+    severity: "low",
+    timestamp: "1h ago",
+    status: "Read",
+    targetRoles: ["Housekeeping / Cleaning Staff"],
+    adminRecipient: false,
+    linkUrl: "/support-staff",
+    sourceDepartment: "Supply & Linen",
+  },
+  {
+    id: "notif_sup_04",
+    title: "Duty Shift Confirmed: Morning Shift",
+    message: "Your roster assignment for tomorrow (07:00 – 15:00) at ICU & Critical Care Station is confirmed.",
+    eventType: "Staffing gap",
+    category: "Staffing",
+    severity: "info",
+    timestamp: "2h ago",
+    status: "Read",
+    targetRoles: ["Support Staff"],
+    adminRecipient: false,
+    linkUrl: "/roster",
+    sourceDepartment: "Nursing Administration",
+  },
+];
+
+export const mockStaffNurseNotifications: HospitalNotification[] = [
+  {
+    id: "notif_nurse_01",
+    title: "Medication Due: Bed 06 Nebulization",
+    message: "Nebulization Levosalbutamol 1.25mg for Inpatient Sunita Deshmukh is due in 15 minutes.",
+    eventType: "Critical lab/result",
+    category: "Clinical",
+    severity: "high",
+    timestamp: "5m ago",
+    status: "Unread",
+    targetRoles: ["Staff Nurse"],
+    adminRecipient: false,
+    linkUrl: "/nurse",
+    sourceDepartment: "ICU Station",
+  },
+  {
+    id: "notif_nurse_02",
+    title: "Doctor Order: IV Infusion Rate Change",
+    message: "Dr. Ananya Patel updated Dextrose Normal Saline rate to 75 mL/hr for Bed 04 (Amit Patel).",
+    eventType: "Doctor delay",
+    category: "Clinical",
+    severity: "medium",
+    timestamp: "20m ago",
+    status: "Unread",
+    targetRoles: ["Staff Nurse"],
+    adminRecipient: false,
+    linkUrl: "/nurse",
+    sourceDepartment: "Cardiology",
+  },
+  {
+    id: "notif_nurse_03",
+    title: "Patient Call: Bed 02 Assistance Requested",
+    message: "Patient Kavita Patil activated bedside call alert for pain medication assessment.",
+    eventType: "Emergency SOS",
+    category: "Clinical",
+    severity: "high",
+    timestamp: "45m ago",
+    status: "Read",
+    targetRoles: ["Staff Nurse"],
+    adminRecipient: false,
+    linkUrl: "/nurse",
+    sourceDepartment: "ICU Station",
+  },
+  {
+    id: "notif_nurse_04",
+    title: "Shift Handover Note Completed",
+    message: "Night Shift Nurse Suman Das completed shift handover documentation for Bed 01 and Bed 03.",
+    eventType: "Staffing gap",
+    category: "Clinical",
+    severity: "info",
+    timestamp: "3h ago",
+    status: "Read",
+    targetRoles: ["Staff Nurse"],
+    adminRecipient: false,
+    linkUrl: "/nurse",
+    sourceDepartment: "ICU Station",
+  },
+];
+
+export const mockNurseLeadNotifications: HospitalNotification[] = [
+  {
+    id: "notif_lead_01",
+    title: "Task Overdue Alert: Bed 06 Nebulization",
+    message: "Nebulization Levosalbutamol for Bed 06 is 30 mins overdue. Station Lead intervention required.",
+    eventType: "Critical lab/result",
+    category: "Clinical",
+    severity: "critical",
+    timestamp: "12m ago",
+    status: "Unread",
+    targetRoles: ["Nurse Station Lead", "Senior Nurse"],
+    adminRecipient: false,
+    linkUrl: "/nurse-station",
+    sourceDepartment: "ICU & Critical Care Station",
+  },
+  {
+    id: "notif_lead_02",
+    title: "Shift Swap Request: Nurse Meera Varma",
+    message: "Nurse Meera requested shift swap with Nurse Rahul Shinde for Evening Shift on Sept 02.",
+    eventType: "Staffing gap",
+    category: "Staffing",
+    severity: "medium",
+    timestamp: "30m ago",
+    status: "Unread",
+    targetRoles: ["Nurse Station Lead"],
+    adminRecipient: false,
+    linkUrl: "/nurse-station",
+    sourceDepartment: "ICU Station Operations",
+  },
+  {
+    id: "notif_lead_03",
+    title: "Doctor Instruction: 2 New Orders Pending",
+    message: "New cardiology care orders for Bed 02 and Bed 04 need station nurse assignment.",
+    eventType: "Doctor delay",
+    category: "Clinical",
+    severity: "high",
+    timestamp: "50m ago",
+    status: "Read",
+    targetRoles: ["Nurse Station Lead", "Senior Nurse"],
+    adminRecipient: false,
+    linkUrl: "/nurse-station",
+    sourceDepartment: "Critical Care / ICU",
+  },
+  {
+    id: "notif_lead_04",
+    title: "Shift Handover Ready for Sign-Off",
+    message: "Morning Shift (07:00 – 15:00) handover checklist prepared for Sister Sneha Kulkarni.",
+    eventType: "Surgery blocker",
+    category: "Operational",
+    severity: "info",
+    timestamp: "2h ago",
+    status: "Read",
+    targetRoles: ["Nurse Station Lead", "Senior Nurse"],
+    adminRecipient: false,
+    linkUrl: "/nurse-station",
+    sourceDepartment: "ICU Station Operations",
+  },
+];
+
+export function getNotificationsForRole(role?: AppUserRole): HospitalNotification[] {
+  switch (role) {
+    case "support_staff":
+      return mockSupportStaffNotifications;
+    case "nurse":
+      return mockStaffNurseNotifications;
+    case "nurse_lead":
+    case "senior_nurse":
+      return mockNurseLeadNotifications;
+    case "admin":
+    default:
+      return mockExtendedNotifications;
+  }
+}
 
 // ==========================================
 // 16.2 NOTIFICATION CONFIGURATION RULES (PRD VERBATIM)
