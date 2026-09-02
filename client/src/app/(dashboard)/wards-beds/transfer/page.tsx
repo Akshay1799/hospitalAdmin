@@ -205,7 +205,7 @@ export default function BedTransferPage() {
                   <TableHead className="text-xs font-bold">Origin Bed</TableHead>
                   <TableHead className="text-xs font-bold"></TableHead>
                   <TableHead className="text-xs font-bold">Destination Bed</TableHead>
-                  <TableHead className="text-xs font-bold">Transfer Justification Reason</TableHead>
+                  <TableHead className="text-xs font-bold min-w-[200px]">Transfer Justification Reason</TableHead>
                   <TableHead className="text-xs font-bold">Requested By</TableHead>
                   <TableHead className="text-xs font-bold">Status</TableHead>
                   <TableHead className="text-xs font-bold text-right">Actions</TableHead>
@@ -229,7 +229,7 @@ export default function BedTransferPage() {
                       <div className="font-mono text-xs font-bold text-emerald-600">{req.toBedNumber}</div>
                       <div className="text-[10px] text-muted-foreground">{req.toWard}</div>
                     </TableCell>
-                    <TableCell className="text-xs text-muted-foreground max-w-[260px]">
+                    <TableCell className="text-xs text-muted-foreground whitespace-normal break-words max-w-[280px] leading-relaxed">
                       {req.reason}
                     </TableCell>
                     <TableCell className="text-xs font-medium text-foreground">{req.requestedBy}</TableCell>
