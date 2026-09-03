@@ -40,6 +40,7 @@ import { jsPDF } from "jspdf";
 export function StationReportsView() {
   const { toast } = useToast();
   const {
+    currentRole,
     stations,
     nurses,
     supportStaff,
@@ -55,6 +56,12 @@ export function StationReportsView() {
   const [activeSubSection, setActiveSubSection] = useState<"staffing" | "attendance" | "workload" | "tasks" | "shifts" | "escalations">("staffing");
   const [shiftFilter, setShiftFilter] = useState("all");
   const [dateRange, setDateRange] = useState("today");
+
+  React.useEffect(() => {
+    if (activeStationId && currentRole !== "admin") {
+      setSelectedStationId(activeStationId);
+    }
+  }, [activeStationId, currentRole]);
 
   const currentStation = stations.find((s) => s.station_id === selectedStationId) || stations[0] || {
     station_id: "st-1",
@@ -141,25 +148,35 @@ export function StationReportsView() {
             </Badge>
           </div>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-            Operational reports and workforce analytics scoped to {currentStation.name} (PRD Section 13 &amp; 19).
+            Operational reports and workforce analytics scoped to <strong>{currentStation.name}</strong> (PRD Section 13 &amp; 19).
           </p>
         </div>
 
         <div className="flex items-center gap-3">
-          <Select value={selectedStationId} onValueChange={setSelectedStationId}>
-            <SelectTrigger className="h-9 text-xs w-[220px] font-semibold bg-background">
-              <Building2 className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
-              <SelectValue placeholder="Select Station" />
-            </SelectTrigger>
-            <SelectContent>
-              {stations.map((st) => (
-                <SelectItem key={st.station_id} value={st.station_id} className="text-xs">
-                  {st.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <ScopeIndicator scope="Nurse Station Lead" />
+          {currentRole === "admin" ? (
+            <Select value={selectedStationId} onValueChange={setSelectedStationId}>
+              <SelectTrigger className="h-9 text-xs w-[220px] font-semibold bg-background">
+                <Building2 className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
+                <SelectValue placeholder="Select Station" />
+              </SelectTrigger>
+              <SelectContent>
+                {stations.map((st) => (
+                  <SelectItem key={st.station_id} value={st.station_id} className="text-xs">
+                    {st.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border bg-card shadow-xs">
+              <Building2 className="h-4 w-4 text-primary shrink-0" />
+              <div className="text-left">
+                <div className="text-xs font-bold text-foreground truncate max-w-[180px]">{currentStation.name}</div>
+                <div className="text-[10px] text-muted-foreground">{currentStation.department_name}</div>
+              </div>
+            </div>
+          )}
+          <ScopeIndicator scope={currentRole === "admin" ? "Hospital Admin" : "Nurse Station Lead"} />
         </div>
       </div>
 

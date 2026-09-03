@@ -178,7 +178,6 @@ export const nurseStationLeadNavGroups: NavGroup[] = [
       { label: "Station Dashboard", href: "/nurse-station", icon: LayoutDashboard },
       { label: "Patients & Bed Map", href: "/wards-beds", icon: Bed },
       { label: "Shifts & Roster", href: "/roster", icon: CalendarClock },
-      { label: "Emergency & Trauma", href: "/emergency", icon: ShieldAlert },
     ],
   },
   {
