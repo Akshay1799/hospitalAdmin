@@ -66,17 +66,75 @@ export function SidebarNav({
   const pathname = usePathname();
   const router = useRouter();
   const dispatch = useDispatch();
-  const currentRole = useSelector((state: RootState) => state.nursingOperations.currentRole);
+  const reduxRole = useSelector((state: RootState) => state.nursingOperations.currentRole);
+  const [persistedRole, setPersistedRole] = useState<AppUserRole | null>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = window.localStorage.getItem(NURSING_STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (
+            parsed &&
+            typeof parsed.currentRole === "string" &&
+            ["admin", "nurse_lead", "senior_nurse", "nurse", "support_staff", "doctor"].includes(parsed.currentRole)
+          ) {
+            return parsed.currentRole as AppUserRole;
+          }
+        }
+      } catch {}
+    }
+    return null;
+  });
 
   useEffect(() => {
     setMounted(true);
-  }, []);
+    try {
+      if (typeof window !== "undefined") {
+        const saved = window.localStorage.getItem(NURSING_STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (
+            parsed &&
+            typeof parsed.currentRole === "string" &&
+            ["admin", "nurse_lead", "senior_nurse", "nurse", "support_staff", "doctor"].includes(parsed.currentRole)
+          ) {
+            setPersistedRole(parsed.currentRole as AppUserRole);
+            if (parsed.currentRole !== reduxRole) {
+              dispatch(
+                setCurrentRole({
+                  role: parsed.currentRole,
+                  userId: parsed.currentUserId,
+                  userName: parsed.currentUserName,
+                })
+              );
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }, [dispatch, reduxRole]);
 
-  const effectiveRole = mounted ? currentRole : "nurse_lead";
+  const routeInferredRole: AppUserRole | null =
+    pathname?.startsWith("/nurse-station")
+      ? (reduxRole === "senior_nurse" ? "senior_nurse" : "nurse_lead")
+      : pathname === "/nurse"
+      ? "nurse"
+      : pathname === "/support-staff"
+      ? "support_staff"
+      : null;
+
+  const effectiveRole: AppUserRole =
+    persistedRole ||
+    (routeInferredRole && reduxRole === "admin" ? routeInferredRole : reduxRole) ||
+    "admin";
+
   const navGroups = getNavigationForRole(effectiveRole);
   const meta = getWorkspaceMetaForRole(effectiveRole);
 
   const handleSwitchRole = (role: AppUserRole, userId: string, userName: string, targetRoute: string) => {
+    setPersistedRole(role);
     if (typeof window !== "undefined") {
       try {
         const saved = window.localStorage.getItem(NURSING_STORAGE_KEY);
@@ -97,7 +155,7 @@ export function SidebarNav({
   return (
     <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
       <div className={cn("flex h-16 shrink-0 items-center justify-between border-b border-sidebar-border px-3 transition-all duration-300 ease-out", collapsed && "justify-center px-2")}>
-        <Logo collapsed={Boolean(collapsed)} role={currentRole} />
+        <Logo collapsed={Boolean(collapsed)} role={effectiveRole} />
         {!collapsed && onToggleCollapse && (
           <Button
             type="button"
@@ -186,11 +244,11 @@ export function SidebarNav({
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
-              <Link href={currentRole === "nurse" ? "/nurse" : currentRole === "support_staff" ? "/support-staff" : currentRole === "nurse_lead" || currentRole === "senior_nurse" ? "/nurse-station" : "/settings"} onClick={onNavigate}>
+              <Link href={effectiveRole === "nurse" ? "/nurse" : effectiveRole === "support_staff" ? "/support-staff" : effectiveRole === "nurse_lead" || effectiveRole === "senior_nurse" ? "/nurse-station" : "/settings"} onClick={onNavigate}>
                 <User className="mr-2 h-4 w-4" /> My Workspace
               </Link>
             </DropdownMenuItem>
-            {currentRole === "admin" && (
+            {effectiveRole === "admin" && (
               <DropdownMenuItem asChild>
                 <Link href="/settings" onClick={onNavigate}>
                   <Settings className="mr-2 h-4 w-4" /> Global Settings
@@ -203,31 +261,31 @@ export function SidebarNav({
               Quick Switch Role
             </DropdownMenuLabel>
             <DropdownMenuItem
-              className={cn("text-xs cursor-pointer gap-2", currentRole === "admin" && "font-bold text-primary bg-primary/10")}
+              className={cn("text-xs cursor-pointer gap-2", effectiveRole === "admin" && "font-bold text-primary bg-primary/10")}
               onClick={() => handleSwitchRole("admin", "usr-admin-1", "Dr. Vikram Seth (Hospital Admin)", "/dashboard")}
             >
               <ShieldCheck className="h-3.5 w-3.5 text-teal-600" /> Hospital Admin
             </DropdownMenuItem>
             <DropdownMenuItem
-              className={cn("text-xs cursor-pointer gap-2", currentRole === "nurse_lead" && "font-bold text-primary bg-primary/10")}
+              className={cn("text-xs cursor-pointer gap-2", effectiveRole === "nurse_lead" && "font-bold text-primary bg-primary/10")}
               onClick={() => handleSwitchRole("nurse_lead", "nurse-1", "Sister Anita Joseph (Station Lead)", "/nurse-station")}
             >
               <HeartPulse className="h-3.5 w-3.5 text-rose-600" /> Nurse Station Lead
             </DropdownMenuItem>
             <DropdownMenuItem
-              className={cn("text-xs cursor-pointer gap-2", currentRole === "senior_nurse" && "font-bold text-primary bg-primary/10")}
+              className={cn("text-xs cursor-pointer gap-2", effectiveRole === "senior_nurse" && "font-bold text-primary bg-primary/10")}
               onClick={() => handleSwitchRole("senior_nurse", "nurse-2", "Sister Sneha Kulkarni (Senior Nurse)", "/nurse-station")}
             >
               <UserCheck className="h-3.5 w-3.5 text-blue-600" /> Senior Nurse
             </DropdownMenuItem>
             <DropdownMenuItem
-              className={cn("text-xs cursor-pointer gap-2", currentRole === "nurse" && "font-bold text-primary bg-primary/10")}
+              className={cn("text-xs cursor-pointer gap-2", effectiveRole === "nurse" && "font-bold text-primary bg-primary/10")}
               onClick={() => handleSwitchRole("nurse", "nurse-3", "Nurse Rahul Shinde", "/nurse")}
             >
               <Bed className="h-3.5 w-3.5 text-emerald-600" /> Staff Nurse (Bedside)
             </DropdownMenuItem>
             <DropdownMenuItem
-              className={cn("text-xs cursor-pointer gap-2", currentRole === "support_staff" && "font-bold text-primary bg-primary/10")}
+              className={cn("text-xs cursor-pointer gap-2", effectiveRole === "support_staff" && "font-bold text-primary bg-primary/10")}
               onClick={() => handleSwitchRole("support_staff", "sup-1", "Ramesh Pawar (Ward Attendant)", "/support-staff")}
             >
               <Sparkles className="h-3.5 w-3.5 text-amber-600" /> Support Staff

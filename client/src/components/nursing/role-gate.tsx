@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { ShieldAlert } from "lucide-react";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
@@ -18,8 +19,16 @@ export function RoleGate({
   message?: string;
   children: React.ReactNode;
 }) {
+  const [mounted, setMounted] = useState(false);
   const role = useSelector((state: RootState) => state.nursingOperations.currentRole);
-  if (allowed.includes(role)) return <>{children}</>;
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted || allowed.includes(role)) {
+    return <>{children}</>;
+  }
 
   const homeHref =
     role === "nurse"

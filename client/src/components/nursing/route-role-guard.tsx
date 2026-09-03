@@ -70,34 +70,35 @@ export function RouteRoleGuard({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-
   const reduxRole = useSelector(
     (state: RootState) => state.nursingOperations.currentRole
   );
 
-  const [resolvedRole, setResolvedRole] = useState<AppUserRole | null>(null);
+  const [mounted, setMounted] = useState(false);
+  const [resolvedRole, setResolvedRole] = useState<AppUserRole>(reduxRole || "admin");
 
   useEffect(() => {
+    setMounted(true);
     try {
-      const saved = window.localStorage.getItem(STORAGE_KEY);
-
-      if (saved) {
-        const parsed = JSON.parse(saved);
-
-        if (
-          parsed &&
-          typeof parsed.currentRole === "string" &&
-          [
-            "admin",
-            "nurse_lead",
-            "senior_nurse",
-            "nurse",
-            "support_staff",
-            "doctor",
-          ].includes(parsed.currentRole)
-        ) {
-          setResolvedRole(parsed.currentRole as AppUserRole);
-          return;
+      if (typeof window !== "undefined") {
+        const saved = window.localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (
+            parsed &&
+            typeof parsed.currentRole === "string" &&
+            [
+              "admin",
+              "nurse_lead",
+              "senior_nurse",
+              "nurse",
+              "support_staff",
+              "doctor",
+            ].includes(parsed.currentRole)
+          ) {
+            setResolvedRole(parsed.currentRole as AppUserRole);
+            return;
+          }
         }
       }
     } catch {
@@ -108,16 +109,14 @@ export function RouteRoleGuard({
   }, [reduxRole]);
 
   useEffect(() => {
-    if (!resolvedRole || !pathname) return;
+    if (!mounted || !pathname) return;
 
     if (isAdminOnlyRoute(pathname) && resolvedRole !== "admin") {
       router.replace(HOME_ROUTES[resolvedRole]);
     }
-  }, [pathname, resolvedRole, router]);
+  }, [mounted, pathname, resolvedRole, router]);
 
-  if (!resolvedRole) return null;
-
-  if (isAdminOnlyRoute(pathname) && resolvedRole !== "admin") {
+  if (mounted && isAdminOnlyRoute(pathname) && resolvedRole !== "admin") {
     return null;
   }
 

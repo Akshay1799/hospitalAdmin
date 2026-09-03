@@ -56,6 +56,11 @@ export function StationReportsView() {
   const [activeSubSection, setActiveSubSection] = useState<"staffing" | "attendance" | "workload" | "tasks" | "shifts" | "escalations">("staffing");
   const [shiftFilter, setShiftFilter] = useState("all");
   const [dateRange, setDateRange] = useState("today");
+  const [mounted, setMounted] = useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
 
   React.useEffect(() => {
     if (activeStationId && currentRole !== "admin") {
@@ -153,7 +158,7 @@ export function StationReportsView() {
         </div>
 
         <div className="flex items-center gap-3">
-          {currentRole === "admin" ? (
+          {mounted && currentRole === "admin" ? (
             <Select value={selectedStationId} onValueChange={setSelectedStationId}>
               <SelectTrigger className="h-9 text-xs w-[220px] font-semibold bg-background">
                 <Building2 className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
@@ -176,7 +181,7 @@ export function StationReportsView() {
               </div>
             </div>
           )}
-          <ScopeIndicator scope={currentRole === "admin" ? "Hospital Admin" : "Nurse Station Lead"} />
+          <ScopeIndicator scope={mounted && currentRole === "admin" ? "Hospital Admin" : "Nurse Station Lead"} />
         </div>
       </div>
 

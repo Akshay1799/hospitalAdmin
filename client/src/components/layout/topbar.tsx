@@ -2,6 +2,9 @@
 
 import Link from "next/link";
 import { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
+import { AppUserRole } from "@/lib/types/nursing-module";
+import { NURSING_STORAGE_KEY } from "@/store/provider";
 import {
   Activity,
   AlertTriangle,
@@ -62,13 +65,62 @@ import { GlobalSearch } from "@/components/layout/global-search";
 export function Topbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const currentRole = useSelector((state: RootState) => state.nursingOperations.currentRole);
+  const pathname = usePathname();
+  const reduxRole = useSelector((state: RootState) => state.nursingOperations.currentRole);
+  const [persistedRole, setPersistedRole] = useState<AppUserRole | null>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = window.localStorage.getItem(NURSING_STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (
+            parsed &&
+            typeof parsed.currentRole === "string" &&
+            ["admin", "nurse_lead", "senior_nurse", "nurse", "support_staff", "doctor"].includes(parsed.currentRole)
+          ) {
+            return parsed.currentRole as AppUserRole;
+          }
+        }
+      } catch {}
+    }
+    return null;
+  });
 
   useEffect(() => {
     setMounted(true);
+    try {
+      if (typeof window !== "undefined") {
+        const saved = window.localStorage.getItem(NURSING_STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (
+            parsed &&
+            typeof parsed.currentRole === "string" &&
+            ["admin", "nurse_lead", "senior_nurse", "nurse", "support_staff", "doctor"].includes(parsed.currentRole)
+          ) {
+            setPersistedRole(parsed.currentRole as AppUserRole);
+          }
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    }
   }, []);
 
-  const effectiveRole = mounted ? currentRole : "admin";
+  const routeInferredRole: AppUserRole | null =
+    pathname?.startsWith("/nurse-station")
+      ? (reduxRole === "senior_nurse" ? "senior_nurse" : "nurse_lead")
+      : pathname === "/nurse"
+      ? "nurse"
+      : pathname === "/support-staff"
+      ? "support_staff"
+      : null;
+
+  const effectiveRole: AppUserRole =
+    persistedRole ||
+    (routeInferredRole && reduxRole === "admin" ? routeInferredRole : reduxRole) ||
+    "admin";
+
   const meta = getWorkspaceMetaForRole(effectiveRole);
   const roleNotifications = getNotificationsForRole(effectiveRole);
   const unread = roleNotifications.filter((n) => n.status === "Unread").length;
@@ -195,7 +247,7 @@ export function Topbar() {
             
             <DropdownMenuContent align="end" className="w-68">
               {/* NURSE STATION LEAD QUICK ACTIONS (All 9 Source-Defined Actions) */}
-              {currentRole === "nurse_lead" && (
+              {effectiveRole === "nurse_lead" && (
                 <>
                   <DropdownMenuLabel className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
                     Nurse Station Quick Actions
@@ -264,7 +316,7 @@ export function Topbar() {
               )}
 
               {/* SENIOR NURSE QUICK ACTIONS */}
-              {currentRole === "senior_nurse" && (
+              {effectiveRole === "senior_nurse" && (
                 <>
                   <DropdownMenuLabel className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
                     Care Coordination Quick Actions
@@ -315,7 +367,7 @@ export function Topbar() {
               )}
 
               {/* STAFF NURSE QUICK ACTIONS */}
-              {currentRole === "nurse" && (
+              {effectiveRole === "nurse" && (
                 <>
                   <DropdownMenuLabel className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
                     Bedside Quick Actions
@@ -357,7 +409,7 @@ export function Topbar() {
               )}
 
               {/* SUPPORT STAFF QUICK ACTIONS */}
-              {currentRole === "support_staff" && (
+              {effectiveRole === "support_staff" && (
                 <>
                   <DropdownMenuLabel className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
                     Support Staff Quick Actions
@@ -381,7 +433,7 @@ export function Topbar() {
               )}
 
               {/* HOSPITAL ADMIN QUICK ACTIONS (Preserved) */}
-              {(currentRole === "admin" || !currentRole) && (
+              {(effectiveRole === "admin" || !effectiveRole) && (
                 <>
                   <DropdownMenuLabel className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
                     Admin Quick Actions

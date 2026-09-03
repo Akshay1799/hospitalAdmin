@@ -80,11 +80,10 @@ export default function IndividualNurseWorkspacePage() {
     notifications,
   } = useSelector((state: RootState) => state.nursingOperations);
 
-  if (!["nurse", "senior_nurse"].includes(currentRole)) return <RoleGate allowed={["nurse", "senior_nurse"]}>{null}</RoleGate>;
-
-  // Active nurse context: defaulted to Rahul Shinde (nurse-3) or logged in user
-  const nurseId = currentUserId || "nurse-3";
-  const nurseName = currentUserName || "Nurse Rahul Shinde";
+  // Active nurse context: defaulted to Rahul Shinde (nurse-3) or logged in nurse user
+  const isNurseUser = currentRole === "nurse" || currentRole === "senior_nurse";
+  const nurseId = isNurseUser && currentUserId ? currentUserId : "nurse-3";
+  const nurseName = isNurseUser && currentUserName && !currentUserName.includes("Dr.") ? currentUserName : "Nurse Rahul Shinde";
 
   const activeStation = stations.find((s) => s.station_id === activeStationId) || stations[0];
   const myAssignedPatients = patientAssignments.filter((p) => p.nurse_id === nurseId || p.nurse_name.includes("Rahul Shinde"));
@@ -199,7 +198,8 @@ export default function IndividualNurseWorkspacePage() {
   };
 
   return (
-    <div className="space-y-5 animate-fade-in pb-12">
+    <RoleGate allowed={["nurse", "senior_nurse"]}>
+      <div className="space-y-5 animate-fade-in pb-12">
       {/* 1. Nurse Profile & Shift Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-border pb-4">
         <div className="flex items-center gap-3">
@@ -933,6 +933,7 @@ export default function IndividualNurseWorkspacePage() {
           </form>
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </RoleGate>
   );
 }

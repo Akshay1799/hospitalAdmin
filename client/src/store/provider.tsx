@@ -10,7 +10,7 @@ export const NURSING_STORAGE_KEY = "qlyno.nursing-operations.v1";
 function NursingStatePersistence() {
   const dispatch = useDispatch();
   const nursingOperations = useSelector((state: RootState) => state.nursingOperations);
-  const isHydrated = useRef(false);
+  const isHydratedRef = useRef(false);
 
   // 1. Initial hydration on mount
   useEffect(() => {
@@ -19,7 +19,7 @@ function NursingStatePersistence() {
         const saved = window.localStorage.getItem(NURSING_STORAGE_KEY);
         if (saved) {
           const parsed = JSON.parse(saved);
-          if (parsed && typeof parsed === "object") {
+          if (parsed && typeof parsed === "object" && parsed.currentRole) {
             dispatch(hydrateNursingOperations(parsed));
           }
         }
@@ -27,13 +27,16 @@ function NursingStatePersistence() {
     } catch (e) {
       console.warn("Failed to load nursing state from storage:", e);
     } finally {
-      isHydrated.current = true;
+      // Allow state hydration to apply to Redux before enabling localStorage writes
+      setTimeout(() => {
+        isHydratedRef.current = true;
+      }, 150);
     }
   }, [dispatch]);
 
   // 2. Persist state changes only AFTER hydration completes
   useEffect(() => {
-    if (!isHydrated.current) return;
+    if (!isHydratedRef.current) return;
     try {
       if (typeof window !== "undefined") {
         window.localStorage.setItem(NURSING_STORAGE_KEY, JSON.stringify(nursingOperations));

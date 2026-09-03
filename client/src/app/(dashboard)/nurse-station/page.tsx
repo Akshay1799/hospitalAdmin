@@ -127,8 +127,13 @@ export default function OperationalNurseStationPage() {
   } = useSelector((state: RootState) => state.nursingOperations);
 
   const [activeTab, setActiveTab] = useState("dashboard");
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const isSeniorNurse = currentRole === "senior_nurse";
-  if (!["admin", "nurse_lead", "senior_nurse"].includes(currentRole)) return <RoleGate allowed={["admin", "nurse_lead", "senior_nurse"]}>{null}</RoleGate>;
 
   const activeStation = stations.find((s) => s.station_id === activeStationId) || stations[0];
   const stationNurses = nurses.filter((n) => n.station_id === activeStation.station_id);
@@ -440,7 +445,8 @@ export default function OperationalNurseStationPage() {
   const criticalPatientsCount = stationPatients.filter((p) => p.vitals_status === "Critical" || p.vitals_status === "Attention").length;
 
   return (
-    <div className="space-y-5 animate-fade-in pb-12">
+    <RoleGate allowed={["admin", "nurse_lead", "senior_nurse"]}>
+      <div className="space-y-5 animate-fade-in pb-12">
       {/* 1. Station Control Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-border pb-4">
         <div>
@@ -463,21 +469,23 @@ export default function OperationalNurseStationPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {/* Station Switcher */}
-          <Select value={activeStationId} onValueChange={(val) => dispatch(setActiveStation(val))}>
-            <SelectTrigger className="h-8 text-xs font-semibold w-full sm:w-[220px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {stations.map((st) => (
-                <SelectItem key={st.station_id} value={st.station_id}>
-                  {st.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {/* Station Switcher - Hospital Admin Oversight Only */}
+          {mounted && currentRole === "admin" && (
+            <Select value={activeStationId} onValueChange={(val) => dispatch(setActiveStation(val))}>
+              <SelectTrigger className="h-8 text-xs font-semibold w-full sm:w-[220px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {stations.map((st) => (
+                  <SelectItem key={st.station_id} value={st.station_id}>
+                    {st.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
 
-          {/* Scope Indicator */}
+          {/* Scope Indicator - Locked to Assigned Unit for Station Lead */}
           <ScopeIndicator
             scope="Station Lead"
             stationName={isSeniorNurse ? `${activeStation.name} (Senior Nurse Restricted)` : activeStation.name}
@@ -2625,6 +2633,7 @@ export default function OperationalNurseStationPage() {
           </form>
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </RoleGate>
   );
 }

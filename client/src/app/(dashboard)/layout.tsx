@@ -41,13 +41,11 @@ export default function DashboardLayout({
       <div className="flex min-w-0 flex-1 flex-col print:w-full print:p-0">
         <Topbar />
 
-        <RouteRoleGuard>
-          <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8 print:p-0 print:m-0 print:w-full">
-            <div className="mx-auto max-w-[1600px] print:max-w-none print:w-full print:p-0">
-              {children}
-            </div>
-          </main>
-        </RouteRoleGuard>
+        <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8 print:p-0 print:m-0 print:w-full">
+          <div className="mx-auto max-w-[1600px] print:max-w-none print:w-full print:p-0">
+            <RouteRoleGuard>{children}</RouteRoleGuard>
+          </div>
+        </main>
       </div>
     </div>
   );
