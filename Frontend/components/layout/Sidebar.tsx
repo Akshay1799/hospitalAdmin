@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import clsx from "clsx";
 import { Activity, Building2, Check, ChevronsUpDown, Hospital, Stethoscope } from "lucide-react";
-import { doctorWorkspaceNav, clinicOperationsNav } from "./nav-config";
+import { doctorWorkspaceNav, clinicOperationsNav, staffPortalNav } from "./nav-config";
 import { useMode } from "@/lib/mode-context";
 import { currentDoctor, clinic } from "@/lib/mock-data";
 import { AvailabilityDot, Avatar } from "@/components/ui";
@@ -26,7 +26,14 @@ export default function Sidebar() {
     icon: workplace.type === "hospital" ? Hospital : Building2,
   }));
   const activeWorkplace =
-    workplaceOptions.find((item) => item.workplace.id === selectedWorkplaceId) ?? workplaceOptions[0];
+    workplaceOptions.find((item) => item.workplace.id === selectedWorkplaceId) ??
+    workplaceOptions[0] ?? {
+      workplace: { id: "", name: "Loading workspace", type: "clinic" as const, status: "Pending" as const },
+      value: "clinic" as const,
+      label: "Loading workspace",
+      detail: "Syncing records",
+      icon: Building2,
+    };
   const ActiveIcon = activeWorkplace.icon;
 
   function selectWorkplace(option: (typeof workplaceOptions)[number]) {
@@ -36,6 +43,20 @@ export default function Sidebar() {
     if (option.value === "hospital" && pathname?.startsWith("/clinic")) {
       router.push("/doctor/dashboard");
     }
+  }
+
+  function renderNavItems(items: typeof doctorWorkspaceNav) {
+    return items.map((item) => {
+      const active = pathname === item.href || pathname?.startsWith(item.href + "/");
+      const Icon = item.icon;
+      return (
+        <Link key={item.href} href={item.href} className={clsx("nav-link", active && "active")}>
+          <Icon size={16} strokeWidth={2} />
+          <span className="truncate">{item.label}</span>
+          <span className="ml-auto font-mono text-[10px] opacity-45">{item.moduleNumber}</span>
+        </Link>
+      );
+    });
   }
 
   return (
@@ -112,39 +133,20 @@ export default function Sidebar() {
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-6">
         <div>
           <p className="px-3 mb-1.5 eyebrow">Doctor Workspace</p>
-          <div className="space-y-0.5">
-            {doctorWorkspaceNav.map((item) => {
-              const active = pathname === item.href || pathname?.startsWith(item.href + "/");
-              const Icon = item.icon;
-              return (
-                <Link key={item.href} href={item.href} className={clsx("nav-link", active && "active")}>
-                  <Icon size={16} strokeWidth={2} />
-                  <span className="truncate">{item.label}</span>
-                  <span className="ml-auto font-mono text-[10px] opacity-45">{item.moduleNumber}</span>
-                </Link>
-              );
-            })}
-          </div>
+          <div className="space-y-0.5">{renderNavItems(doctorWorkspaceNav)}</div>
         </div>
 
         {workContext === "clinic" && (
           <div>
             <p className="px-3 mb-1.5 eyebrow">Clinic Operations</p>
-            <div className="space-y-0.5">
-              {clinicOperationsNav.map((item) => {
-                const active = pathname === item.href || pathname?.startsWith(item.href + "/");
-                const Icon = item.icon;
-                return (
-                  <Link key={item.href} href={item.href} className={clsx("nav-link", active && "active")}>
-                    <Icon size={16} strokeWidth={2} />
-                    <span className="truncate">{item.label}</span>
-                    <span className="ml-auto font-mono text-[10px] opacity-45">{item.moduleNumber}</span>
-                  </Link>
-                );
-              })}
-            </div>
+            <div className="space-y-0.5">{renderNavItems(clinicOperationsNav)}</div>
           </div>
         )}
+
+        <div>
+          <p className="px-3 mb-1.5 eyebrow">Staff Portals</p>
+          <div className="space-y-0.5">{renderNavItems(staffPortalNav)}</div>
+        </div>
       </nav>
 
       {/* Profile */}

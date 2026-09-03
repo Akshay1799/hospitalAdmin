@@ -1,11 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Send, Circle } from "lucide-react";
-import { SectionHeading, Card, Avatar, Pill } from "@/components/ui";
+import { SectionHeading, Card, Avatar, Pill, EmptyState } from "@/components/ui";
 import { conversations as seedConversations } from "@/lib/mock-data";
+import { useMode } from "@/lib/mode-context";
+import { Conversation } from "@/lib/types";
+import { BackendConversationRow, getBackendConversations, sendBackendMessage } from "@/lib/api-client";
 
 interface ChatMessage {
+  id?: string;
   from: "me" | "them";
   text: string;
   time: string;
@@ -31,24 +35,74 @@ const roleTone: Record<string, "brand" | "clay" | "sage" | "neutral"> = {
 };
 
 export default function CommunicationPage() {
-  const [conversations, setConversations] = useState(seedConversations);
-  const [threads, setThreads] = useState(seedThread);
-  const [activeId, setActiveId] = useState(seedConversations[0].id);
+  const { selectedWorkplaceId } = useMode();
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [threads, setThreads] = useState<Record<string, ChatMessage[]>>({});
+  const [activeId, setActiveId] = useState("");
   const [draft, setDraft] = useState("");
+  const [syncMessage, setSyncMessage] = useState("");
 
-  const active = conversations.find((c) => c.id === activeId)!;
+  useEffect(() => {
+    let cancelled = false;
+
+    getBackendConversations(selectedWorkplaceId)
+      .then((rows) => {
+        if (cancelled) return;
+        setConversations(rows);
+        setThreads(
+          rows.reduce<Record<string, ChatMessage[]>>((acc, row: BackendConversationRow) => {
+            acc[row.id] = row.messages;
+            return acc;
+          }, {})
+        );
+        setActiveId(rows[0]?.id ?? "");
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setConversations(seedConversations);
+          setThreads(seedThread);
+          setActiveId(seedConversations[0]?.id ?? "");
+          setSyncMessage("Backend unavailable; using local demo conversations.");
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedWorkplaceId]);
+
+  const active = conversations.find((c) => c.id === activeId);
   const messages = threads[activeId] ?? [];
 
-  function send() {
-    if (!draft.trim()) return;
+  async function send() {
+    if (!active || !draft.trim()) return;
+    const outgoingText = draft;
+    let nextActiveId = activeId;
+    let nextMessage: ChatMessage = { from: "me", text: outgoingText, time: "Now" };
+
+    setDraft("");
+    try {
+      const saved = await sendBackendMessage({
+        conversationId: activeId,
+        workplaceId: selectedWorkplaceId,
+        title: active.withName,
+        body: outgoingText,
+      });
+      nextActiveId = saved.conversationId;
+      nextMessage = saved.message;
+      setSyncMessage("Message synced to backend.");
+    } catch {
+      setSyncMessage("Backend sync failed; local message kept.");
+    }
+
     setThreads((prev) => ({
       ...prev,
-      [activeId]: [...(prev[activeId] ?? []), { from: "me", text: draft, time: "Now" }],
+      [nextActiveId]: [...(prev[activeId] ?? []), nextMessage],
     }));
     setConversations((prev) =>
-      prev.map((c) => (c.id === activeId ? { ...c, lastMessage: draft, time: "Now", unread: 0 } : c))
+      prev.map((c) => (c.id === activeId ? { ...c, id: nextActiveId, lastMessage: outgoingText, time: "Now", unread: 0 } : c))
     );
-    setDraft("");
+    setActiveId(nextActiveId);
   }
 
   return (
@@ -58,8 +112,12 @@ export default function CommunicationPage() {
         title="Communication"
         description="Collaborate with nurses, laboratory staff, pharmacists and hospital departments."
       />
+      {syncMessage && <p className="mb-3 text-xs text-ink-muted">{syncMessage}</p>}
 
       <Card padded={false} className="overflow-hidden">
+        {!active ? (
+          <EmptyState title="No conversations" description="Messages will appear here when a conversation starts." />
+        ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 h-[600px]">
           <div className="border-r border-line overflow-y-auto">
             {conversations.map((c) => (
@@ -133,6 +191,7 @@ export default function CommunicationPage() {
             </div>
           </div>
         </div>
+        )}
       </Card>
     </div>
   );

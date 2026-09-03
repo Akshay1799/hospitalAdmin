@@ -1,11 +1,14 @@
 "use client";
 
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { CalendarDays, CheckCircle2, MapPin, Stethoscope, UserRound } from "lucide-react";
-import { Card, Pill, SectionHeading } from "@/components/ui";
-import { patients } from "@/lib/mock-data";
+import { Card, Pill, SectionHeading, TimePicker } from "@/components/ui";
+import { patients as seedPatients } from "@/lib/mock-data";
+import { ApiSyncSkippedError, createBackendAppointment, getBackendBootstrap } from "@/lib/api-client";
+import { CURRENT_DATE_ISO } from "@/lib/app-time";
+import { AppointmentType, Doctor, Patient } from "@/lib/types";
 import {
   doctorAffiliations,
   findDoctor,
@@ -32,15 +35,42 @@ function BookingFlow() {
   const affiliation = getAffiliation(affiliationId) ?? availableAffiliations[0];
   const doctor = findDoctor(affiliation.doctorId);
   const organization = getOrganization(affiliation.organizationId);
-  const [patientId, setPatientId] = useState(patients[0].id);
+  const [patientRows, setPatientRows] = useState<Patient[]>([]);
+  const [backendDoctors, setBackendDoctors] = useState<Doctor[]>([]);
+  const [backendWorkplaceId, setBackendWorkplaceId] = useState("");
+  const [patientId, setPatientId] = useState("");
   const [serviceId, setServiceId] = useState(affiliation.serviceIds[0]);
   const [mode, setMode] = useState(affiliation.modes[0]);
   const [slot, setSlot] = useState(slots[3]);
   const [confirmed, setConfirmed] = useState(false);
+  const [syncMessage, setSyncMessage] = useState("");
 
   const serviceOptions = useMemo(() => affiliation.serviceIds.map((id) => getService(id)).filter(Boolean), [affiliation]);
-  const patient = patients.find((item) => item.id === patientId);
+  const patient = patientRows.find((item) => item.id === patientId);
   const service = getService(serviceId);
+  const backendDoctor = backendDoctors.find((item) => item.name === doctor?.name) ?? backendDoctors[0];
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getBackendBootstrap()
+      .then((data) => {
+        if (cancelled) return;
+        setPatientRows(data.patients);
+        setBackendDoctors(data.doctors);
+        setBackendWorkplaceId(data.workplaceId ?? "");
+        setPatientId(data.patients[0]?.id ?? "");
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setPatientRows(seedPatients);
+        setSyncMessage("Backend unavailable; booking cannot be saved right now.");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   function updateAffiliation(nextId: string) {
     const next = getAffiliation(nextId);
@@ -49,6 +79,35 @@ function BookingFlow() {
     setServiceId(next.serviceIds[0]);
     setMode(next.modes[0]);
     setConfirmed(false);
+  }
+
+  async function confirmBooking() {
+    setConfirmed(false);
+    setSyncMessage("");
+
+    if (!patientId || !backendDoctor?.id || !backendWorkplaceId) {
+      setSyncMessage("Backend appointment data is still loading.");
+      return;
+    }
+
+    const appointmentType: AppointmentType = mode === "Online" ? "Video" : "In-Person";
+
+    try {
+      await createBackendAppointment({
+        patientId,
+        doctorId: backendDoctor.id,
+        workplaceId: backendWorkplaceId,
+        date: CURRENT_DATE_ISO,
+        time: slot,
+        durationMins: 30,
+        type: appointmentType,
+        reason: service?.name ?? "Appointment booking",
+      });
+      setConfirmed(true);
+      setSyncMessage("Appointment saved to database.");
+    } catch (error) {
+      setSyncMessage(error instanceof ApiSyncSkippedError ? "Backend IDs are still loading." : "Database save failed. Please try again.");
+    }
   }
 
   return (
@@ -100,7 +159,7 @@ function BookingFlow() {
               <label>
                 <span className="text-[11px] text-ink-muted block mb-1">Patient</span>
                 <select value={patientId} onChange={(event) => setPatientId(event.target.value)} className="input-field">
-                  {patients.map((item) => (
+                  {patientRows.map((item) => (
                     <option key={item.id} value={item.id}>
                       {item.name} - {item.mrn}
                     </option>
@@ -127,17 +186,14 @@ function BookingFlow() {
               </label>
               <label>
                 <span className="text-[11px] text-ink-muted block mb-1">Slot</span>
-                <select value={slot} onChange={(event) => setSlot(event.target.value)} className="input-field">
-                  {slots.map((item) => (
-                    <option key={item} value={item}>{item}</option>
-                  ))}
-                </select>
+                <TimePicker value={slot} onChange={setSlot} format="12h" presets={slots} ariaLabel="Booking slot" />
               </label>
             </div>
 
-            <button onClick={() => setConfirmed(true)} className="btn-primary mt-5">
+            <button onClick={confirmBooking} className="btn-primary mt-5">
               <CheckCircle2 size={14} /> Confirm booking
             </button>
+            {syncMessage && <p className="mt-3 text-xs text-ink-muted">{syncMessage}</p>}
           </Card>
         </div>
 
@@ -182,8 +238,7 @@ function BookingFlow() {
                 <CheckCircle2 size={15} /> Appointment context captured
               </p>
               <p className="text-xs text-ink-muted mt-2">
-                In production this would create an appointment tied to patient, doctor, affiliation, organization,
-                location, service, schedule and notification rules.
+                Appointment saved with patient, doctor, organization, service, slot and consultation mode.
               </p>
               <Link href="/doctor/appointments" className="btn-secondary text-xs mt-4">
                 View appointments

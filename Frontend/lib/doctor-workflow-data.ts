@@ -5,6 +5,7 @@ import {
   HospitalWorkItem,
   Workplace,
 } from "./doctor-workflow-types";
+import { CURRENT_DATE_ISO, addDaysToISO } from "./app-time";
 
 export const doctorWorkplaces: Workplace[] = [
   {
@@ -49,7 +50,7 @@ export const doctorShifts: DoctorShift[] = [
   {
     id: "shift-clinic-morning",
     workplaceId: "wp-clinic-mg",
-    date: "2026-08-17",
+    date: CURRENT_DATE_ISO,
     startTime: "09:00",
     endTime: "13:00",
     shiftType: "clinic_opd",
@@ -59,7 +60,7 @@ export const doctorShifts: DoctorShift[] = [
   {
     id: "shift-online-afternoon",
     workplaceId: "wp-online",
-    date: "2026-08-17",
+    date: CURRENT_DATE_ISO,
     startTime: "14:00",
     endTime: "16:00",
     shiftType: "online_consultation",
@@ -69,7 +70,7 @@ export const doctorShifts: DoctorShift[] = [
   {
     id: "shift-clinic-conflict",
     workplaceId: "wp-clinic-indiranagar",
-    date: "2026-08-17",
+    date: CURRENT_DATE_ISO,
     startTime: "16:00",
     endTime: "19:00",
     shiftType: "clinic_opd",
@@ -80,7 +81,7 @@ export const doctorShifts: DoctorShift[] = [
   {
     id: "shift-hospital-evening",
     workplaceId: "wp-hospital-aster",
-    date: "2026-08-17",
+    date: CURRENT_DATE_ISO,
     startTime: "18:00",
     endTime: "21:00",
     shiftType: "hospital_duty",
@@ -90,7 +91,7 @@ export const doctorShifts: DoctorShift[] = [
   {
     id: "shift-leave",
     workplaceId: "wp-online",
-    date: "2026-08-19",
+    date: addDaysToISO(CURRENT_DATE_ISO, 2),
     startTime: "00:00",
     endTime: "23:59",
     shiftType: "leave",
@@ -101,7 +102,7 @@ export const doctorShifts: DoctorShift[] = [
   {
     id: "shift-block",
     workplaceId: "wp-clinic-mg",
-    date: "2026-08-20",
+    date: addDaysToISO(CURRENT_DATE_ISO, 3),
     startTime: "13:00",
     endTime: "14:00",
     shiftType: "blocked",

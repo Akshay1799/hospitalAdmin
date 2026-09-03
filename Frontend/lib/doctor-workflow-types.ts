@@ -33,6 +33,10 @@ export interface DoctorShift {
   shiftType: ShiftType;
   status: ShiftStatus;
   bookingEnabled?: boolean;
+  slotMinutes?: number;
+  bufferMinutes?: number;
+  bookingLimit?: number;
+  recurrenceRule?: string;
   note?: string;
 }
 

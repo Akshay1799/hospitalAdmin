@@ -4,9 +4,10 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Plus, CalendarClock } from "lucide-react";
 import { SectionHeading, Card, Avatar, Pill, EmptyState, Modal } from "@/components/ui";
-import { patients, followUps as seedFollowUps, getPatient, matchesWorkContext, patientInWorkContext } from "@/lib/mock-data";
+import { patients as seedPatients, followUps as seedFollowUps, getPatient, matchesWorkContext, patientInWorkContext } from "@/lib/mock-data";
 import { useMode } from "@/lib/mode-context";
-import { FollowUp } from "@/lib/types";
+import { FollowUp, Patient } from "@/lib/types";
+import { ApiSyncSkippedError, createBackendFollowUp, getBackendBootstrap, updateBackendFollowUpStatus } from "@/lib/api-client";
 
 const statusTone: Record<FollowUp["status"], "brand" | "clay" | "alert" | "sage"> = {
   Upcoming: "brand",
@@ -16,16 +17,42 @@ const statusTone: Record<FollowUp["status"], "brand" | "clay" | "alert" | "sage"
 };
 
 export default function FollowUpPage() {
-  const { workContext } = useMode();
-  const [followUps, setFollowUps] = useState(seedFollowUps);
+  const { selectedWorkplaceId, workContext } = useMode();
+  const [followUps, setFollowUps] = useState<FollowUp[]>([]);
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [backendDoctorId, setBackendDoctorId] = useState("");
   const [showForm, setShowForm] = useState(false);
-  const [patientId, setPatientId] = useState(patients[0].id);
+  const [patientId, setPatientId] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [reason, setReason] = useState("");
+  const [syncMessage, setSyncMessage] = useState("");
   const contextPatients = useMemo(
     () => patients.filter((patient) => patientInWorkContext(patient, workContext)),
-    [workContext]
+    [patients, workContext]
   );
+  const patientById = useMemo(() => new Map(patients.map((patient) => [patient.id, patient])), [patients]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getBackendBootstrap()
+      .then((data) => {
+        if (cancelled) return;
+        setPatients(data.patients);
+        setFollowUps(data.followUps);
+        setBackendDoctorId(data.doctors[0]?.id ?? "");
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setPatients(seedPatients);
+        setFollowUps(seedFollowUps);
+        setBackendDoctorId("doc-1");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     setPatientId((current) =>
@@ -33,19 +60,35 @@ export default function FollowUpPage() {
     );
   }, [contextPatients]);
 
-  function schedule() {
+  async function schedule() {
     if (!dueDate || !reason.trim()) return;
-    setFollowUps((prev) => [
-      { id: `fu-${Date.now()}`, patientId, doctorId: "doc-1", dueDate, reason, status: "Upcoming", workContext },
-      ...prev,
-    ]);
+    let nextFollowUp: FollowUp = { id: `fu-${Date.now()}`, patientId, doctorId: backendDoctorId || "doc-1", dueDate, reason, status: "Upcoming", workContext };
+    try {
+      nextFollowUp = await createBackendFollowUp({
+        patientId,
+        doctorId: backendDoctorId,
+        workplaceId: selectedWorkplaceId,
+        dueDate,
+        reason,
+      });
+      setSyncMessage("Follow-up synced to backend.");
+    } catch (error) {
+      setSyncMessage(error instanceof ApiSyncSkippedError ? "Mock follow-up saved locally." : "Backend sync failed; local follow-up kept.");
+    }
+    setFollowUps((prev) => [nextFollowUp, ...prev]);
     setDueDate("");
     setReason("");
     setShowForm(false);
   }
 
-  function markComplete(id: string) {
+  async function markComplete(id: string) {
     setFollowUps((prev) => prev.map((f) => (f.id === id ? { ...f, status: "Completed" } : f)));
+    try {
+      await updateBackendFollowUpStatus(id, "Completed");
+      setSyncMessage("Follow-up status synced to backend.");
+    } catch (error) {
+      setSyncMessage(error instanceof ApiSyncSkippedError ? "Mock follow-up updated locally." : "Backend sync failed; local follow-up status kept.");
+    }
   }
 
   const groups: FollowUp["status"][] = ["Overdue", "Due Today", "Upcoming", "Completed"];
@@ -105,6 +148,7 @@ export default function FollowUpPage() {
           </div>
         </div>
       </Modal>
+      {syncMessage && <p className="mb-3 text-xs text-ink-muted">{syncMessage}</p>}
 
       <div className="space-y-6">
         {groups.map((status) => {
@@ -118,7 +162,7 @@ export default function FollowUpPage() {
               <Card padded={false}>
                 <div className="divide-y divide-line">
                   {items.map((f) => {
-                    const patient = getPatient(f.patientId);
+                    const patient = patientById.get(f.patientId) ?? getPatient(f.patientId);
                     if (!patient) return null;
                     return (
                       <div key={f.id} className="flex items-center gap-3.5 px-5 py-3.5">

@@ -1,18 +1,35 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { AlertTriangle, Phone, Droplet, Stethoscope, FilePlus2, FlaskConical, CalendarClock } from "lucide-react";
-import { Card, SectionHeading, Avatar, Pill, OrderStatusBadge } from "@/components/ui";
+import { ConsultationForm } from "@/components/doctor-consultation-form";
+import { LabOrderIssueModal } from "@/components/lab-order-issue-modal";
+import { PrescriptionIssueModal } from "@/components/prescription-issue-modal";
+import { Card, SectionHeading, Avatar, Pill, OrderStatusBadge, EmptyState, Modal } from "@/components/ui";
 import {
-  getPatient,
-  diagnoses,
-  prescriptions,
-  labOrders,
-  radiologyOrders,
-  followUps,
-  appointments,
+  appointments as seedAppointments,
   consultationNotes,
+  diagnoses as seedDiagnoses,
+  doctors as seedDoctors,
+  followUps as seedFollowUps,
   getDoctor,
+  getPatient,
+  labOrders as seedLabOrders,
+  prescriptions as seedPrescriptions,
+  radiologyOrders as seedRadiologyOrders,
 } from "@/lib/mock-data";
+import { getBackendBootstrap } from "@/lib/api-client";
+import {
+  Appointment,
+  DiagnosisEntry,
+  Doctor,
+  FollowUp,
+  LabOrder,
+  Patient,
+  Prescription,
+  RadiologyOrder,
+} from "@/lib/types";
 
 const tagTone: Record<string, "brand" | "clay" | "alert" | "sage"> = {
   New: "brand",
@@ -22,8 +39,85 @@ const tagTone: Record<string, "brand" | "clay" | "alert" | "sage"> = {
 };
 
 export default function PatientDetail({ params }: { params: { id: string } }) {
-  const patient = getPatient(params.id);
-  if (!patient) return notFound();
+  const [loading, setLoading] = useState(true);
+  const [patient, setPatient] = useState<Patient | undefined>();
+  const [doctorRows, setDoctorRows] = useState<Doctor[]>([]);
+  const [diagnoses, setDiagnoses] = useState<DiagnosisEntry[]>([]);
+  const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
+  const [labOrders, setLabOrders] = useState<LabOrder[]>([]);
+  const [radiologyOrders, setRadiologyOrders] = useState<RadiologyOrder[]>([]);
+  const [followUps, setFollowUps] = useState<FollowUp[]>([]);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [consultationOpen, setConsultationOpen] = useState(false);
+  const [prescriptionOpen, setPrescriptionOpen] = useState(false);
+  const [labOrderOpen, setLabOrderOpen] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const applySeededPatientRecord = () => {
+      setPatient(getPatient(params.id));
+      setDoctorRows(seedDoctors);
+      setDiagnoses(seedDiagnoses);
+      setPrescriptions(seedPrescriptions);
+      setLabOrders(seedLabOrders);
+      setRadiologyOrders(seedRadiologyOrders);
+      setFollowUps(seedFollowUps);
+      setAppointments(seedAppointments);
+    };
+
+    getBackendBootstrap()
+      .then((data) => {
+        if (cancelled) return;
+
+        const backendPatient = data.patients.find((item) => item.id === params.id);
+        if (!backendPatient) {
+          applySeededPatientRecord();
+          return;
+        }
+
+        setPatient(backendPatient);
+        setDoctorRows(data.doctors);
+        setDiagnoses(data.diagnoses);
+        setPrescriptions(data.prescriptions);
+        setLabOrders(data.labOrders);
+        setRadiologyOrders(data.radiologyOrders);
+        setFollowUps(data.followUps);
+        setAppointments(data.appointments);
+      })
+      .catch(() => {
+        if (!cancelled) applySeededPatientRecord();
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [params.id]);
+
+  if (loading) {
+    return (
+      <Card>
+        <p className="text-sm text-ink-muted">Loading patient record...</p>
+      </Card>
+    );
+  }
+
+  if (!patient) {
+    return (
+      <EmptyState
+        title="Patient not found"
+        description="The selected patient record could not be loaded from the database."
+        action={
+          <Link href="/doctor/patients" className="btn-primary">
+            Back to patients
+          </Link>
+        }
+      />
+    );
+  }
 
   const patientDx = diagnoses.filter((d) => d.patientId === patient.id);
   const patientRx = prescriptions.filter((r) => r.patientId === patient.id);
@@ -32,7 +126,70 @@ export default function PatientDetail({ params }: { params: { id: string } }) {
   const patientFollowUps = followUps.filter((f) => f.patientId === patient.id);
   const patientAppointments = appointments.filter((a) => a.patientId === patient.id);
   const patientNotes = consultationNotes.filter((c) => c.patientId === patient.id);
-  const doctor = getDoctor(patient.primaryDoctorId);
+  const patientModalRows = [patient];
+  const doctor = doctorRows.find((item) => item.id === patient.primaryDoctorId) ?? getDoctor(patient.primaryDoctorId);
+  const patientTimeline = [
+    ...patientAppointments.map((item) => ({
+      id: `appointment-${item.id}`,
+      date: item.date,
+      title: item.reason,
+      meta: `Appointment - ${item.status}`,
+      href: `/doctor/consultation?patient=${patient.id}&appointment=${item.id}`,
+    })),
+    ...(patient.latestVitals
+      ? [
+          {
+            id: "latest-vitals",
+            date: patient.latestVitals.recordedAt.slice(0, 10),
+            title: `Vitals: BP ${patient.latestVitals.bp}, SpO2 ${patient.latestVitals.spo2}%`,
+            meta: "Vitals",
+            href: "/doctor/vitals",
+          },
+        ]
+      : []),
+    ...patientNotes.map((item) => ({
+      id: `note-${item.id}`,
+      date: item.date,
+      title: item.chiefComplaint || item.diagnosis || "Consultation note",
+      meta: `Consultation - ${item.status}`,
+      href: `/doctor/consultation?patient=${patient.id}`,
+    })),
+    ...patientDx.map((item) => ({
+      id: `diagnosis-${item.id}`,
+      date: item.diagnosedOn,
+      title: item.description,
+      meta: `Diagnosis - ${item.icdCode}`,
+      href: "/doctor/diagnosis",
+    })),
+    ...patientRx.map((item) => ({
+      id: `rx-${item.id}`,
+      date: item.date,
+      title: item.medicines.map((medicine) => medicine.name).join(", "),
+      meta: `Prescription - ${item.status}`,
+      href: `/doctor/prescriptions?patient=${patient.id}`,
+    })),
+    ...patientLabs.map((item) => ({
+      id: `lab-${item.id}`,
+      date: item.orderedOn,
+      title: item.testName,
+      meta: `Lab - ${item.status}`,
+      href: `/doctor/lab-orders?patient=${patient.id}`,
+    })),
+    ...patientRadiology.map((item) => ({
+      id: `radiology-${item.id}`,
+      date: item.orderedOn,
+      title: `${item.imagingType} - ${item.bodyRegion}`,
+      meta: `Radiology - ${item.status}`,
+      href: `/doctor/radiology-orders?patient=${patient.id}`,
+    })),
+    ...patientFollowUps.map((item) => ({
+      id: `follow-up-${item.id}`,
+      date: item.dueDate,
+      title: item.reason,
+      meta: `Follow-up - ${item.status}`,
+      href: "/doctor/follow-up",
+    })),
+  ].sort((a, b) => b.date.localeCompare(a.date));
 
   return (
     <div>
@@ -59,15 +216,15 @@ export default function PatientDetail({ params }: { params: { id: string } }) {
           </div>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <Link href={`/doctor/consultation?patient=${patient.id}`} className="btn-primary">
+          <button type="button" onClick={() => setConsultationOpen(true)} className="btn-primary">
             <Stethoscope size={15} /> Start Consultation
-          </Link>
-          <Link href={`/doctor/prescriptions?patient=${patient.id}`} className="btn-secondary">
+          </button>
+          <button type="button" onClick={() => setPrescriptionOpen(true)} className="btn-secondary">
             <FilePlus2 size={15} /> New Rx
-          </Link>
-          <Link href={`/doctor/lab-orders?patient=${patient.id}`} className="btn-secondary">
+          </button>
+          <button type="button" onClick={() => setLabOrderOpen(true)} className="btn-secondary">
             <FlaskConical size={15} /> Order Test
-          </Link>
+          </button>
         </div>
       </div>
 
@@ -122,6 +279,27 @@ export default function PatientDetail({ params }: { params: { id: string } }) {
           </div>
         </div>
       )}
+
+      <Card className="mb-6">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div>
+            <p className="eyebrow">Patient Journey</p>
+            <h2 className="font-display text-lg text-ink">Timeline</h2>
+          </div>
+          <Pill tone="brand">{patientTimeline.length} events</Pill>
+        </div>
+        <div className="max-h-80 space-y-3 overflow-y-auto">
+          {patientTimeline.map((item) => (
+            <Link key={item.id} href={item.href} className="grid grid-cols-[88px_1fr] gap-3 rounded-md border border-line bg-paper px-3 py-2 hover:bg-brand-50/60">
+              <span className="font-mono text-[11px] text-ink-muted">{item.date}</span>
+              <span className="min-w-0">
+                <span className="block truncate text-sm font-medium text-ink">{item.title}</span>
+                <span className="block text-[11px] text-ink-faint">{item.meta}</span>
+              </span>
+            </Link>
+          ))}
+        </div>
+      </Card>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <div className="xl:col-span-2 space-y-6">
@@ -261,6 +439,34 @@ export default function PatientDetail({ params }: { params: { id: string } }) {
           </Card>
         </div>
       </div>
+
+      <Modal
+        open={consultationOpen}
+        title="Start Consultation"
+        eyebrow={patient.name}
+        onClose={() => setConsultationOpen(false)}
+        size="xl"
+      >
+        <ConsultationForm
+          patients={patientModalRows}
+          preselectedPatientId={patient.id}
+          showHeading={false}
+          prescriptionMode="modal"
+          labOrderMode="modal"
+        />
+      </Modal>
+      <PrescriptionIssueModal
+        open={prescriptionOpen}
+        onClose={() => setPrescriptionOpen(false)}
+        patients={patientModalRows}
+        preselectedPatientId={patient.id}
+      />
+      <LabOrderIssueModal
+        open={labOrderOpen}
+        onClose={() => setLabOrderOpen(false)}
+        patients={patientModalRows}
+        preselectedPatientId={patient.id}
+      />
     </div>
   );
 }

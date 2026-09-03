@@ -1,14 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Plus, Star, Trash2 } from "lucide-react";
 import { SectionHeading, Card, Avatar, AvailabilityDot, Pill, Modal, Field } from "@/components/ui";
 import { doctors as seedDoctors, clinic } from "@/lib/mock-data";
-import { Doctor } from "@/lib/types";
+import { ClinicLocation, Doctor } from "@/lib/types";
+import { ApiSyncSkippedError, createBackendClinicDoctor, getBackendBootstrap } from "@/lib/api-client";
+import { useMode } from "@/lib/mode-context";
 
 export default function DoctorManagementPage() {
-  const [doctors, setDoctors] = useState(seedDoctors);
+  const { selectedWorkplaceId } = useMode();
+  const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [locations, setLocations] = useState<ClinicLocation[]>([]);
   const [showInvite, setShowInvite] = useState(false);
+  const [syncMessage, setSyncMessage] = useState("");
   const [form, setForm] = useState({
     name: "",
     specialty: "",
@@ -17,11 +22,34 @@ export default function DoctorManagementPage() {
     locationId: clinic.locations[0].id,
   });
 
+  useEffect(() => {
+    let cancelled = false;
+
+    getBackendBootstrap()
+      .then((data) => {
+        if (cancelled) return;
+        setDoctors(data.doctors);
+        setLocations(data.locations);
+        setForm((prev) => ({ ...prev, locationId: data.locations[0]?.id ?? prev.locationId }));
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setDoctors(seedDoctors);
+        setLocations(clinic.locations);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   function remove(id: string) {
-    setDoctors((prev) => prev.filter((d) => d.id !== id));
+    if (window.confirm("Remove this doctor from the clinic roster?")) {
+      setDoctors((prev) => prev.filter((d) => d.id !== id));
+    }
   }
 
-  function inviteDoctor() {
+  async function inviteDoctor() {
     if (!form.name.trim() || !form.specialty.trim()) return;
     const initials = form.name
       .split(" ")
@@ -29,7 +57,7 @@ export default function DoctorManagementPage() {
       .slice(0, 2)
       .join("")
       .toUpperCase();
-    const nextDoctor: Doctor = {
+    let nextDoctor: Doctor = {
       id: `local-doc-${Date.now()}`,
       name: form.name,
       specialty: form.specialty,
@@ -41,13 +69,30 @@ export default function DoctorManagementPage() {
       rating: 0,
       patientsCount: 0,
     };
+    try {
+      nextDoctor = {
+        ...(await createBackendClinicDoctor({
+          workplaceId: selectedWorkplaceId,
+          fullName: form.name,
+          specialty: form.specialty,
+          qualifications: form.qualifications || undefined,
+          experienceYears: Number(form.experienceYears) || 0,
+        })),
+        locationId: form.locationId,
+        rating: 0,
+        patientsCount: 0,
+      };
+      setSyncMessage("Doctor invite synced to backend.");
+    } catch (error) {
+      setSyncMessage(error instanceof ApiSyncSkippedError ? "Mock doctor invite saved locally." : "Backend sync failed; local doctor invite kept.");
+    }
     setDoctors((prev) => [nextDoctor, ...prev]);
     setForm({
       name: "",
       specialty: "",
       qualifications: "",
       experienceYears: "",
-      locationId: clinic.locations[0].id,
+      locationId: locations[0]?.id ?? clinic.locations[0].id,
     });
     setShowInvite(false);
   }
@@ -121,7 +166,7 @@ export default function DoctorManagementPage() {
               onChange={(event) => setForm((prev) => ({ ...prev, locationId: event.target.value }))}
               className="input-field"
             >
-              {clinic.locations.map((location) => (
+              {locations.map((location) => (
                 <option key={location.id} value={location.id}>
                   {location.name}
                 </option>
@@ -130,10 +175,11 @@ export default function DoctorManagementPage() {
             </Field>
           </div>
       </Modal>
+      {syncMessage && <p className="mb-3 text-xs text-ink-muted">{syncMessage}</p>}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
         {doctors.map((d) => {
-          const location = clinic.locations.find((l) => l.id === d.locationId);
+          const location = locations.find((l) => l.id === d.locationId);
           return (
             <Card key={d.id}>
               <div className="flex items-start justify-between mb-3">

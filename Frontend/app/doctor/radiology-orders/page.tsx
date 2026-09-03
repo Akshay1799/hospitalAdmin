@@ -4,27 +4,55 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Plus, ScanLine } from "lucide-react";
 import { SectionHeading, Card, Avatar, Pill, OrderStatusBadge, Modal } from "@/components/ui";
-import { patients, radiologyOrders as seedOrders, getPatient, matchesWorkContext, patientInWorkContext } from "@/lib/mock-data";
+import { patients as seedPatients, radiologyOrders as seedOrders, getPatient, matchesWorkContext, patientInWorkContext } from "@/lib/mock-data";
 import { useMode } from "@/lib/mode-context";
-import { ImagingType } from "@/lib/types";
+import { ImagingType, Patient, RadiologyOrder } from "@/lib/types";
+import { CURRENT_DATE_ISO } from "@/lib/app-time";
+import { ApiSyncSkippedError, createBackendOrder, getBackendBootstrap } from "@/lib/api-client";
 
 const imagingTypes: ImagingType[] = ["X-Ray", "CT Scan", "MRI", "Ultrasound"];
 
 function RadiologyOrdersList() {
   const params = useSearchParams();
   const preselected = params.get("patient");
-  const { workContext } = useMode();
-  const [orders, setOrders] = useState(seedOrders);
-  const [patientId, setPatientId] = useState(preselected ?? patients[0].id);
+  const { selectedWorkplaceId, workContext } = useMode();
+  const [orders, setOrders] = useState<RadiologyOrder[]>([]);
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [backendDoctorId, setBackendDoctorId] = useState("");
+  const [patientId, setPatientId] = useState(preselected ?? "");
   const [showForm, setShowForm] = useState(false);
   const [imagingType, setImagingType] = useState<ImagingType>("X-Ray");
   const [bodyRegion, setBodyRegion] = useState("");
   const [priority, setPriority] = useState<"Routine" | "Urgent">("Routine");
+  const [syncMessage, setSyncMessage] = useState("");
   const contextPatients = useMemo(
     () => patients.filter((patient) => patientInWorkContext(patient, workContext)),
-    [workContext]
+    [patients, workContext]
   );
   const contextOrders = orders.filter((order) => matchesWorkContext(order, workContext));
+  const patientById = useMemo(() => new Map(patients.map((patient) => [patient.id, patient])), [patients]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getBackendBootstrap()
+      .then((data) => {
+        if (cancelled) return;
+        setPatients(data.patients);
+        setOrders(data.radiologyOrders);
+        setBackendDoctorId(data.doctors[0]?.id ?? "");
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setPatients(seedPatients);
+        setOrders(seedOrders);
+        setBackendDoctorId("doc-1");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     setPatientId((current) =>
@@ -32,22 +60,34 @@ function RadiologyOrdersList() {
     );
   }, [contextPatients]);
 
-  function placeOrder() {
+  async function placeOrder() {
     if (!bodyRegion.trim()) return;
-    setOrders((prev) => [
-      {
-        id: `rad-${Date.now()}`,
+    const localOrder: RadiologyOrder = {
+      id: `rad-${Date.now()}`,
+      patientId,
+      doctorId: backendDoctorId || "doc-1",
+      imagingType,
+      bodyRegion,
+      orderedOn: CURRENT_DATE_ISO,
+      status: "Ordered",
+      priority,
+      workContext,
+    };
+    try {
+      const savedOrder = await createBackendOrder({
         patientId,
-        doctorId: "doc-1",
-        imagingType,
-        bodyRegion,
-        orderedOn: "2026-08-13",
-        status: "Ordered",
+        doctorId: backendDoctorId,
+        workplaceId: selectedWorkplaceId,
+        type: "RADIOLOGY",
+        title: `${imagingType} - ${bodyRegion}`,
         priority,
-        workContext,
-      },
-      ...prev,
-    ]);
+      });
+      localOrder.id = savedOrder.id;
+      setSyncMessage("Radiology order synced to backend.");
+    } catch (error) {
+      setSyncMessage(error instanceof ApiSyncSkippedError ? "Mock radiology order saved locally." : "Backend sync failed; local radiology order kept.");
+    }
+    setOrders((prev) => [localOrder, ...prev]);
     setBodyRegion("");
     setShowForm(false);
   }
@@ -120,6 +160,7 @@ function RadiologyOrdersList() {
           </div>
         </div>
       </Modal>
+      {syncMessage && <p className="mb-3 text-xs text-ink-muted">{syncMessage}</p>}
 
       <Card padded={false}>
         <div className="px-5 pt-5 pb-3 flex items-center gap-2">
@@ -138,7 +179,7 @@ function RadiologyOrdersList() {
           </thead>
           <tbody>
             {contextOrders.map((o) => {
-              const patient = getPatient(o.patientId);
+              const patient = patientById.get(o.patientId) ?? getPatient(o.patientId);
               return (
                 <tr key={o.id}>
                   <td>

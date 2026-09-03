@@ -2,8 +2,9 @@ import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { SectionHeading, Card, Avatar, AvailabilityDot, StatusBadge, Pill } from "@/components/ui";
 import { clinic, doctors, appointments, staff, tasks, getPatient, getDoctor } from "@/lib/mock-data";
+import { CURRENT_DATE_ISO } from "@/lib/app-time";
 
-const TODAY = "2026-08-13";
+const TODAY = CURRENT_DATE_ISO;
 
 export default function ClinicDashboard() {
   const todays = appointments.filter((a) => a.date === TODAY).sort((a, b) => a.time.localeCompare(b.time));

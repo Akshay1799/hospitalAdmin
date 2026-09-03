@@ -18,6 +18,39 @@ enum WorkplaceType {
   SOLO_PRACTICE
   CLINIC
   HOSPITAL
+  ONLINE_PRACTICE
+}
+
+enum ShiftType {
+  CLINIC_OPD
+  HOSPITAL_DUTY
+  WARD_ROUND
+  ON_CALL
+  ONLINE_CONSULTATION
+  BLOCKED
+  LEAVE
+}
+
+enum ShiftStatus {
+  DRAFT
+  UPCOMING
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum RoomStatus {
+  ACTIVE
+  MAINTENANCE
+  INACTIVE
+}
+
+enum PaymentStatus {
+  UNPAID
+  PARTIALLY_PAID
+  PAID
+  REFUNDED
+  CANCELLED
 }
 
 enum Gender {
@@ -213,16 +246,18 @@ model DoctorProfile {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
-  userAccount       UserAccount          @relation(fields: [userAccountId], references: [id], onDelete: Cascade)
+  userAccount       UserAccount           @relation(fields: [userAccountId], references: [id], onDelete: Cascade)
   workplaces        DoctorWorkplace[]
-  primaryPatients   Patient[]            @relation("PrimaryDoctorPatients")
+  primaryPatients   Patient[]             @relation("PrimaryDoctorPatients")
   appointments      Appointment[]
   encounters        Encounter[]
   prescriptions     Prescription[]
   orders            InvestigationOrder[]
+  shifts            DoctorShift[]
+  serviceLinks      ClinicServiceDoctor[]
   followUps         FollowUp[]
-  referralsMade     Referral[]           @relation("ReferralMadeByDoctor")
-  referralsReceived Referral[]           @relation("ReferralReceivedByDoctor")
+  referralsMade     Referral[]            @relation("ReferralMadeByDoctor")
+  referralsReceived Referral[]            @relation("ReferralReceivedByDoctor")
   articles          DoctorContent[]
 
   @@map("doctor_profiles")
@@ -262,6 +297,11 @@ model Workplace {
   encounters    Encounter[]
   prescriptions Prescription[]
   orders        InvestigationOrder[]
+  shifts        DoctorShift[]
+  services      ClinicService[]
+  rooms         ClinicRoom[]
+  invoices      BillingInvoice[]
+  inventory     InventoryItem[]
   followUps     FollowUp[]
   tasks         Task[]
   referrals     Referral[]
@@ -287,9 +327,64 @@ model WorkplaceLocation {
 
   workplace    Workplace     @relation(fields: [workplaceId], references: [id], onDelete: Cascade)
   appointments Appointment[]
+  rooms        ClinicRoom[]
 
   @@index([workplaceId])
   @@map("workplace_locations")
+}
+
+model ClinicRoom {
+  id          String     @id @default(uuid()) @db.Uuid
+  workplaceId String     @db.Uuid
+  locationId  String?    @db.Uuid
+  name        String
+  roomType    String     @default("Consultation")
+  status      RoomStatus @default(ACTIVE)
+  notes       String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  workplace    Workplace          @relation(fields: [workplaceId], references: [id], onDelete: Cascade)
+  location     WorkplaceLocation? @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  appointments Appointment[]
+
+  @@unique([workplaceId, name])
+  @@index([locationId])
+  @@map("clinic_rooms")
+}
+
+model ClinicService {
+  id              String   @id @default(uuid()) @db.Uuid
+  workplaceId     String   @db.Uuid
+  name            String
+  description     String?
+  durationMinutes Int      @default(20)
+  price           Decimal? @db.Decimal(10, 2)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  workplace       Workplace             @relation(fields: [workplaceId], references: [id], onDelete: Cascade)
+  eligibleDoctors ClinicServiceDoctor[]
+
+  @@unique([workplaceId, name])
+  @@index([workplaceId, isActive])
+  @@map("clinic_services")
+}
+
+model ClinicServiceDoctor {
+  id        String   @id @default(uuid()) @db.Uuid
+  serviceId String   @db.Uuid
+  doctorId  String   @db.Uuid
+  fee       Decimal? @db.Decimal(10, 2)
+  createdAt DateTime @default(now())
+
+  service ClinicService @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  doctor  DoctorProfile @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+
+  @@unique([serviceId, doctorId])
+  @@index([doctorId])
+  @@map("clinic_service_doctors")
 }
 
 model DoctorWorkplace {
@@ -310,6 +405,31 @@ model DoctorWorkplace {
   @@unique([doctorId, workplaceId])
   @@index([workplaceId])
   @@map("doctor_workplaces")
+}
+
+model DoctorShift {
+  id             String      @id @default(uuid()) @db.Uuid
+  doctorId       String      @db.Uuid
+  workplaceId    String      @db.Uuid
+  startsAt       DateTime
+  endsAt         DateTime
+  shiftType      ShiftType
+  status         ShiftStatus @default(UPCOMING)
+  bookingEnabled Boolean     @default(true)
+  slotMinutes    Int         @default(20)
+  bufferMinutes  Int         @default(0)
+  bookingLimit   Int?
+  recurrenceRule String?
+  note           String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  doctor    DoctorProfile @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  workplace Workplace     @relation(fields: [workplaceId], references: [id], onDelete: Cascade)
+
+  @@index([doctorId, startsAt])
+  @@index([workplaceId, startsAt])
+  @@map("doctor_shifts")
 }
 
 model StaffWorkplace {
@@ -369,6 +489,7 @@ model Patient {
   prescriptions Prescription[]
   orders        InvestigationOrder[]
   followUps     FollowUp[]
+  invoices      BillingInvoice[]
   tasks         Task[]
   referrals     Referral[]
   documents     DocumentAsset[]
@@ -453,6 +574,7 @@ model Appointment {
   doctorId           String            @db.Uuid
   workplaceId        String            @db.Uuid
   locationId         String?           @db.Uuid
+  roomId             String?           @db.Uuid
   scheduledAt        DateTime
   durationMinutes    Int               @default(20)
   mode               AppointmentMode   @default(IN_PERSON)
@@ -470,12 +592,15 @@ model Appointment {
   doctor     DoctorProfile      @relation(fields: [doctorId], references: [id], onDelete: Restrict)
   workplace  Workplace          @relation(fields: [workplaceId], references: [id], onDelete: Restrict)
   location   WorkplaceLocation? @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  room       ClinicRoom?        @relation(fields: [roomId], references: [id], onDelete: SetNull)
   encounters Encounter[]
   tasks      Task[]
+  invoice    BillingInvoice?
 
   @@index([doctorId, scheduledAt])
   @@index([workplaceId, scheduledAt])
   @@index([patientId])
+  @@index([roomId, scheduledAt])
   @@map("appointments")
 }
 
@@ -731,6 +856,70 @@ model FollowUp {
   @@index([patientId, dueAt])
   @@index([workplaceId, status])
   @@map("follow_ups")
+}
+
+model BillingInvoice {
+  id            String        @id @default(uuid()) @db.Uuid
+  invoiceNumber String        @unique
+  patientId     String        @db.Uuid
+  workplaceId   String        @db.Uuid
+  appointmentId String?       @unique @db.Uuid
+  status        PaymentStatus @default(UNPAID)
+  subtotal      Decimal       @default(0) @db.Decimal(10, 2)
+  discount      Decimal       @default(0) @db.Decimal(10, 2)
+  tax           Decimal       @default(0) @db.Decimal(10, 2)
+  total         Decimal       @default(0) @db.Decimal(10, 2)
+  notes         String?
+  issuedAt      DateTime      @default(now())
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  patient     Patient      @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  workplace   Workplace    @relation(fields: [workplaceId], references: [id], onDelete: Restrict)
+  appointment Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+  payments    PaymentTxn[]
+
+  @@index([patientId, issuedAt])
+  @@index([workplaceId, status])
+  @@map("billing_invoices")
+}
+
+model PaymentTxn {
+  id          String        @id @default(uuid()) @db.Uuid
+  invoiceId   String        @db.Uuid
+  amount      Decimal       @db.Decimal(10, 2)
+  method      String
+  status      PaymentStatus @default(PAID)
+  reference   String?
+  collectedAt DateTime      @default(now())
+  createdAt   DateTime      @default(now())
+
+  invoice BillingInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+  @@map("payment_txns")
+}
+
+model InventoryItem {
+  id           String    @id @default(uuid()) @db.Uuid
+  workplaceId  String    @db.Uuid
+  name         String
+  category     String
+  sku          String?
+  stockOnHand  Int       @default(0)
+  reorderLevel Int       @default(0)
+  unit         String?
+  expiryDate   DateTime? @db.Date
+  supplier     String?
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  workplace Workplace @relation(fields: [workplaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workplaceId, sku])
+  @@index([workplaceId, category])
+  @@map("inventory_items")
 }
 
 model Task {

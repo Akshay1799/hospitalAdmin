@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, FileWarning, Siren, ListTodo, CheckCircle2 } from "lucide-react";
 import { SectionHeading, Card, SeverityBadge, EmptyState } from "@/components/ui";
 import { clinicalAlerts as seedAlerts, getPatient, matchesWorkContext } from "@/lib/mock-data";
 import { useMode } from "@/lib/mode-context";
 import { ClinicalAlert } from "@/lib/types";
+import { acknowledgeBackendAlert, ApiSyncSkippedError, getBackendBootstrap } from "@/lib/api-client";
 
 const categoryIcon: Record<ClinicalAlert["category"], typeof AlertTriangle> = {
   Allergy: AlertTriangle,
@@ -17,11 +18,34 @@ const categoryIcon: Record<ClinicalAlert["category"], typeof AlertTriangle> = {
 
 export default function AlertsPage() {
   const { workContext } = useMode();
-  const [alerts, setAlerts] = useState(seedAlerts);
+  const [alerts, setAlerts] = useState<ClinicalAlert[]>([]);
   const [showAcknowledged, setShowAcknowledged] = useState(false);
+  const [syncMessage, setSyncMessage] = useState("");
 
-  function acknowledge(id: string) {
+  useEffect(() => {
+    let cancelled = false;
+
+    getBackendBootstrap()
+      .then((data) => {
+        if (!cancelled) setAlerts(data.alerts);
+      })
+      .catch(() => {
+        if (!cancelled) setAlerts(seedAlerts);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function acknowledge(id: string) {
     setAlerts((prev) => prev.map((a) => (a.id === id ? { ...a, acknowledged: true } : a)));
+    try {
+      await acknowledgeBackendAlert(id);
+      setSyncMessage("Alert acknowledgement synced to backend.");
+    } catch (error) {
+      setSyncMessage(error instanceof ApiSyncSkippedError ? "Mock alert acknowledged locally." : "Backend sync failed; local acknowledgement kept.");
+    }
   }
 
   const contextAlerts = alerts.filter((a) => matchesWorkContext(a, workContext));
@@ -48,6 +72,7 @@ export default function AlertsPage() {
         <span className="font-medium text-ink">{openCount}</span> open alert{openCount === 1 ? "" : "s"} require your
         attention.
       </p>
+      {syncMessage && <p className="mb-3 text-xs text-ink-muted">{syncMessage}</p>}
 
       <Card padded={false}>
         {visible.length === 0 ? (

@@ -7,13 +7,20 @@ import clsx from "clsx";
 import { X, Stethoscope } from "lucide-react";
 import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
-import { doctorWorkspaceNav, clinicOperationsNav } from "./nav-config";
+import { doctorWorkspaceNav, clinicOperationsNav, staffPortalNav } from "./nav-config";
 import { useMode } from "@/lib/mode-context";
+import { DoctorAiAssistant } from "@/components/doctor-workflow";
 
 export default function AppShell({ children }: { children: ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();
   const { workContext } = useMode();
+  const isReceptionistPortal = pathname?.startsWith("/receptionist");
+  const mobileNavItems = [...doctorWorkspaceNav, ...(workContext === "clinic" ? clinicOperationsNav : []), ...staffPortalNav];
+
+  if (isReceptionistPortal) {
+    return <>{children}</>;
+  }
 
   return (
     <div className="flex min-h-screen bg-transparent">
@@ -36,7 +43,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
               </button>
             </div>
             <nav className="space-y-0.5">
-              {[...doctorWorkspaceNav, ...(workContext === "clinic" ? clinicOperationsNav : [])].map((item) => {
+              {mobileNavItems.map((item) => {
                 const active = pathname === item.href;
                 const Icon = item.icon;
                 return (
@@ -60,6 +67,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
         <Topbar onMenuClick={() => setMobileOpen(true)} />
         <main className="flex-1 px-4 py-6 lg:px-8 lg:py-8 max-w-[1440px] w-full mx-auto">{children}</main>
       </div>
+      <DoctorAiAssistant />
     </div>
   );
 }

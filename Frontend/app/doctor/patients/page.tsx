@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Plus, Search, ChevronRight } from "lucide-react";
 import { SectionHeading, Card, Avatar, Pill, EmptyState, Modal, Field } from "@/components/ui";
-import { patients, doctors, getDoctor, patientInWorkContext } from "@/lib/mock-data";
+import { patients, doctors as seedDoctors, getDoctor, patientInWorkContext } from "@/lib/mock-data";
 import { useMode } from "@/lib/mode-context";
 import { Patient } from "@/lib/types";
+import { createBackendPatient, getBackendBootstrap } from "@/lib/api-client";
 
 const tagTone: Record<string, "brand" | "clay" | "alert" | "sage"> = {
   New: "brand",
@@ -16,11 +17,13 @@ const tagTone: Record<string, "brand" | "clay" | "alert" | "sage"> = {
 };
 
 export default function PatientsPage() {
-  const { workContext } = useMode();
-  const [patientRows, setPatientRows] = useState(patients);
+  const { selectedWorkplaceId, workContext } = useMode();
+  const [patientRows, setPatientRows] = useState<Patient[]>([]);
+  const [doctorRows, setDoctorRows] = useState<typeof seedDoctors>([]);
   const [query, setQuery] = useState("");
   const [tagFilter, setTagFilter] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [syncMessage, setSyncMessage] = useState("");
   const [form, setForm] = useState({
     name: "",
     age: "",
@@ -28,8 +31,32 @@ export default function PatientsPage() {
     phone: "",
     bloodGroup: "O+",
     condition: "",
-    doctorId: doctors[0].id,
+    doctorId: "",
   });
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getBackendBootstrap()
+      .then((data) => {
+        if (cancelled) return;
+        setPatientRows(data.patients);
+        if (data.doctors.length > 0) setDoctorRows(data.doctors);
+        setForm((prev) => ({ ...prev, doctorId: data.doctors[0]?.id ?? prev.doctorId }));
+        setSyncMessage("Loaded backend patient data.");
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setPatientRows(patients);
+        setDoctorRows(seedDoctors);
+        setForm((prev) => ({ ...prev, doctorId: seedDoctors[0]?.id ?? prev.doctorId }));
+        setSyncMessage("Backend unavailable; using local demo patients.");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const filtered = useMemo(() => {
     return patientRows.filter((p) => {
@@ -46,7 +73,7 @@ export default function PatientsPage() {
   const contextRows = patientRows.filter((p) => patientInWorkContext(p, workContext));
   const allTags = Array.from(new Set(contextRows.flatMap((p) => p.tags ?? [])));
 
-  function registerPatient() {
+  async function registerPatient() {
     if (!form.name.trim()) return;
     const initials = form.name
       .split(" ")
@@ -71,7 +98,27 @@ export default function PatientsPage() {
       lastVisit: "New registration",
       tags: ["New"],
     };
-    setPatientRows((prev) => [nextPatient, ...prev]);
+    let savedToBackend = false;
+    try {
+      await createBackendPatient({
+        qlynoId: `QLYNO-${Date.now()}`,
+        fullName: form.name,
+        gender: form.gender.toUpperCase() as "MALE" | "FEMALE" | "OTHER",
+        phone: form.phone,
+        bloodGroup: form.bloodGroup,
+        primaryDoctorId: form.doctorId,
+        workplaceId: selectedWorkplaceId,
+        localMrn: nextPatient.mrn,
+      });
+      const data = await getBackendBootstrap();
+      setPatientRows(data.patients);
+      if (data.doctors.length > 0) setDoctorRows(data.doctors);
+      savedToBackend = true;
+      setSyncMessage("Patient registration synced to backend.");
+    } catch {
+      setSyncMessage("Backend sync failed; local patient registration kept.");
+    }
+    if (!savedToBackend) setPatientRows((prev) => [nextPatient, ...prev]);
     setForm({
       name: "",
       age: "",
@@ -79,7 +126,7 @@ export default function PatientsPage() {
       phone: "",
       bloodGroup: "O+",
       condition: "",
-      doctorId: doctors[0].id,
+      doctorId: doctorRows[0]?.id ?? "",
     });
     setShowForm(false);
   }
@@ -172,7 +219,7 @@ export default function PatientsPage() {
               onChange={(event) => setForm((prev) => ({ ...prev, doctorId: event.target.value }))}
               className="input-field"
             >
-              {doctors.map((doctor) => (
+              {doctorRows.map((doctor) => (
                 <option key={doctor.id} value={doctor.id}>
                   {doctor.name}
                 </option>
@@ -210,6 +257,7 @@ export default function PatientsPage() {
           ))}
         </div>
       </div>
+      {syncMessage && <p className="mb-3 text-xs text-ink-muted">{syncMessage}</p>}
 
       <Card padded={false}>
         {filtered.length === 0 ? (
@@ -217,7 +265,7 @@ export default function PatientsPage() {
         ) : (
           <div className="divide-y divide-line">
             {filtered.map((p) => {
-              const doctor = getDoctor(p.primaryDoctorId);
+              const doctor = doctorRows.find((d) => d.id === p.primaryDoctorId) ?? getDoctor(p.primaryDoctorId);
               return (
                 <Link
                   key={p.id}

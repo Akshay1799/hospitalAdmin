@@ -1,9 +1,31 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, ArrowRight, Bed, CalendarClock, CheckCircle2, Clock, MapPin } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowRight,
+  Bed,
+  Bot,
+  BrainCircuit,
+  Building2,
+  CalendarClock,
+  CheckCircle2,
+  Clock,
+  LifeBuoy,
+  MapPin,
+  MessageSquareText,
+  Send,
+  ShieldAlert,
+  Sparkles,
+  Stethoscope,
+  UserRound,
+  X,
+} from "lucide-react";
 import { Card, Pill } from "@/components/ui";
-import { getPatient } from "@/lib/mock-data";
+import { clinic, currentDoctor, getPatient } from "@/lib/mock-data";
+import { useDoctorWorkflow } from "@/lib/doctor-workflow-context";
+import { useMode } from "@/lib/mode-context";
 import {
   ClinicQueueItem,
   DoctorShift,
@@ -54,10 +76,12 @@ export function ShiftCard({
           </p>
           <p className="text-xs font-semibold text-ink-soft">{shiftTypeLabel(shift.shiftType)}</p>
         </div>
-        <div className="mt-3 flex items-center justify-between gap-2">
+        <div className="mt-3 flex flex-wrap items-center gap-2">
           <Pill tone={shift.bookingEnabled ? "sage" : "neutral"}>
             {shift.bookingEnabled ? "Booking enabled" : "Booking closed"}
           </Pill>
+          {shift.slotMinutes && <Pill tone="neutral">{shift.slotMinutes} min slots</Pill>}
+          {shift.bufferMinutes ? <Pill tone="neutral">{shift.bufferMinutes} min buffer</Pill> : null}
           {shift.note && <span className="text-[11px] text-alert-500">{shift.note}</span>}
         </div>
       </Card>
@@ -273,5 +297,300 @@ export function ConflictNotice({ conflicts }: { conflicts: Array<[DoctorShift, D
         </div>
       </div>
     </Card>
+  );
+}
+
+type AiOperation = "normal" | "clinic" | "doctor" | "emergency";
+
+const aiOperations: Array<{
+  id: AiOperation;
+  label: string;
+  description: string;
+  icon: typeof MessageSquareText;
+}> = [
+  {
+    id: "normal",
+    label: "Normal Query",
+    description: "Education, navigation and next-step guidance.",
+    icon: MessageSquareText,
+  },
+  {
+    id: "clinic",
+    label: "Clinic Knowledge",
+    description: "Timings, services, facilities and policy facts.",
+    icon: Building2,
+  },
+  {
+    id: "doctor",
+    label: "Doctor Knowledge",
+    description: "Profile, specialty, availability and instructions.",
+    icon: UserRound,
+  },
+  {
+    id: "emergency",
+    label: "Emergency Routing",
+    description: "High-risk detection, escalation and audit path.",
+    icon: ShieldAlert,
+  },
+];
+
+function buildAiResponse({
+  operation,
+  query,
+  activeWorkplaceName,
+  activeShift,
+  pendingQueueCount,
+  urgentTaskCount,
+  criticalHospitalCount,
+}: {
+  operation: AiOperation;
+  query: string;
+  activeWorkplaceName: string;
+  activeShift?: DoctorShift;
+  pendingQueueCount: number;
+  urgentTaskCount: number;
+  criticalHospitalCount: number;
+}) {
+  const trimmedQuery = query.trim();
+  const subject = trimmedQuery || "No query entered";
+
+  if (operation === "clinic") {
+    return {
+      title: "Clinic Knowledge AI",
+      summary: `${clinic.name} can answer from approved clinic facts: timings, services, locations, doctors and clinic policy.`,
+      route: "Clinic AI / receptionist",
+      steps: [
+        `Clinic hours: ${clinic.timings}.`,
+        `Services: ${clinic.services.slice(0, 4).join(", ")}.`,
+        `Locations: ${clinic.locations.map((location) => location.name).join(", ")}.`,
+        "If the question asks for a specific doctor's slot, switch to Doctor Knowledge.",
+      ],
+      boundary: "Do not invent prices, availability or policies that are not in clinic data.",
+      subject,
+    };
+  }
+
+  if (operation === "doctor") {
+    return {
+      title: "Doctor Knowledge AI",
+      summary: `${currentDoctor.name} knowledge is scoped to profile, specialty, approved content and this doctor's schedule.`,
+      route: "Responsible doctor / assigned team",
+      steps: [
+        `${currentDoctor.specialty} - ${currentDoctor.qualifications}.`,
+        activeShift
+          ? `Active context: ${activeWorkplaceName}, ${activeShift.startTime} to ${activeShift.endTime}.`
+          : `Current context: ${activeWorkplaceName}.`,
+        `Queue waiting: ${pendingQueueCount}; urgent tasks: ${urgentTaskCount}.`,
+        "For another doctor's schedule or content, switch context before answering.",
+      ],
+      boundary: "Never answer Doctor A facts using Doctor B data.",
+      subject,
+    };
+  }
+
+  if (operation === "emergency") {
+    return {
+      title: "Emergency AI Routing",
+      summary: "Route the patient to immediate safety guidance and alert the configured clinical team.",
+      route: "Emergency safety flow",
+      steps: [
+        "Detect high-risk language and avoid open-ended chat.",
+        "Tell the patient to seek urgent emergency care when symptoms suggest immediate risk.",
+        "Notify the responsible doctor where configured.",
+        "Fallback to the clinic clinical team if the doctor is unavailable.",
+        `Open high-risk work right now: ${criticalHospitalCount} critical hospital item(s), ${urgentTaskCount} urgent task(s).`,
+        "Record acknowledgement and handoff for audit.",
+      ],
+      boundary: "Do not promise that a specific doctor is available during an emergency.",
+      subject,
+    };
+  }
+
+  return {
+    title: "Normal Query AI",
+    summary: "Interpret the request, provide safe general guidance, then route to verified Qlyno records or a human owner.",
+    route: "Qlyno navigation / human handoff when needed",
+    steps: [
+      "Classify intent as education, booking, records, follow-up, report, prescription or staff message.",
+      "Use deterministic Qlyno data for people, prices, availability and records.",
+      "Offer booking, patient record, report, prescription or task navigation when relevant.",
+      "Hand off clinical judgement or private patient decisions to the doctor/team.",
+    ],
+    boundary: "AI can explain and route, but it must not invent medical facts or make diagnosis decisions.",
+    subject,
+  };
+}
+
+export function DoctorAiAssistant() {
+  const [open, setOpen] = useState(false);
+  const [operation, setOperation] = useState<AiOperation>("normal");
+  const [query, setQuery] = useState("");
+  const [actionMessage, setActionMessage] = useState("");
+  const { workContext } = useMode();
+  const { activeShift, clinicQueue, doctorTasks, hospitalWorklist, workplaces } = useDoctorWorkflow();
+
+  const activeWorkplace = useMemo(() => {
+    if (activeShift) return workplaces.find((workplace) => workplace.id === activeShift.workplaceId);
+    return workplaces.find((workplace) => (workContext === "hospital" ? workplace.type === "hospital" : workplace.type !== "hospital"));
+  }, [activeShift, workContext, workplaces]);
+
+  const response = useMemo(
+    () =>
+      buildAiResponse({
+        operation,
+        query,
+        activeWorkplaceName: activeWorkplace?.name ?? "Current workspace",
+        activeShift,
+        pendingQueueCount: clinicQueue.filter((item) => item.status === "waiting").length,
+        urgentTaskCount: doctorTasks.filter((task) => task.priority === "Critical" || task.status === "urgent").length,
+        criticalHospitalCount: hospitalWorklist.filter((item) => item.priority === "Critical" || item.status === "critical").length,
+      }),
+    [activeShift, activeWorkplace?.name, clinicQueue, doctorTasks, hospitalWorklist, operation, query]
+  );
+
+  const ActiveIcon = aiOperations.find((item) => item.id === operation)?.icon ?? Sparkles;
+
+  function queueAction(label: string) {
+    setActionMessage(`${label} queued in ${activeWorkplace?.name ?? "current workspace"}.`);
+  }
+
+  return (
+    <div className="fixed bottom-5 right-5 z-50">
+      {open && (
+        <div className="mb-4 w-[min(calc(100vw-2rem),28rem)] overflow-hidden rounded-card border border-line bg-white shadow-pop">
+          <div className="flex items-start justify-between gap-4 border-b border-line bg-ink px-4 py-3 text-white">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-md bg-white text-brand-700">
+                <BrainCircuit size={20} />
+              </div>
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-brand-100">Qlyno AI</p>
+                <h2 className="font-display text-lg leading-tight">Care Assistant</h2>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              aria-label="Close AI assistant"
+              className="flex h-8 w-8 items-center justify-center rounded-md text-white/75 hover:bg-white/10 hover:text-white"
+            >
+              <X size={16} />
+            </button>
+          </div>
+
+          <div className="max-h-[calc(100vh-8rem)] overflow-y-auto p-4">
+            <div className="grid grid-cols-2 gap-2">
+              {aiOperations.map((item) => {
+                const Icon = item.icon;
+                const active = operation === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => {
+                      setOperation(item.id);
+                      setActionMessage("");
+                    }}
+                    className={`rounded-md border px-3 py-2 text-left transition-colors ${
+                      active ? "border-brand-200 bg-brand-50 text-brand-800" : "border-line bg-white text-ink-soft hover:bg-paper"
+                    }`}
+                  >
+                    <span className="flex items-center gap-2 text-xs font-semibold">
+                      <Icon size={14} />
+                      {item.label}
+                    </span>
+                    <span className="mt-1 block text-[11px] leading-4 text-ink-muted">{item.description}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <label className="mt-4 block">
+              <span className="eyebrow">Patient or staff request</span>
+              <textarea
+                value={query}
+                onChange={(event) => {
+                  setQuery(event.target.value);
+                  setActionMessage("");
+                }}
+                rows={3}
+                placeholder="Example: Patient has chest pain, who should be alerted?"
+                className="input-field mt-1.5 resize-none"
+              />
+            </label>
+
+            <div className="mt-4 rounded-card border border-line bg-paper/70 p-4">
+              <div className="flex items-start gap-3">
+                <div
+                  className={`mt-0.5 flex h-8 w-8 items-center justify-center rounded-md ${
+                    operation === "emergency" ? "bg-alert-50 text-alert-500" : "bg-brand-50 text-brand-700"
+                  }`}
+                >
+                  <ActiveIcon size={17} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-ink">{response.title}</p>
+                  <p className="mt-1 text-xs leading-5 text-ink-soft">{response.summary}</p>
+                  <p className="mt-2 text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-muted">
+                    Route: {response.route}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-3 space-y-1.5">
+                {response.steps.map((step) => (
+                  <p key={step} className="flex gap-2 text-xs leading-5 text-ink-muted">
+                    <CheckCircle2 size={12} className="mt-1 shrink-0 text-sage-500" />
+                    <span>{step}</span>
+                  </p>
+                ))}
+              </div>
+
+              <div className="mt-3 rounded-md border border-line bg-white px-3 py-2">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-muted">Boundary</p>
+                <p className="mt-1 text-xs leading-5 text-ink-soft">{response.boundary}</p>
+              </div>
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <Link href="/discover" className="btn-secondary text-xs">
+                <LifeBuoy size={13} /> Search
+              </Link>
+              <Link href="/doctor/schedule" className="btn-secondary text-xs">
+                <CalendarClock size={13} /> Schedule
+              </Link>
+              <button type="button" onClick={() => queueAction("Human handoff")} className="btn-secondary text-xs">
+                <Stethoscope size={13} /> Handoff
+              </button>
+              <button
+                type="button"
+                onClick={() => queueAction(operation === "emergency" ? "Emergency escalation" : "AI action")}
+                className={operation === "emergency" ? "btn-primary bg-alert-500 hover:bg-alert-600 text-xs" : "btn-primary text-xs"}
+              >
+                <Send size={13} /> Run
+              </button>
+            </div>
+
+            {actionMessage && (
+              <p className="mt-3 rounded-md border border-sage-100 bg-sage-50 px-3 py-2 text-xs font-medium text-sage-500">
+                {actionMessage}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        aria-label="Open Qlyno AI assistant"
+        className="group relative flex h-16 w-16 items-center justify-center rounded-full border border-brand-100 bg-ink text-white shadow-pop transition-all hover:-translate-y-0.5 hover:shadow-lift"
+      >
+        <span className="absolute -right-0.5 -top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-clay-300 text-[10px] font-bold text-ink">
+          AI
+        </span>
+        <Bot size={27} className="transition-transform group-hover:scale-105" />
+      </button>
+    </div>
   );
 }

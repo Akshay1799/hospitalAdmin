@@ -1,21 +1,269 @@
 "use client";
 
-import { useState } from "react";
-import { Building2, Hospital, MonitorSmartphone } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Building2, Copy, Hospital, MonitorSmartphone, Plus, Trash2 } from "lucide-react";
 import { WorkplaceBadge } from "@/components/doctor-workflow";
-import { SectionHeading, Card, Avatar, Pill } from "@/components/ui";
+import { SectionHeading, Card, Avatar, Field, Pill, TimePicker } from "@/components/ui";
+import { getBackendState, saveBackendState } from "@/lib/api-client";
 import { currentDoctor } from "@/lib/mock-data";
 import { useDoctorWorkflow } from "@/lib/doctor-workflow-context";
 
 const tabs = ["Profile", "My Workplaces", "Consultation Preferences", "Notifications", "Security"] as const;
 type Tab = (typeof tabs)[number];
 
-export default function SettingsPage() {
-  const { workplaces } = useDoctorWorkflow();
-  const [tab, setTab] = useState<Tab>("Profile");
-  const [saved, setSaved] = useState(false);
+const preferenceLabels = [
+  "Allow video consultations",
+  "Show me as available for walk-ins",
+  "Require vitals before consultation starts",
+  "Auto-suggest ICD codes while typing diagnosis",
+] as const;
 
-  function save() {
+const notificationLabels = [
+  "New appointment booked",
+  "Patient checked in",
+  "Lab report ready",
+  "Follow-up due today",
+  "Emergency alert",
+  "Direct message from staff",
+] as const;
+
+type PreferenceLabel = (typeof preferenceLabels)[number];
+type NotificationLabel = (typeof notificationLabels)[number];
+
+const weekDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"] as const;
+type WeekDay = (typeof weekDays)[number];
+
+interface WorkingHour {
+  day: WeekDay;
+  open: boolean;
+  startTime: string;
+  endTime: string;
+}
+
+interface TreatmentService {
+  id: string;
+  name: string;
+  fee: string;
+}
+
+interface DoctorSettingsState {
+  profile: {
+    name: string;
+    email: string;
+    specialty: string;
+    qualifications: string;
+    experienceYears: number;
+    clinicName: string;
+    awards: string;
+    languages: string;
+    youtubePodcastUrl: string;
+    photoUrl: string;
+    publicProfileUrl: string;
+    phone: string;
+    emergencyPhone: string;
+    country: string;
+    state: string;
+    city: string;
+    address: string;
+    bookingPreference: string;
+    appointmentSlotMinutes: string;
+    freeFollowUpDays: string;
+    consultationFee: string;
+    treatments: TreatmentService[];
+    profileTags: string[];
+    workingHours: WorkingHour[];
+    about: string;
+    bio: string;
+  };
+  consultationLength: string;
+  bufferMinutes: string;
+  preferences: Record<PreferenceLabel, boolean>;
+  notifications: Record<NotificationLabel, { inApp: boolean; whatsapp: boolean }>;
+  twoFactorEnabled: boolean;
+}
+
+function buildDefaultNotifications() {
+  return notificationLabels.reduce(
+    (acc, label) => ({
+      ...acc,
+      [label]: { inApp: true, whatsapp: true },
+    }),
+    {} as DoctorSettingsState["notifications"]
+  );
+}
+
+const defaultSettings: DoctorSettingsState = {
+  profile: {
+    name: currentDoctor.name,
+    email: "doctor@qlyno.com",
+    specialty: currentDoctor.specialty,
+    qualifications: currentDoctor.qualifications,
+    experienceYears: currentDoctor.experienceYears,
+    clinicName: "Meridian Family Clinic",
+    awards: "",
+    languages: "English, Hindi",
+    youtubePodcastUrl: "",
+    photoUrl: "",
+    publicProfileUrl: "https://qlyno.com/doctor/dr-ananya-rao-internal-medicine-bengaluru",
+    phone: "+91 98450 11223",
+    emergencyPhone: "",
+    country: "India",
+    state: "Karnataka",
+    city: "Bengaluru",
+    address: "14 MG Road, Bengaluru",
+    bookingPreference: "Slot Based Booking",
+    appointmentSlotMinutes: "15",
+    freeFollowUpDays: "7",
+    consultationFee: "1000",
+    treatments: [{ id: "service-1", name: "General Medicine Consultation", fee: "1000" }],
+    profileTags: ["internal medicine", "family physician"],
+    workingHours: weekDays.map((day) => ({
+      day,
+      open: day !== "Sunday",
+      startTime: "09:00",
+      endTime: "17:00",
+    })),
+    about: "",
+    bio: "",
+  },
+  consultationLength: "15",
+  bufferMinutes: "5",
+  preferences: {
+    "Allow video consultations": true,
+    "Show me as available for walk-ins": true,
+    "Require vitals before consultation starts": true,
+    "Auto-suggest ICD codes while typing diagnosis": true,
+  },
+  notifications: buildDefaultNotifications(),
+  twoFactorEnabled: false,
+};
+
+export default function SettingsPage() {
+  const { backendDoctorId, workplaces } = useDoctorWorkflow();
+  const [tab, setTab] = useState<Tab>("Profile");
+  const [settings, setSettings] = useState<DoctorSettingsState>(defaultSettings);
+  const [saved, setSaved] = useState(false);
+  const [syncMessage, setSyncMessage] = useState("");
+  const stateEntityId = backendDoctorId ?? currentDoctor.id;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getBackendState<Partial<DoctorSettingsState>>("doctor-settings", stateEntityId)
+      .then((state) => {
+        if (cancelled || !state) return;
+        setSettings((prev) => ({
+          ...prev,
+          ...state,
+          profile: { ...prev.profile, ...state.profile },
+          preferences: { ...prev.preferences, ...state.preferences },
+          notifications: { ...prev.notifications, ...state.notifications },
+        }));
+      })
+      .catch(() => undefined);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [stateEntityId]);
+
+  function updateProfile<K extends keyof DoctorSettingsState["profile"]>(
+    field: K,
+    value: DoctorSettingsState["profile"][K]
+  ) {
+    setSettings((prev) => ({
+      ...prev,
+      profile: { ...prev.profile, [field]: value },
+    }));
+  }
+
+  function updateWorkingHour(index: number, changes: Partial<WorkingHour>) {
+    setSettings((prev) => ({
+      ...prev,
+      profile: {
+        ...prev.profile,
+        workingHours: prev.profile.workingHours.map((item, itemIndex) =>
+          itemIndex === index ? { ...item, ...changes } : item
+        ),
+      },
+    }));
+  }
+
+  function addTreatment() {
+    updateProfile("treatments", [
+      ...settings.profile.treatments,
+      { id: `service-${Date.now()}`, name: "", fee: "" },
+    ]);
+  }
+
+  function updateTreatment(id: string, field: keyof TreatmentService, value: string) {
+    updateProfile(
+      "treatments",
+      settings.profile.treatments.map((item) => (item.id === id ? { ...item, [field]: value } : item))
+    );
+  }
+
+  function removeTreatment(id: string) {
+    updateProfile(
+      "treatments",
+      settings.profile.treatments.filter((item) => item.id !== id)
+    );
+  }
+
+  function addTag() {
+    updateProfile("profileTags", [...settings.profile.profileTags, ""]);
+  }
+
+  function updateTag(index: number, value: string) {
+    updateProfile(
+      "profileTags",
+      settings.profile.profileTags.map((tag, tagIndex) => (tagIndex === index ? value : tag))
+    );
+  }
+
+  function removeTag(index: number) {
+    updateProfile(
+      "profileTags",
+      settings.profile.profileTags.filter((_, tagIndex) => tagIndex !== index)
+    );
+  }
+
+  async function copyPublicProfileUrl() {
+    if (!settings.profile.publicProfileUrl) return;
+    await navigator.clipboard?.writeText(settings.profile.publicProfileUrl);
+    setSaved(true);
+    setSyncMessage("Public profile URL copied.");
+    setTimeout(() => setSaved(false), 2000);
+  }
+
+  function updatePreference(label: PreferenceLabel, checked: boolean) {
+    setSettings((prev) => ({
+      ...prev,
+      preferences: { ...prev.preferences, [label]: checked },
+    }));
+  }
+
+  function updateNotification(label: NotificationLabel, channel: "inApp" | "whatsapp", checked: boolean) {
+    setSettings((prev) => ({
+      ...prev,
+      notifications: {
+        ...prev.notifications,
+        [label]: { ...prev.notifications[label], [channel]: checked },
+      },
+    }));
+  }
+
+  async function save() {
+    setSaved(false);
+    setSyncMessage("");
+
+    try {
+      await saveBackendState("doctor-settings", stateEntityId, settings);
+      setSyncMessage("Saved to database");
+    } catch {
+      setSyncMessage("Saved locally. Database sync failed.");
+    }
+
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   }
@@ -23,7 +271,7 @@ export default function SettingsPage() {
   return (
     <div>
       <SectionHeading
-        eyebrow="15 · Settings"
+        eyebrow="15 - Settings"
         title="Settings"
         description="Manage your doctor profile, consultation preferences, notifications and account security."
       />
@@ -48,37 +296,321 @@ export default function SettingsPage() {
         <div className="lg:col-span-3">
           <Card>
             {tab === "Profile" && (
-              <div className="space-y-5">
-                <div className="flex items-center gap-4">
-                  <Avatar initials={currentDoctor.avatarInitials} size={64} />
-                  <button className="btn-secondary text-xs">Change Photo</button>
+              <div className="space-y-6">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-center gap-4">
+                    <Avatar initials={currentDoctor.avatarInitials} size={64} />
+                    <div>
+                      <p className="text-sm font-semibold text-ink">{settings.profile.name}</p>
+                      <p className="text-xs text-ink-muted">{settings.profile.specialty || "Specialty not added"}</p>
+                    </div>
+                  </div>
+                  <Pill tone="sage">Verified</Pill>
                 </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-[11px] text-ink-muted block mb-1">Full Name</label>
-                    <input defaultValue={currentDoctor.name} className="input-field" />
-                  </div>
-                  <div>
-                    <label className="text-[11px] text-ink-muted block mb-1">Specialty</label>
-                    <input defaultValue={currentDoctor.specialty} className="input-field" />
-                  </div>
-                  <div>
-                    <label className="text-[11px] text-ink-muted block mb-1">Qualifications</label>
-                    <input defaultValue={currentDoctor.qualifications} className="input-field" />
-                  </div>
-                  <div>
-                    <label className="text-[11px] text-ink-muted block mb-1">Years of Experience</label>
-                    <input defaultValue={currentDoctor.experienceYears} type="number" className="input-field" />
-                  </div>
-                  <div className="sm:col-span-2">
-                    <label className="text-[11px] text-ink-muted block mb-1">Public Bio</label>
-                    <textarea
-                      rows={3}
-                      placeholder="A short introduction shown on your public doctor profile…"
-                      className="input-field resize-none"
+                  <Field label="Profile Photo URL">
+                    <input
+                      value={settings.profile.photoUrl}
+                      onChange={(event) => updateProfile("photoUrl", event.target.value)}
+                      placeholder="https://..."
+                      className="input-field"
                     />
+                  </Field>
+                  <Field label="Public Profile URL">
+                    <div className="flex gap-2">
+                      <input
+                        value={settings.profile.publicProfileUrl}
+                        onChange={(event) => updateProfile("publicProfileUrl", event.target.value)}
+                        placeholder="https://qlyno.com/doctor/..."
+                        className="input-field"
+                      />
+                      <button type="button" onClick={copyPublicProfileUrl} className="btn-secondary px-3" aria-label="Copy public profile URL">
+                        <Copy size={14} />
+                      </button>
+                    </div>
+                  </Field>
+                </div>
+
+                <div>
+                  <h2 className="font-display text-xl text-ink">Personal Information</h2>
+                  <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <Field label="Name">
+                    <input
+                      value={settings.profile.name}
+                      onChange={(event) => updateProfile("name", event.target.value)}
+                      className="input-field"
+                    />
+                    </Field>
+                    <Field label="Email">
+                      <input
+                        type="email"
+                        value={settings.profile.email}
+                        onChange={(event) => updateProfile("email", event.target.value)}
+                        className="input-field"
+                      />
+                    </Field>
+                    <Field label="Specialization">
+                    <input
+                      value={settings.profile.specialty}
+                      onChange={(event) => updateProfile("specialty", event.target.value)}
+                      className="input-field"
+                    />
+                    </Field>
+                    <Field label="Experience (Years)">
+                      <input
+                        value={settings.profile.experienceYears}
+                        onChange={(event) => updateProfile("experienceYears", Number(event.target.value))}
+                        type="number"
+                        min="0"
+                        className="input-field"
+                      />
+                    </Field>
+                    <Field label="Clinic Name">
+                      <input
+                        value={settings.profile.clinicName}
+                        onChange={(event) => updateProfile("clinicName", event.target.value)}
+                        className="input-field"
+                      />
+                    </Field>
+                    <Field label="Qualifications & Education" className="sm:col-span-2">
+                    <input
+                      value={settings.profile.qualifications}
+                      onChange={(event) => updateProfile("qualifications", event.target.value)}
+                      className="input-field"
+                    />
+                    </Field>
+                    <Field label="Awards & Recognition" className="sm:col-span-2">
+                      <textarea
+                        rows={3}
+                        value={settings.profile.awards}
+                        onChange={(event) => updateProfile("awards", event.target.value)}
+                        placeholder="Awards, publications, honors, memberships..."
+                        className="input-field resize-none"
+                      />
+                    </Field>
+                    <Field label="Languages Spoken" className="sm:col-span-2">
+                      <input
+                        value={settings.profile.languages}
+                        onChange={(event) => updateProfile("languages", event.target.value)}
+                        placeholder="English, Hindi..."
+                        className="input-field"
+                      />
+                    </Field>
+                    <Field label="YouTube Podcast Link" className="sm:col-span-2">
+                      <input
+                        value={settings.profile.youtubePodcastUrl}
+                        onChange={(event) => updateProfile("youtubePodcastUrl", event.target.value)}
+                        placeholder="https://www.youtube.com/watch?v=..."
+                        className="input-field"
+                      />
+                    </Field>
                   </div>
                 </div>
+
+                <div>
+                  <h2 className="font-display text-xl text-ink">Contact Information</h2>
+                  <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <Field label="Phone">
+                      <input
+                        value={settings.profile.phone}
+                        onChange={(event) => updateProfile("phone", event.target.value)}
+                        className="input-field"
+                      />
+                    </Field>
+                    <Field label="Emergency">
+                      <input
+                        value={settings.profile.emergencyPhone}
+                        onChange={(event) => updateProfile("emergencyPhone", event.target.value)}
+                        className="input-field"
+                      />
+                    </Field>
+                    <Field label="Country">
+                      <input
+                        value={settings.profile.country}
+                        onChange={(event) => updateProfile("country", event.target.value)}
+                        className="input-field"
+                      />
+                    </Field>
+                    <Field label="State">
+                      <input
+                        value={settings.profile.state}
+                        onChange={(event) => updateProfile("state", event.target.value)}
+                        className="input-field"
+                      />
+                    </Field>
+                    <Field label="City">
+                      <input
+                        value={settings.profile.city}
+                        onChange={(event) => updateProfile("city", event.target.value)}
+                        className="input-field"
+                      />
+                    </Field>
+                    <Field label="Address" className="sm:col-span-2">
+                      <textarea
+                        rows={3}
+                        value={settings.profile.address}
+                        onChange={(event) => updateProfile("address", event.target.value)}
+                        className="input-field resize-none"
+                      />
+                    </Field>
+                  </div>
+                </div>
+
+                <div>
+                  <h2 className="font-display text-xl text-ink">Booking & Fees</h2>
+                  <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <Field label="Booking Preference">
+                      <select
+                        value={settings.profile.bookingPreference}
+                        onChange={(event) => updateProfile("bookingPreference", event.target.value)}
+                        className="input-field"
+                      >
+                        <option value="Slot Based Booking">Slot Based Booking</option>
+                        <option value="Request Approval Booking">Request Approval Booking</option>
+                        <option value="Walk-in Queue Booking">Walk-in Queue Booking</option>
+                      </select>
+                    </Field>
+                    <Field label="Appointment Slot Duration">
+                      <input
+                        type="number"
+                        min="1"
+                        value={settings.profile.appointmentSlotMinutes}
+                        onChange={(event) => updateProfile("appointmentSlotMinutes", event.target.value)}
+                        className="input-field"
+                      />
+                    </Field>
+                    <Field label="Free Follow-up Period">
+                      <input
+                        type="number"
+                        min="0"
+                        value={settings.profile.freeFollowUpDays}
+                        onChange={(event) => updateProfile("freeFollowUpDays", event.target.value)}
+                        className="input-field"
+                      />
+                    </Field>
+                    <Field label="General Consultation Fee">
+                      <input
+                        type="number"
+                        min="0"
+                        value={settings.profile.consultationFee}
+                        onChange={(event) => updateProfile("consultationFee", event.target.value)}
+                        className="input-field"
+                      />
+                    </Field>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between gap-3">
+                    <h2 className="font-display text-xl text-ink">Working Hours</h2>
+                    <Pill tone="neutral">Shown on public profile</Pill>
+                  </div>
+                  <div className="mt-4 grid grid-cols-1 gap-3">
+                    {settings.profile.workingHours.map((item, index) => (
+                      <div key={item.day} className="grid grid-cols-1 gap-3 rounded-md border border-line bg-paper px-3 py-3 md:grid-cols-[130px_110px_1fr_1fr] md:items-center">
+                        <p className="text-sm font-semibold text-ink">{item.day}</p>
+                        <label className="flex items-center gap-2 text-sm text-ink-soft">
+                          <input
+                            type="checkbox"
+                            checked={item.open}
+                            onChange={(event) => updateWorkingHour(index, { open: event.target.checked })}
+                            className="h-4 w-4 accent-brand-500"
+                          />
+                          Open
+                        </label>
+                        <TimePicker
+                          value={item.startTime}
+                          onChange={(value) => updateWorkingHour(index, { startTime: value })}
+                          disabled={!item.open}
+                          ariaLabel={`${item.day} start time`}
+                        />
+                        <TimePicker
+                          value={item.endTime}
+                          onChange={(value) => updateWorkingHour(index, { endTime: value })}
+                          disabled={!item.open}
+                          ariaLabel={`${item.day} end time`}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between gap-3">
+                    <h2 className="font-display text-xl text-ink">Treatments & Services</h2>
+                    <button type="button" onClick={addTreatment} className="btn-secondary text-xs">
+                      <Plus size={13} /> Add Service
+                    </button>
+                  </div>
+                  <div className="mt-4 space-y-3">
+                    {settings.profile.treatments.map((item) => (
+                      <div key={item.id} className="grid grid-cols-1 gap-3 rounded-md border border-line bg-paper px-3 py-3 sm:grid-cols-[1fr_140px_40px]">
+                        <input
+                          value={item.name}
+                          onChange={(event) => updateTreatment(item.id, "name", event.target.value)}
+                          placeholder="Treatment or service name"
+                          className="input-field"
+                        />
+                        <input
+                          value={item.fee}
+                          onChange={(event) => updateTreatment(item.id, "fee", event.target.value)}
+                          type="number"
+                          min="0"
+                          placeholder="INR"
+                          className="input-field"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeTreatment(item.id)}
+                          className="btn-secondary h-10 px-0"
+                          aria-label="Remove service"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between gap-3">
+                    <h2 className="font-display text-xl text-ink">Profile Tags</h2>
+                    <button type="button" onClick={addTag} className="btn-secondary text-xs">
+                      <Plus size={13} /> Add Tag
+                    </button>
+                  </div>
+                  <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    {settings.profile.profileTags.map((tag, index) => (
+                      <div key={index} className="flex gap-2">
+                        <input
+                          value={tag}
+                          onChange={(event) => updateTag(index, event.target.value)}
+                          placeholder="lung doctor near me"
+                          className="input-field"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeTag(index)}
+                          className="btn-secondary px-3"
+                          aria-label="Remove profile tag"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <Field label="About">
+                  <textarea
+                    rows={4}
+                    value={settings.profile.about}
+                    onChange={(event) => updateProfile("about", event.target.value)}
+                    placeholder="Detailed public introduction, expertise, and care philosophy..."
+                    className="input-field resize-none"
+                  />
+                </Field>
               </div>
             )}
 
@@ -124,7 +656,7 @@ export default function SettingsPage() {
                   })}
                 </div>
                 <div className="rounded-md border border-brand-100 bg-brand-50 px-3 py-2 text-xs text-ink-muted">
-                  Invite, verification and backend persistence are left as future API work. This screen currently uses mock affiliations.
+                  Workplaces are synced from your clinic records.
                 </div>
               </div>
             )}
@@ -134,7 +666,11 @@ export default function SettingsPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="text-[11px] text-ink-muted block mb-1">Default Consultation Length</label>
-                    <select className="input-field" defaultValue="15">
+                    <select
+                      className="input-field"
+                      value={settings.consultationLength}
+                      onChange={(event) => setSettings((prev) => ({ ...prev, consultationLength: event.target.value }))}
+                    >
                       <option value="10">10 minutes</option>
                       <option value="15">15 minutes</option>
                       <option value="20">20 minutes</option>
@@ -143,21 +679,25 @@ export default function SettingsPage() {
                   </div>
                   <div>
                     <label className="text-[11px] text-ink-muted block mb-1">Buffer Between Appointments</label>
-                    <select className="input-field" defaultValue="5">
+                    <select
+                      className="input-field"
+                      value={settings.bufferMinutes}
+                      onChange={(event) => setSettings((prev) => ({ ...prev, bufferMinutes: event.target.value }))}
+                    >
                       <option value="0">No buffer</option>
                       <option value="5">5 minutes</option>
                       <option value="10">10 minutes</option>
                     </select>
                   </div>
                 </div>
-                {[
-                  "Allow video consultations",
-                  "Show me as available for walk-ins",
-                  "Require vitals before consultation starts",
-                  "Auto-suggest ICD codes while typing diagnosis",
-                ].map((label) => (
+                {preferenceLabels.map((label) => (
                   <label key={label} className="flex items-center gap-2.5 text-sm text-ink-soft">
-                    <input type="checkbox" defaultChecked className="w-4 h-4 accent-brand-500" />
+                    <input
+                      type="checkbox"
+                      checked={settings.preferences[label]}
+                      onChange={(event) => updatePreference(label, event.target.checked)}
+                      className="w-4 h-4 accent-brand-500"
+                    />
                     {label}
                   </label>
                 ))}
@@ -166,22 +706,27 @@ export default function SettingsPage() {
 
             {tab === "Notifications" && (
               <div className="space-y-3">
-                {[
-                  "New appointment booked",
-                  "Patient checked in",
-                  "Lab report ready",
-                  "Follow-up due today",
-                  "Emergency alert",
-                  "Direct message from staff",
-                ].map((label) => (
+                {notificationLabels.map((label) => (
                   <div key={label} className="flex items-center justify-between border-b border-line/70 pb-3 last:border-0">
                     <span className="text-sm text-ink-soft">{label}</span>
                     <div className="flex gap-4 text-xs text-ink-muted">
                       <label className="flex items-center gap-1.5">
-                        <input type="checkbox" defaultChecked className="accent-brand-500" /> In-app
+                        <input
+                          type="checkbox"
+                          checked={settings.notifications[label].inApp}
+                          onChange={(event) => updateNotification(label, "inApp", event.target.checked)}
+                          className="accent-brand-500"
+                        />{" "}
+                        In-app
                       </label>
                       <label className="flex items-center gap-1.5">
-                        <input type="checkbox" defaultChecked className="accent-brand-500" /> WhatsApp
+                        <input
+                          type="checkbox"
+                          checked={settings.notifications[label].whatsapp}
+                          onChange={(event) => updateNotification(label, "whatsapp", event.target.checked)}
+                          className="accent-brand-500"
+                        />{" "}
+                        WhatsApp
                       </label>
                     </div>
                   </div>
@@ -193,14 +738,19 @@ export default function SettingsPage() {
               <div className="space-y-5">
                 <div>
                   <label className="text-[11px] text-ink-muted block mb-1">Current Password</label>
-                  <input type="password" placeholder="••••••••" className="input-field max-w-sm" />
+                  <input type="password" placeholder="********" className="input-field max-w-sm" />
                 </div>
                 <div>
                   <label className="text-[11px] text-ink-muted block mb-1">New Password</label>
-                  <input type="password" placeholder="••••••••" className="input-field max-w-sm" />
+                  <input type="password" placeholder="********" className="input-field max-w-sm" />
                 </div>
                 <label className="flex items-center gap-2.5 text-sm text-ink-soft">
-                  <input type="checkbox" className="w-4 h-4 accent-brand-500" />
+                  <input
+                    type="checkbox"
+                    checked={settings.twoFactorEnabled}
+                    onChange={(event) => setSettings((prev) => ({ ...prev, twoFactorEnabled: event.target.checked }))}
+                    className="w-4 h-4 accent-brand-500"
+                  />
                   Enable two-factor authentication
                 </label>
               </div>
@@ -210,7 +760,7 @@ export default function SettingsPage() {
               <button onClick={save} className="btn-primary">
                 Save Changes
               </button>
-              {saved && <span className="text-xs text-sage-500 ml-3">Saved</span>}
+              {saved && <span className="text-xs text-sage-500 ml-3">{syncMessage || "Saved"}</span>}
             </div>
           </Card>
         </div>

@@ -1,14 +1,17 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import clsx from "clsx";
 import { Ban, CalendarPlus, ChevronLeft, ChevronRight, Plane, Plus } from "lucide-react";
 import { ConflictNotice, ShiftCard, WorkplaceBadge } from "@/components/doctor-workflow";
-import { Card, Field, Modal, Pill, SectionHeading } from "@/components/ui";
+import { Card, Field, Modal, Pill, SectionHeading, TimePicker } from "@/components/ui";
 import { useDoctorWorkflow } from "@/lib/doctor-workflow-context";
 import { DoctorShift, ShiftType, shiftTypeLabel } from "@/lib/doctor-workflow-types";
+import { CURRENT_DATE_ISO, CURRENT_DATE_LABEL } from "@/lib/app-time";
+import { currentDoctor } from "@/lib/mock-data";
+import { ApiSyncSkippedError, createBackendShift, updateBackendShiftStatus } from "@/lib/api-client";
 
-const TODAY = "2026-08-17";
+const TODAY = CURRENT_DATE_ISO;
 const views = ["Day", "Week", "Month"] as const;
 type ViewMode = (typeof views)[number];
 
@@ -41,12 +44,14 @@ function getConflicts(shifts: DoctorShift[]) {
 }
 
 export default function DoctorSchedulePage() {
-  const { addShift, completeShift, getWorkplace, shifts, startShift, updateShiftStatus, workplaces } = useDoctorWorkflow();
+  const { addShift, backendDoctorId, completeShift, getWorkplace, shifts, startShift, updateShiftStatus, workplaces } = useDoctorWorkflow();
   const [view, setView] = useState<ViewMode>("Day");
   const [workplaceFilter, setWorkplaceFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
   const [selectedShiftId, setSelectedShiftId] = useState<string | null>(null);
   const [modal, setModal] = useState<"shift" | "add" | null>(null);
+  const [formError, setFormError] = useState("");
+  const [syncMessage, setSyncMessage] = useState("");
   const [draft, setDraft] = useState({
     workplaceId: workplaces[0]?.id ?? "wp-clinic-mg",
     date: TODAY,
@@ -54,6 +59,10 @@ export default function DoctorSchedulePage() {
     endTime: "12:00",
     shiftType: "clinic_opd" as ShiftType,
     bookingEnabled: true,
+    slotMinutes: "20",
+    bufferMinutes: "5",
+    bookingLimit: "",
+    recurrenceRule: "",
   });
 
   const visibleShifts = useMemo(
@@ -68,13 +77,48 @@ export default function DoctorSchedulePage() {
   const selectedShift = selectedShiftId ? shifts.find((shift) => shift.id === selectedShiftId) : undefined;
   const todayShifts = visibleShifts.filter((shift) => shift.date === TODAY);
 
+  useEffect(() => {
+    setDraft((prev) => {
+      if (workplaces.some((workplace) => workplace.id === prev.workplaceId)) return prev;
+      return { ...prev, workplaceId: workplaces[0]?.id ?? prev.workplaceId };
+    });
+  }, [workplaces]);
+
   function openShift(id: string) {
     setSelectedShiftId(id);
     setModal("shift");
   }
 
-  function createShift() {
-    addShift({
+  async function persistShiftStatus(id: string, status: "active" | "completed" | "cancelled") {
+    try {
+      await updateBackendShiftStatus(id, status);
+      setSyncMessage("Shift status synced to backend.");
+    } catch (error) {
+      setSyncMessage(error instanceof ApiSyncSkippedError ? "Mock shift updated locally." : "Backend sync failed; local shift update kept.");
+    }
+  }
+
+  async function createShift() {
+    setFormError("");
+    if (minutes(draft.startTime) >= minutes(draft.endTime)) {
+      setFormError("End time must be after start time.");
+      return;
+    }
+
+    const overlaps = shifts.filter(
+      (shift) =>
+        shift.date === draft.date &&
+        shift.status !== "cancelled" &&
+        minutes(draft.startTime) < minutes(shift.endTime) &&
+        minutes(shift.startTime) < minutes(draft.endTime)
+    );
+
+    if (overlaps.length > 0) {
+      setFormError("This shift overlaps with existing availability. Adjust the time before saving.");
+      return;
+    }
+
+    const nextShift: DoctorShift = {
       id: `shift-${Date.now()}`,
       workplaceId: draft.workplaceId,
       date: draft.date,
@@ -83,8 +127,25 @@ export default function DoctorSchedulePage() {
       shiftType: draft.shiftType,
       status: "upcoming",
       bookingEnabled: draft.bookingEnabled,
+      slotMinutes: Number(draft.slotMinutes) || 20,
+      bufferMinutes: Number(draft.bufferMinutes) || 0,
+      bookingLimit: draft.bookingLimit ? Number(draft.bookingLimit) : undefined,
+      recurrenceRule: draft.recurrenceRule || undefined,
       note: draft.shiftType === "leave" ? "Leave requested" : draft.shiftType === "blocked" ? "Blocked time" : undefined,
-    });
+    };
+
+    try {
+      const savedShift = await createBackendShift({
+        doctorId: backendDoctorId ?? currentDoctor.id,
+        ...nextShift,
+      });
+      addShift(savedShift);
+      setSyncMessage("Shift saved to backend.");
+    } catch (error) {
+      setSyncMessage(error instanceof ApiSyncSkippedError ? "Mock shift saved locally." : "Backend sync failed; local shift kept.");
+      addShift(nextShift);
+    }
+
     setModal(null);
   }
 
@@ -95,7 +156,14 @@ export default function DoctorSchedulePage() {
         title="My Schedule"
         description="Manage clinic OPD, hospital duty, online consultations, leave, blocked time and conflicts from one doctor calendar."
         action={
-          <button type="button" onClick={() => setModal("add")} className="btn-primary">
+          <button
+            type="button"
+            onClick={() => {
+              setFormError("");
+              setModal("add");
+            }}
+            className="btn-primary"
+          >
             <Plus size={15} /> Add Availability
           </button>
         }
@@ -119,7 +187,7 @@ export default function DoctorSchedulePage() {
             <button className="flex h-9 w-9 items-center justify-center rounded-md border border-line text-ink-muted hover:bg-paper hover:text-ink" type="button" aria-label="Previous period">
               <ChevronLeft size={15} />
             </button>
-            <Pill tone="brand">Today, August 17, 2026</Pill>
+            <Pill tone="brand">{CURRENT_DATE_LABEL}</Pill>
             <button className="flex h-9 w-9 items-center justify-center rounded-md border border-line text-ink-muted hover:bg-paper hover:text-ink" type="button" aria-label="Next period">
               <ChevronRight size={15} />
             </button>
@@ -144,6 +212,7 @@ export default function DoctorSchedulePage() {
       </Card>
 
       <ConflictNotice conflicts={conflicts} />
+      {syncMessage && <p className="text-xs text-ink-muted">{syncMessage}</p>}
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_320px]">
         <Card padded={false}>
@@ -194,13 +263,21 @@ export default function DoctorSchedulePage() {
           <Card>
             <p className="eyebrow">Quick Actions</p>
             <div className="mt-4 grid grid-cols-1 gap-2">
-              <button type="button" onClick={() => setModal("add")} className="btn-secondary justify-start">
+              <button
+                type="button"
+                onClick={() => {
+                  setFormError("");
+                  setModal("add");
+                }}
+                className="btn-secondary justify-start"
+              >
                 <CalendarPlus size={15} /> Add OPD / duty shift
               </button>
               <button
                 type="button"
                 onClick={() => {
                   setDraft((prev) => ({ ...prev, shiftType: "blocked", bookingEnabled: false }));
+                  setFormError("");
                   setModal("add");
                 }}
                 className="btn-secondary justify-start"
@@ -211,6 +288,7 @@ export default function DoctorSchedulePage() {
                 type="button"
                 onClick={() => {
                   setDraft((prev) => ({ ...prev, shiftType: "leave", startTime: "00:00", endTime: "23:59", bookingEnabled: false }));
+                  setFormError("");
                   setModal("add");
                 }}
                 className="btn-secondary justify-start"
@@ -231,16 +309,39 @@ export default function DoctorSchedulePage() {
           selectedShift && (
             <>
               {selectedShift.status !== "active" && selectedShift.status !== "completed" && (
-                <button type="button" onClick={() => startShift(selectedShift.id)} className="btn-primary">
+                <button
+                  type="button"
+                  onClick={() => {
+                    startShift(selectedShift.id);
+                    persistShiftStatus(selectedShift.id, "active");
+                  }}
+                  className="btn-primary"
+                >
                   Start Shift
                 </button>
               )}
               {selectedShift.status === "active" && (
-                <button type="button" onClick={() => completeShift(selectedShift.id)} className="btn-primary">
+                <button
+                  type="button"
+                  onClick={() => {
+                    completeShift(selectedShift.id);
+                    persistShiftStatus(selectedShift.id, "completed");
+                  }}
+                  className="btn-primary"
+                >
                   End Shift
                 </button>
               )}
-              <button type="button" onClick={() => updateShiftStatus(selectedShift.id, "cancelled")} className="btn-secondary">
+              <button
+                type="button"
+                onClick={() => {
+                  if (window.confirm("Cancel this shift and close patient booking for this time?")) {
+                    updateShiftStatus(selectedShift.id, "cancelled");
+                    persistShiftStatus(selectedShift.id, "cancelled");
+                  }
+                }}
+                className="btn-secondary"
+              >
                 Cancel Shift
               </button>
             </>
@@ -290,6 +391,11 @@ export default function DoctorSchedulePage() {
         }
       >
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {formError && (
+            <div className="sm:col-span-2 rounded-md border border-alert-100 bg-alert-50 px-3 py-2 text-sm text-ink-soft">
+              {formError}
+            </div>
+          )}
           <Field label="Workplace">
             <select value={draft.workplaceId} onChange={(e) => setDraft((prev) => ({ ...prev, workplaceId: e.target.value }))} className="input-field">
               {workplaces.map((workplace) => (
@@ -312,10 +418,45 @@ export default function DoctorSchedulePage() {
             <input type="date" value={draft.date} onChange={(e) => setDraft((prev) => ({ ...prev, date: e.target.value }))} className="input-field" />
           </Field>
           <Field label="Start time">
-            <input type="time" value={draft.startTime} onChange={(e) => setDraft((prev) => ({ ...prev, startTime: e.target.value }))} className="input-field" />
+            <TimePicker value={draft.startTime} onChange={(value) => setDraft((prev) => ({ ...prev, startTime: value }))} ariaLabel="Shift start time" />
           </Field>
           <Field label="End time">
-            <input type="time" value={draft.endTime} onChange={(e) => setDraft((prev) => ({ ...prev, endTime: e.target.value }))} className="input-field" />
+            <TimePicker value={draft.endTime} onChange={(value) => setDraft((prev) => ({ ...prev, endTime: value }))} ariaLabel="Shift end time" />
+          </Field>
+          <Field label="Slot length">
+            <select value={draft.slotMinutes} onChange={(e) => setDraft((prev) => ({ ...prev, slotMinutes: e.target.value }))} className="input-field">
+              <option value="10">10 min</option>
+              <option value="15">15 min</option>
+              <option value="20">20 min</option>
+              <option value="30">30 min</option>
+              <option value="45">45 min</option>
+            </select>
+          </Field>
+          <Field label="Buffer">
+            <select value={draft.bufferMinutes} onChange={(e) => setDraft((prev) => ({ ...prev, bufferMinutes: e.target.value }))} className="input-field">
+              <option value="0">No buffer</option>
+              <option value="5">5 min</option>
+              <option value="10">10 min</option>
+              <option value="15">15 min</option>
+            </select>
+          </Field>
+          <Field label="Booking limit">
+            <input
+              type="number"
+              min="1"
+              value={draft.bookingLimit}
+              onChange={(e) => setDraft((prev) => ({ ...prev, bookingLimit: e.target.value }))}
+              placeholder="No limit"
+              className="input-field"
+            />
+          </Field>
+          <Field label="Recurring rule">
+            <input
+              value={draft.recurrenceRule}
+              onChange={(e) => setDraft((prev) => ({ ...prev, recurrenceRule: e.target.value }))}
+              placeholder="Weekly, Mon-Fri, custom..."
+              className="input-field"
+            />
           </Field>
           <label className="mt-6 flex items-center gap-2 text-sm font-medium text-ink-soft">
             <input

@@ -1,12 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { SectionHeading, Card, Avatar, Pill, Modal, Field } from "@/components/ui";
 import { staff as seedStaff, clinic } from "@/lib/mock-data";
-import { StaffRole } from "@/lib/types";
+import { ClinicLocation, StaffMember, StaffRole } from "@/lib/types";
+import { ApiSyncSkippedError, createBackendClinicStaff, getBackendBootstrap } from "@/lib/api-client";
+import { useMode } from "@/lib/mode-context";
 
 const roles: StaffRole[] = ["Receptionist", "Nurse", "Assistant", "Lab/Pharmacy User"];
+
+const rolePermissions: Record<StaffRole, string[]> = {
+  Receptionist: ["Appointments", "Queue", "Patient registration", "Billing"],
+  Nurse: ["Vitals", "Queue handoff", "Patient preparation"],
+  Assistant: ["Tasks", "Follow-ups", "Documents"],
+  "Lab/Pharmacy User": ["Lab status", "Inventory", "Prescription handoff"],
+};
 
 const statusTone: Record<string, "brand" | "clay" | "alert"> = {
   Active: "brand",
@@ -15,24 +24,61 @@ const statusTone: Record<string, "brand" | "clay" | "alert"> = {
 };
 
 export default function StaffManagementPage() {
-  const [staff, setStaff] = useState(seedStaff);
+  const { selectedWorkplaceId } = useMode();
+  const [staff, setStaff] = useState<StaffMember[]>([]);
+  const [locations, setLocations] = useState<ClinicLocation[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState("");
   const [role, setRole] = useState<StaffRole>("Receptionist");
   const [locationId, setLocationId] = useState(clinic.locations[0].id);
+  const [syncMessage, setSyncMessage] = useState("");
 
-  function invite() {
+  useEffect(() => {
+    let cancelled = false;
+
+    getBackendBootstrap()
+      .then((data) => {
+        if (cancelled) return;
+        setStaff(data.staff);
+        setLocations(data.locations);
+        setLocationId(data.locations[0]?.id ?? clinic.locations[0].id);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setStaff(seedStaff);
+        setLocations(clinic.locations);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function invite() {
     if (!name.trim()) return;
-    setStaff((prev) => [
-      { id: `staff-${Date.now()}`, name, role, locationId, status: "Invited" },
-      ...prev,
-    ]);
+    let nextStaff: StaffMember = { id: `staff-${Date.now()}`, name, role, locationId, status: "Invited" };
+    try {
+      nextStaff = {
+        ...(await createBackendClinicStaff({
+          workplaceId: selectedWorkplaceId,
+          fullName: name,
+          role,
+        })),
+        locationId,
+      };
+      setSyncMessage("Staff invite synced to backend.");
+    } catch (error) {
+      setSyncMessage(error instanceof ApiSyncSkippedError ? "Mock staff invite saved locally." : "Backend sync failed; local staff invite kept.");
+    }
+    setStaff((prev) => [nextStaff, ...prev]);
     setName("");
     setShowForm(false);
   }
 
   function remove(id: string) {
-    setStaff((prev) => prev.filter((s) => s.id !== id));
+    if (window.confirm("Remove this staff member and revoke clinic access?")) {
+      setStaff((prev) => prev.filter((s) => s.id !== id));
+    }
   }
 
   return (
@@ -79,7 +125,7 @@ export default function StaffManagementPage() {
           </Field>
           <Field label="Location">
           <select value={locationId} onChange={(e) => setLocationId(e.target.value)} className="input-field">
-            {clinic.locations.map((l) => (
+            {locations.map((l) => (
               <option key={l.id} value={l.id}>
                 {l.name}
               </option>
@@ -88,6 +134,7 @@ export default function StaffManagementPage() {
           </Field>
         </div>
       </Modal>
+      {syncMessage && <p className="mb-3 text-xs text-ink-muted">{syncMessage}</p>}
 
       <Card padded={false}>
         <table className="w-full table-clean">
@@ -102,7 +149,7 @@ export default function StaffManagementPage() {
           </thead>
           <tbody>
             {staff.map((s) => {
-              const location = clinic.locations.find((l) => l.id === s.locationId);
+              const location = locations.find((l) => l.id === s.locationId);
               return (
                 <tr key={s.id}>
                   <td>
@@ -126,6 +173,18 @@ export default function StaffManagementPage() {
             })}
           </tbody>
         </table>
+      </Card>
+
+      <Card className="mt-6">
+        <p className="eyebrow mb-3">Role Access</p>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          {roles.map((item) => (
+            <div key={item} className="rounded-md border border-line bg-paper px-3 py-2">
+              <p className="text-sm font-semibold text-ink">{item}</p>
+              <p className="mt-1 text-xs text-ink-muted">{rolePermissions[item].join(" - ")}</p>
+            </div>
+          ))}
+        </div>
       </Card>
     </div>
   );
