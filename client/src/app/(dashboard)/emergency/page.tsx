@@ -129,7 +129,7 @@ export default function EmergencyPage() {
   const [erDoctors] = useState(initialErDoctors);
   const [erHistory] = useState(initialErHistory);
 
-  // Rapid Walk-In Emergency Modal State
+  // Rapid Walk-In Emergency Modal 
   const [newEmergencyOpen, setNewEmergencyOpen] = useState(false);
   const [walkinName, setWalkinName] = useState("");
   const [walkinAge, setWalkinAge] = useState("45");
