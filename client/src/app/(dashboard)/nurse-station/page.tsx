@@ -469,22 +469,6 @@ export default function OperationalNurseStationPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {/* Station Switcher - Hospital Admin Oversight Only */}
-          {mounted && currentRole === "admin" && (
-            <Select value={activeStationId} onValueChange={(val) => dispatch(setActiveStation(val))}>
-              <SelectTrigger className="h-8 text-xs font-semibold w-full sm:w-[220px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {stations.map((st) => (
-                  <SelectItem key={st.station_id} value={st.station_id}>
-                    {st.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-
           {/* Scope Indicator - Locked to Assigned Unit for Station Lead */}
           <ScopeIndicator
             scope="Station Lead"
