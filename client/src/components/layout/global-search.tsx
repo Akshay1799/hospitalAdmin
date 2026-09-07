@@ -11,6 +11,7 @@ import {
   Bed,
   Building2,
   Calendar,
+  CheckCircle2,
   ChevronRight,
   CreditCard,
   FileBarChart,
@@ -46,8 +47,9 @@ import {
 } from "@/lib/search/global-search-indexer";
 import { cn } from "@/lib/utils";
 
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "@/store/store";
+import { setCurrentRole } from "@/store/slices/nursingOperationsSlice";
 import { AppUserRole } from "@/lib/types/nursing-module";
 import { NURSING_STORAGE_KEY } from "@/store/provider";
 
@@ -115,6 +117,8 @@ function getCategoryIcon(cat: SearchEntityCategory) {
       return <Building2 className="h-4 w-4 text-blue-500" />;
     case "Report":
       return <FileBarChart className="h-4 w-4 text-sky-600" />;
+    case "Task":
+      return <CheckCircle2 className="h-4 w-4 text-amber-600" />;
     default:
       return <FileText className="h-4 w-4 text-muted-foreground" />;
   }
@@ -123,11 +127,12 @@ function getCategoryIcon(cat: SearchEntityCategory) {
 export function GlobalSearch() {
   const router = useRouter();
   const pathname = usePathname();
+  const dispatch = useDispatch();
   const reduxRole = useSelector((state: RootState) => state.nursingOperations.currentRole);
-  const [persistedRole, setPersistedRole] = useState<AppUserRole | null>(null);
+  const reduxTasks = useSelector((state: RootState) => state.nursingOperations.tasks);
   const [mounted, setMounted] = useState(false);
 
-  // Hydrate role from localStorage — same pattern as sidebar/topbar
+  // Sync role from localStorage on initial mount
   useEffect(() => {
     setMounted(true);
     try {
@@ -140,14 +145,43 @@ export function GlobalSearch() {
             typeof parsed.currentRole === "string" &&
             ["admin", "nurse_lead", "senior_nurse", "nurse", "support_staff", "doctor"].includes(parsed.currentRole)
           ) {
-            setPersistedRole(parsed.currentRole as AppUserRole);
+            if (parsed.currentRole !== reduxRole) {
+              dispatch(
+                setCurrentRole({
+                  role: parsed.currentRole as AppUserRole,
+                  userId: parsed.currentUserId,
+                  userName: parsed.currentUserName,
+                })
+              );
+            }
           }
         }
       }
     } catch {}
-  }, []);
+  }, [dispatch, reduxRole]);
 
-  // Resolve effectiveRole: localStorage wins, then route inference, then Redux, then fallback admin
+  // Real-time listener when switching roles from sidebar profile block
+  useEffect(() => {
+    const handleRoleChanged = (e: any) => {
+      if (e.detail?.role) {
+        dispatch(
+          setCurrentRole({
+            role: e.detail.role,
+            userId: e.detail.userId,
+            userName: e.detail.userName,
+          })
+        );
+      }
+    };
+    window.addEventListener("qlyno-role-changed", handleRoleChanged);
+    window.addEventListener("storage", handleRoleChanged);
+    return () => {
+      window.removeEventListener("qlyno-role-changed", handleRoleChanged);
+      window.removeEventListener("storage", handleRoleChanged);
+    };
+  }, [dispatch]);
+
+  // Resolve role: route inference as server fallback, Redux role once mounted
   const routeInferredRole: AppUserRole | null =
     pathname === "/nurse-station" || pathname?.startsWith("/nurse-station/")
       ? (reduxRole === "senior_nurse" ? "senior_nurse" : "nurse_lead")
@@ -157,10 +191,10 @@ export function GlobalSearch() {
       ? "support_staff"
       : null;
 
-  const currentRole: AppUserRole =
-    (mounted && persistedRole) ||
-    (routeInferredRole && reduxRole === "admin" ? routeInferredRole : reduxRole) ||
-    "admin";
+  const serverSafeRole: AppUserRole = routeInferredRole || "admin";
+  const currentRole: AppUserRole = mounted
+    ? (reduxRole || "admin")
+    : serverSafeRole;
 
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -198,6 +232,12 @@ export function GlobalSearch() {
     }
   }, [currentRole]);
 
+  useEffect(() => {
+    if (!roleSearchConfig.categories.includes(filterCategory)) {
+      setFilterCategory("All");
+    }
+  }, [roleSearchConfig, filterCategory]);
+
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -229,8 +269,8 @@ export function GlobalSearch() {
   }, [isOpen]);
 
   const searchResults = useMemo(() => {
-    return executeGlobalSearch(query, filterCategory);
-  }, [query, filterCategory]);
+    return executeGlobalSearch(query, filterCategory, currentRole, reduxTasks);
+  }, [query, filterCategory, currentRole, reduxTasks]);
 
   // Handle keyboard navigation inside list
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -374,6 +414,11 @@ export function GlobalSearch() {
                   ? "nurses, patients, tasks, and station records"
                   : "11 hospital entities";
 
+              const rbacText =
+                currentRole === "admin"
+                  ? "100% RBAC Gated"
+                  : "RBAC Gated";
+
               return (
                 <div className="p-2 space-y-3">
                   <div>
@@ -410,7 +455,7 @@ export function GlobalSearch() {
 
                   <div className="pt-2 border-t border-border flex items-center justify-between text-[11px] text-muted-foreground px-2">
                     <span>Start typing to search across {entityCount}</span>
-                    <span className="font-mono text-[10px]">RBAC Gated</span>
+                    <span className="font-mono text-[10px]">{rbacText}</span>
                   </div>
                 </div>
               );

@@ -35,16 +35,16 @@ function Logo({ collapsed, role }: { collapsed: boolean; role?: any }) {
       : "/dashboard";
 
   return (
-    <Link href={homeHref} className={cn("flex items-center gap-2.5 px-2 py-1", collapsed && "justify-center px-0")}>
+    <Link href={homeHref} className={cn("flex items-center gap-2.5 px-2 py-1", collapsed && "justify-center px-0")} suppressHydrationWarning>
       <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-active/20 text-sidebar-active">
         <span className="h-4 w-4 rounded-sm bg-sidebar-active" />
       </span>
       {!collapsed && (
-        <div className="flex flex-col">
-          <span className="font-display text-[15px] font-bold tracking-tight text-sidebar-foreground leading-none">
-            {meta.appName} <span className="text-sidebar-active">{meta.appSubname}</span>
+        <div className="flex flex-col" suppressHydrationWarning>
+          <span className="font-display text-[15px] font-bold tracking-tight text-sidebar-foreground leading-none" suppressHydrationWarning>
+            {meta.appName} <span className="text-sidebar-active" suppressHydrationWarning>{meta.appSubname}</span>
           </span>
-          <span className="text-[10px] text-sidebar-muted font-medium mt-0.5 leading-none">
+          <span className="text-[10px] text-sidebar-muted font-medium mt-0.5 leading-none" suppressHydrationWarning>
             {meta.tagline}
           </span>
         </div>
@@ -109,10 +109,10 @@ export function SidebarNav({
       ? "support_staff"
       : null;
 
-  const effectiveRole: AppUserRole =
-    (mounted && persistedRole) ||
-    (routeInferredRole && reduxRole === "admin" ? routeInferredRole : reduxRole) ||
-    "admin";
+  const serverSafeRole: AppUserRole = routeInferredRole || "admin";
+  const effectiveRole: AppUserRole = mounted
+    ? (reduxRole || "admin")
+    : serverSafeRole;
 
   const navGroups = getNavigationForRole(effectiveRole);
   const meta = getWorkspaceMetaForRole(effectiveRole);
@@ -127,6 +127,7 @@ export function SidebarNav({
           NURSING_STORAGE_KEY,
           JSON.stringify({ ...existing, currentRole: role, currentUserId: userId, currentUserName: userName })
         );
+        window.dispatchEvent(new CustomEvent("qlyno-role-changed", { detail: { role, userId, userName } }));
       } catch (err) {
         console.error(err);
       }

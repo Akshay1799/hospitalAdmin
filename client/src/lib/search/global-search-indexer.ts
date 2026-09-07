@@ -13,6 +13,8 @@ import {
 } from "@/lib/mock-data/staff";
 import { mockExtendedInsuranceClaims } from "@/lib/mock-data/insurance-tpa-extended";
 import { formatCurrency } from "@/lib/utils";
+import { AppUserRole, NursingTaskEntity } from "@/lib/types/nursing-module";
+import { initialTasks } from "@/store/slices/nursingOperationsSlice";
 
 export type SearchEntityCategory =
   | "Patient"
@@ -28,6 +30,7 @@ export type SearchEntityCategory =
   | "Vendor"
   | "Report"
   | "Insurance / TPA"
+  | "Task"
   | "Quick Action";
 
 export interface HighlightedSnippet {
@@ -161,17 +164,161 @@ const hospitalSurgeries = [
   { id: "HIST-103", caseNumber: "CASE-391", procedureName: "Arthroscopic ACL Reconstruction", department: "Orthopedics", surgeon: "Dr. Ramesh Sharma", otRoom: "Main OR 1", status: "Completed", readiness: 100, patientName: "Pooja Hegde" },
 ];
 
+export const SUPPORT_STAFF_QUICK_ACTIONS: QuickActionItem[] = [
+  {
+    id: "ss-1",
+    title: "My Task Queue",
+    description: "View and manage your assigned operational tasks for this shift",
+    href: "/support-staff",
+    iconName: "FileCheck",
+    category: "Operations",
+  },
+  {
+    id: "ss-2",
+    title: "Duty Roster",
+    description: "Check your upcoming shift schedule and duty timings",
+    href: "/roster",
+    iconName: "CalendarClock",
+    category: "Operations",
+  },
+];
+
+export const NURSE_QUICK_ACTIONS: QuickActionItem[] = [
+  {
+    id: "n-1",
+    title: "My Patients",
+    description: "View assigned bedside patients and their current care status",
+    href: "/nurse",
+    iconName: "Bed",
+    category: "Clinical",
+  },
+  {
+    id: "n-2",
+    title: "My Shift Schedule",
+    description: "Check your upcoming shifts and handover timings",
+    href: "/roster",
+    iconName: "CalendarClock",
+    category: "Operations",
+  },
+];
+
+export const NURSE_LEAD_QUICK_ACTIONS: QuickActionItem[] = [
+  {
+    id: "nl-1",
+    title: "Station Dashboard",
+    description: "Go to your station's live operational command dashboard",
+    href: "/nurse-station",
+    iconName: "LayoutDashboard",
+    category: "Clinical",
+  },
+  {
+    id: "nl-2",
+    title: "Shifts & Roster",
+    description: "Manage nurse shift schedules and roster for your station",
+    href: "/roster",
+    iconName: "CalendarClock",
+    category: "Operations",
+  },
+  {
+    id: "nl-3",
+    title: "Station Settings",
+    description: "Configure station profile, permissions, and escalation rules",
+    href: "/nurse-station?tab=settings",
+    iconName: "Settings",
+    category: "Operations",
+  },
+];
+
+export const ROLE_SEARCH_PERMISSIONS: Record<
+  AppUserRole,
+  {
+    allowedCategories: SearchEntityCategory[];
+    taskScope: "all" | "station" | "nurse" | "operational";
+  }
+> = {
+  admin: {
+    allowedCategories: [
+      "Patient",
+      "Doctor",
+      "Staff",
+      "Appointment",
+      "Department",
+      "Bed / Ward",
+      "Surgery & OT",
+      "Billing / Invoice",
+      "Procurement & PO",
+      "Emergency SOS",
+      "Vendor",
+      "Report",
+      "Insurance / TPA",
+      "Task",
+      "Quick Action",
+    ],
+    taskScope: "all",
+  },
+  nurse_lead: {
+    allowedCategories: ["Staff", "Patient", "Bed / Ward", "Task", "Emergency SOS", "Quick Action"],
+    taskScope: "station",
+  },
+  senior_nurse: {
+    allowedCategories: ["Staff", "Patient", "Bed / Ward", "Task", "Emergency SOS", "Quick Action"],
+    taskScope: "station",
+  },
+  nurse: {
+    allowedCategories: ["Patient", "Bed / Ward", "Task", "Emergency SOS", "Quick Action"],
+    taskScope: "nurse",
+  },
+  support_staff: {
+    allowedCategories: ["Task", "Bed / Ward", "Quick Action"],
+    taskScope: "operational",
+  },
+  doctor: {
+    allowedCategories: [
+      "Patient",
+      "Doctor",
+      "Appointment",
+      "Department",
+      "Bed / Ward",
+      "Surgery & OT",
+      "Emergency SOS",
+      "Quick Action",
+    ],
+    taskScope: "all",
+  },
+};
+
 export function executeGlobalSearch(
   rawQuery: string,
-  categoryFilter: string = "All"
+  categoryFilter: string = "All",
+  userRole: AppUserRole = "admin",
+  customTasks?: NursingTaskEntity[]
 ): SearchResultItem[] {
   const q = rawQuery.trim().toLowerCase();
   if (!q) return [];
 
   const results: SearchResultItem[] = [];
+  const permissions = ROLE_SEARCH_PERMISSIONS[userRole] || ROLE_SEARCH_PERMISSIONS.admin;
+  const allowedCategories = permissions.allowedCategories;
+
+  const isCategoryAllowed = (cat: SearchEntityCategory) => allowedCategories.includes(cat);
+
+  const shouldSearch = (cat: SearchEntityCategory, filterAliases: string[]) => {
+    if (!isCategoryAllowed(cat)) return false;
+    if (categoryFilter === "All") return true;
+    return filterAliases.some((alias) => alias.toLowerCase() === categoryFilter.toLowerCase());
+  };
+
+  const tasksList = customTasks && customTasks.length > 0 ? customTasks : initialTasks;
 
   // 1. SEARCH PATIENTS
-  if (categoryFilter === "All" || categoryFilter === "Patients" || categoryFilter === "Patient") {
+  if (shouldSearch("Patient", ["Patients", "Patient"])) {
+    const patientHref =
+      userRole === "nurse"
+        ? "/nurse"
+        : userRole === "nurse_lead" || userRole === "senior_nurse"
+        ? "/nurse-station"
+        : "/patients";
+
     patients.forEach((p) => {
       const matchName = p.name.toLowerCase().includes(q);
       const matchId = p.id.toLowerCase().includes(q) || p.qlynoPatientId.toLowerCase().includes(q) || (p.uhid && p.uhid.toLowerCase().includes(q));
@@ -217,7 +364,7 @@ export function executeGlobalSearch(
           category: "Patient",
           title: p.name,
           subtitle: `UHID: ${p.qlynoPatientId} • Phone: ${p.phone} • Blood Group: ${p.bloodGroup}`,
-          href: `/patients`,
+          href: patientHref,
           badgeText: p.gender,
           snippets,
         });
@@ -226,7 +373,7 @@ export function executeGlobalSearch(
   }
 
   // 2. SEARCH DOCTORS
-  if (categoryFilter === "All" || categoryFilter === "Doctors" || categoryFilter === "Doctor") {
+  if (shouldSearch("Doctor", ["Doctors", "Doctor"])) {
     doctors.forEach((d) => {
       const matchName = d.name.toLowerCase().includes(q);
       const matchSpecialty = d.specialty.toLowerCase().includes(q);
@@ -255,7 +402,7 @@ export function executeGlobalSearch(
   }
 
   // 3. SEARCH STAFF (Nurses, Receptionists, Billing, Support Staff)
-  if (categoryFilter === "All" || categoryFilter === "Staff") {
+  if (shouldSearch("Staff", ["Staff"])) {
     const allStaff: Array<{
       id: string;
       name: string;
@@ -267,10 +414,10 @@ export function executeGlobalSearch(
       email?: string;
       href: string;
     }> = [
-      ...nurses.map((n) => ({ id: n.id, name: n.name, role: n.role, roleCategory: "Nurse", department: n.department, location: n.location, status: n.status, email: n.email, href: `/staff/nurses` })),
+      ...nurses.map((n) => ({ id: n.id, name: n.name, role: n.role, roleCategory: "Nurse", department: n.department, location: n.location, status: n.status, email: n.email, href: userRole === "nurse_lead" || userRole === "senior_nurse" ? "/roster" : `/staff/nurses` })),
       ...billingStaff.map((b) => ({ id: b.id, name: b.name, role: b.role, roleCategory: "Billing Staff", department: b.assignedCounterName, location: b.location, status: b.status, email: b.email, href: `/staff/billing-staff` })),
       ...receptionists.map((r) => ({ id: r.id, name: r.name, role: r.role, roleCategory: "Receptionist", department: r.department, location: r.location, status: r.status, email: r.email, href: `/staff/receptionists` })),
-      ...supportStaffList.map((s) => ({ id: s.id, name: s.name, role: s.role, roleCategory: "Support Staff", department: s.department, location: s.location, status: s.status, email: s.email, href: `/staff/support-staff` })),
+      ...supportStaffList.map((s) => ({ id: s.id, name: s.name, role: s.role, roleCategory: "Support Staff", department: s.department, location: s.location, status: s.status, email: s.email, href: userRole === "nurse_lead" || userRole === "senior_nurse" ? "/roster" : `/staff/support-staff` })),
     ];
 
     allStaff.forEach((st) => {
@@ -300,7 +447,7 @@ export function executeGlobalSearch(
   }
 
   // 4. SEARCH APPOINTMENTS & ENCOUNTERS
-  if (categoryFilter === "All" || categoryFilter === "Appointments") {
+  if (shouldSearch("Appointment", ["Appointments", "Appointment"])) {
     appointments.forEach((a) => {
       const matchPatient = a.patientName.toLowerCase().includes(q) || a.patientId.toLowerCase().includes(q) || (a.qlynoPatientId && a.qlynoPatientId.toLowerCase().includes(q));
       const matchDoctor = a.doctorName.toLowerCase().includes(q);
@@ -328,7 +475,16 @@ export function executeGlobalSearch(
   }
 
   // 5. SEARCH BEDS & WARDS
-  if (categoryFilter === "All" || categoryFilter === "Beds & Wards" || categoryFilter === "Bed / Ward") {
+  if (shouldSearch("Bed / Ward", ["Beds & Wards", "Bed / Ward", "Beds", "Wards"])) {
+    const bedHref =
+      userRole === "support_staff"
+        ? "/wards-beds"
+        : userRole === "nurse"
+        ? "/nurse"
+        : userRole === "nurse_lead" || userRole === "senior_nurse"
+        ? "/nurse-station"
+        : "/wards-beds";
+
     hospitalBeds.forEach((b) => {
       const matchBed = b.bedNumber.toLowerCase().includes(q);
       const matchWard = b.wardName.toLowerCase().includes(q);
@@ -341,7 +497,7 @@ export function executeGlobalSearch(
           category: "Bed / Ward",
           title: `Bed ${b.bedNumber} (${b.tier})`,
           subtitle: `${b.wardName} • ${b.floor} • Status: ${b.status} ${b.patientName ? `• ${b.patientName}` : ""}`,
-          href: `/wards-beds`,
+          href: bedHref,
           badgeText: b.status.toUpperCase(),
           snippets: [
             {
@@ -355,7 +511,7 @@ export function executeGlobalSearch(
   }
 
   // 6. SEARCH SURGERIES & OT CASES
-  if (categoryFilter === "All" || categoryFilter === "Surgeries" || categoryFilter === "Surgery & OT") {
+  if (shouldSearch("Surgery & OT", ["Surgeries", "Surgery & OT", "Surgery"])) {
     hospitalSurgeries.forEach((s) => {
       const matchCase = s.caseNumber.toLowerCase().includes(q);
       const matchProc = s.procedureName.toLowerCase().includes(q);
@@ -384,7 +540,7 @@ export function executeGlobalSearch(
   }
 
   // 7. SEARCH DEPARTMENTS
-  if (categoryFilter === "All" || categoryFilter === "Departments" || categoryFilter === "Department") {
+  if (shouldSearch("Department", ["Departments", "Department"])) {
     detailedDepartments.forEach((dept) => {
       const matchName = dept.name.toLowerCase().includes(q);
       const matchHead = (dept.headName || "").toLowerCase().includes(q);
@@ -411,7 +567,7 @@ export function executeGlobalSearch(
   }
 
   // 8. SEARCH INVOICES & BILLING
-  if (categoryFilter === "All" || categoryFilter === "Invoices" || categoryFilter === "Billing / Invoice") {
+  if (shouldSearch("Billing / Invoice", ["Invoices", "Billing / Invoice", "Billing", "Invoice"])) {
     invoices.forEach((inv) => {
       const matchInvNo = inv.invoiceNo.toLowerCase().includes(q);
       const matchPatient = inv.patientName.toLowerCase().includes(q);
@@ -438,7 +594,7 @@ export function executeGlobalSearch(
   }
 
   // 9. SEARCH REPORTS & ANALYTICS
-  if (categoryFilter === "All" || categoryFilter === "Reports" || categoryFilter === "Report") {
+  if (shouldSearch("Report", ["Reports", "Report"])) {
     mockHospitalReports.forEach((r) => {
       const matchTitle = r.title.toLowerCase().includes(q);
       const matchCode = r.code.toLowerCase().includes(q);
@@ -465,7 +621,7 @@ export function executeGlobalSearch(
   }
 
   // 10. SEARCH PROCUREMENT REQUESTS
-  if (categoryFilter === "All" || categoryFilter === "Procurement" || categoryFilter === "Procurement & PO") {
+  if (shouldSearch("Procurement & PO", ["Procurement", "Procurement & PO", "PO"])) {
     procurementRequests.forEach((pr) => {
       const matchTitle = pr.title.toLowerCase().includes(q);
       const matchCat = pr.category.toLowerCase().includes(q);
@@ -491,7 +647,7 @@ export function executeGlobalSearch(
   }
 
   // 11. SEARCH VENDORS
-  if (categoryFilter === "All" || categoryFilter === "Vendors" || categoryFilter === "Vendor") {
+  if (shouldSearch("Vendor", ["Vendors", "Vendor"])) {
     vendors.forEach((v) => {
       const matchName = v.name.toLowerCase().includes(q);
       const matchCat = v.categories.some((c) => c.toLowerCase().includes(q));
@@ -517,7 +673,7 @@ export function executeGlobalSearch(
   }
 
   // 12. SEARCH INSURANCE / TPA CLAIMS
-  if (categoryFilter === "All" || categoryFilter === "Insurance" || categoryFilter === "Insurance / TPA") {
+  if (shouldSearch("Insurance / TPA", ["Insurance", "Insurance / TPA", "TPA"])) {
     mockExtendedInsuranceClaims.forEach((clm) => {
       const matchClaimNo = clm.claimNo.toLowerCase().includes(q);
       const matchPatient = clm.patientName.toLowerCase().includes(q);
@@ -544,7 +700,7 @@ export function executeGlobalSearch(
   }
 
   // 13. SEARCH EMERGENCY (MOCKED PERMISSION-GATED ACTIVE SOS CASES)
-  if (categoryFilter === "All" || categoryFilter === "Emergency SOS" || categoryFilter === "Emergency") {
+  if (shouldSearch("Emergency SOS", ["Emergency SOS", "Emergency"])) {
     const mockSosCases = [
       {
         id: "em_101",
@@ -601,9 +757,85 @@ export function executeGlobalSearch(
     });
   }
 
-  // 14. SEARCH QUICK ACTIONS
-  if (categoryFilter === "All" || categoryFilter === "Quick Actions" || categoryFilter === "Quick Action") {
-    STANDARD_QUICK_ACTIONS.forEach((qa) => {
+  // 14. SEARCH NURSING & OPERATIONAL TASKS
+  if (shouldSearch("Task", ["Tasks", "Task"])) {
+    let tasksToSearch = tasksList;
+    if (permissions.taskScope === "operational") {
+      tasksToSearch = tasksList.filter(
+        (t) =>
+          t.owner_role === "SupportStaff" ||
+          t.task_type === "Bed Sanitation" ||
+          t.task_type === "Patient Escort" ||
+          t.task_type === "General Care" ||
+          t.title.toLowerCase().includes("cleaning") ||
+          t.title.toLowerCase().includes("sanitation") ||
+          t.title.toLowerCase().includes("disinfection") ||
+          t.title.toLowerCase().includes("escort") ||
+          t.title.toLowerCase().includes("turnaround") ||
+          t.title.toLowerCase().includes("transfer")
+      );
+    } else if (permissions.taskScope === "nurse") {
+      tasksToSearch = tasksList.filter(
+        (t) =>
+          t.owner_role === "Nurse" ||
+          t.task_type === "Medication" ||
+          t.task_type === "Doctor Order" ||
+          t.task_type === "Vitals Check" ||
+          t.task_type === "General Care"
+      );
+    }
+
+    tasksToSearch.forEach((t) => {
+      const matchTitle = t.title.toLowerCase().includes(q);
+      const matchDesc = t.description.toLowerCase().includes(q);
+      const matchType = t.task_type.toLowerCase().includes(q);
+      const matchPatient = (t.patient_name || "").toLowerCase().includes(q);
+      const matchBed = (t.bed_info || "").toLowerCase().includes(q);
+      const matchOwner = (t.owner_name || "").toLowerCase().includes(q);
+      const matchStatus = t.status.toLowerCase().includes(q);
+      const matchPriority = t.priority.toLowerCase().includes(q);
+
+      if (matchTitle || matchDesc || matchType || matchPatient || matchBed || matchOwner || matchStatus || matchPriority) {
+        const taskHref =
+          userRole === "support_staff"
+            ? "/support-staff"
+            : userRole === "nurse"
+            ? "/nurse"
+            : userRole === "nurse_lead" || userRole === "senior_nurse"
+            ? "/nurse-station"
+            : "/nurse-station";
+
+        results.push({
+          id: `task_${t.task_id}`,
+          category: "Task",
+          title: t.title,
+          subtitle: `${t.task_type} • ${t.bed_info || "General"} • Priority: ${t.priority} • Due: ${t.due_at}`,
+          href: taskHref,
+          badgeText: t.status.toUpperCase(),
+          urgencyLevel: t.priority === "High" || t.is_overdue ? "critical" : "standard",
+          snippets: [
+            {
+              label: "Care & Operational Task",
+              text: `Task: "${t.title}" | Assigned: ${t.owner_name} (${t.owner_role}) | Patient: ${t.patient_name || t.bed_info} | Due: ${t.due_at} | Priority: ${t.priority} | Status: ${t.status}`,
+            },
+          ],
+        });
+      }
+    });
+  }
+
+  // 15. SEARCH QUICK ACTIONS
+  if (shouldSearch("Quick Action", ["Quick Actions", "Quick Action"])) {
+    const quickActionsToSearch =
+      userRole === "support_staff"
+        ? SUPPORT_STAFF_QUICK_ACTIONS
+        : userRole === "nurse"
+        ? NURSE_QUICK_ACTIONS
+        : userRole === "nurse_lead" || userRole === "senior_nurse"
+        ? NURSE_LEAD_QUICK_ACTIONS
+        : STANDARD_QUICK_ACTIONS;
+
+    quickActionsToSearch.forEach((qa) => {
       const matchTitle = qa.title.toLowerCase().includes(q);
       const matchDesc = qa.description.toLowerCase().includes(q);
 

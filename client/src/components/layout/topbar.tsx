@@ -55,8 +55,9 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "@/store/store";
+import { setCurrentRole } from "@/store/slices/nursingOperationsSlice";
 import { getWorkspaceMetaForRole } from "@/components/layout/nav-items";
 import { SidebarNav } from "@/components/layout/sidebar";
 import { getNotificationsForRole } from "@/lib/mock-data/notifications-extended";
@@ -66,8 +67,8 @@ export function Topbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
+  const dispatch = useDispatch();
   const reduxRole = useSelector((state: RootState) => state.nursingOperations.currentRole);
-  const [persistedRole, setPersistedRole] = useState<AppUserRole | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -81,14 +82,43 @@ export function Topbar() {
             typeof parsed.currentRole === "string" &&
             ["admin", "nurse_lead", "senior_nurse", "nurse", "support_staff", "doctor"].includes(parsed.currentRole)
           ) {
-            setPersistedRole(parsed.currentRole as AppUserRole);
+            if (parsed.currentRole !== reduxRole) {
+              dispatch(
+                setCurrentRole({
+                  role: parsed.currentRole as AppUserRole,
+                  userId: parsed.currentUserId,
+                  userName: parsed.currentUserName,
+                })
+              );
+            }
           }
         }
       }
     } catch (err) {
       console.error(err);
     }
-  }, []);
+  }, [dispatch, reduxRole]);
+
+  // Listen for role switch events from sidebar navigation profile block
+  useEffect(() => {
+    const handleRoleChanged = (e: any) => {
+      if (e.detail?.role) {
+        dispatch(
+          setCurrentRole({
+            role: e.detail.role,
+            userId: e.detail.userId,
+            userName: e.detail.userName,
+          })
+        );
+      }
+    };
+    window.addEventListener("qlyno-role-changed", handleRoleChanged);
+    window.addEventListener("storage", handleRoleChanged);
+    return () => {
+      window.removeEventListener("qlyno-role-changed", handleRoleChanged);
+      window.removeEventListener("storage", handleRoleChanged);
+    };
+  }, [dispatch]);
 
   const routeInferredRole: AppUserRole | null =
     pathname === "/nurse-station" || pathname?.startsWith("/nurse-station/")
@@ -99,10 +129,10 @@ export function Topbar() {
       ? "support_staff"
       : null;
 
-  const effectiveRole: AppUserRole =
-    (mounted && persistedRole) ||
-    (routeInferredRole && reduxRole === "admin" ? routeInferredRole : reduxRole) ||
-    "admin";
+  const serverSafeRole: AppUserRole = routeInferredRole || "admin";
+  const effectiveRole: AppUserRole = mounted
+    ? (reduxRole || "admin")
+    : serverSafeRole;
 
   const meta = getWorkspaceMetaForRole(effectiveRole);
   const roleNotifications = getNotificationsForRole(effectiveRole);

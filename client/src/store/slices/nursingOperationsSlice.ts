@@ -529,7 +529,7 @@ const initialPatients: PatientCareAssignment[] = [
   },
 ];
 
-const initialTasks: NursingTaskEntity[] = [
+export const initialTasks: NursingTaskEntity[] = [
   {
     task_id: "tsk-101",
     patient_id: "pat-101",
