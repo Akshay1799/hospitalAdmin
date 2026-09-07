@@ -36,11 +36,26 @@ import { allocateBed } from "@/store/slices/wardsBedsSlice";
 import { Bed } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 
+import { filterWardsAndBedsByRole } from "@/lib/wards-beds/station-wards-scope";
+import { Building2 } from "lucide-react";
+
 export default function AvailableBedsPage() {
   const [mounted, setMounted] = useState(false);
   const dispatch = useDispatch();
   const { toast } = useToast();
-  const { beds } = useSelector((state: RootState) => state.wardsBeds);
+  const { wards, beds } = useSelector((state: RootState) => state.wardsBeds);
+  const { currentRole, activeStationId, stations } = useSelector(
+    (state: RootState) => state.nursingOperations
+  );
+
+  const activeStation = useMemo(() => {
+    return stations.find((s) => s.station_id === activeStationId) || stations[0];
+  }, [stations, activeStationId]);
+
+  const { isStationScoped, scopedBeds } = useMemo(
+    () => filterWardsAndBedsByRole(wards, beds, currentRole, activeStation),
+    [wards, beds, currentRole, activeStation]
+  );
 
   const [search, setSearch] = useState("");
   const [tierFilter, setTierFilter] = useState("all");
@@ -58,7 +73,7 @@ export default function AvailableBedsPage() {
   }, []);
 
   const availableBeds = useMemo(() => {
-    return beds.filter((b) => {
+    return scopedBeds.filter((b) => {
       const isAvail = b.status === "Available";
       const matchesSearch =
         b.bedNumber.toLowerCase().includes(search.toLowerCase()) ||
@@ -67,7 +82,7 @@ export default function AvailableBedsPage() {
       const matchesTier = tierFilter === "all" || b.tier === tierFilter;
       return isAvail && matchesSearch && matchesTier;
     });
-  }, [beds, search, tierFilter]);
+  }, [scopedBeds, search, tierFilter]);
 
   const handleOpenAllocate = (bed: Bed) => {
     setSelectedBed(bed);
@@ -122,6 +137,24 @@ export default function AvailableBedsPage() {
       />
 
       <WardsBedsNav />
+
+      {/* Station Scope Enforced Banner */}
+      {isStationScoped && activeStation && (
+        <div className="flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-lg bg-primary/10 border border-primary/20 text-xs text-primary shadow-xs">
+          <div className="flex items-center gap-2">
+            <Building2 className="h-4 w-4 shrink-0 text-primary" />
+            <div>
+              <span className="font-semibold">Station Scope Active:</span>{" "}
+              <span>
+                {activeStation.name} • {activeStation.department_name} ({activeStation.location_name}) — Showing only station-assigned department units.
+              </span>
+            </div>
+          </div>
+          <Badge variant="outline" className="text-[10px] uppercase tracking-wider bg-primary/20 text-primary border-primary/30">
+            Station Lead Scope
+          </Badge>
+        </div>
+      )}
 
       {/* KPI Ribbon */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

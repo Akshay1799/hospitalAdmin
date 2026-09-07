@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
 import {
+  Building2,
   Calendar,
   Clock,
   Download,
@@ -26,11 +27,30 @@ import { PageHeader } from "@/components/shared/page-header";
 import { formatDateTime } from "@/lib/utils";
 import { WardsBedsNav } from "@/components/wards-beds/wards-beds-nav";
 import { useToast } from "@/hooks/use-toast";
+import { filterWardsAndBedsByRole } from "@/lib/wards-beds/station-wards-scope";
 
 export default function BedHistoryPage() {
   const [mounted, setMounted] = useState(false);
-  const { history } = useSelector((state: RootState) => state.wardsBeds);
+  const { history, wards, beds } = useSelector((state: RootState) => state.wardsBeds);
+  const { currentRole, activeStationId, stations } = useSelector(
+    (state: RootState) => state.nursingOperations
+  );
   const { toast } = useToast();
+
+  const activeStation = useMemo(() => {
+    return stations.find((s) => s.station_id === activeStationId) || stations[0];
+  }, [stations, activeStationId]);
+
+  const { isStationScoped, scopedBeds } = useMemo(
+    () => filterWardsAndBedsByRole(wards, beds, currentRole, activeStation),
+    [wards, beds, currentRole, activeStation]
+  );
+
+  const scopedBedIds = useMemo(() => new Set(scopedBeds.map((b) => b.id)), [scopedBeds]);
+  const scopedHistory = useMemo(() => {
+    if (!isStationScoped) return history;
+    return history.filter((h) => scopedBedIds.has(h.bedId));
+  }, [history, isStationScoped, scopedBedIds]);
 
   const [search, setSearch] = useState("");
   const [eventFilter, setEventFilter] = useState("all");
@@ -40,7 +60,7 @@ export default function BedHistoryPage() {
   }, []);
 
   const filteredHistory = useMemo(() => {
-    return history.filter((h) => {
+    return scopedHistory.filter((h) => {
       const matchesSearch =
         h.bedNumber.toLowerCase().includes(search.toLowerCase()) ||
         h.wardName.toLowerCase().includes(search.toLowerCase()) ||
@@ -50,7 +70,7 @@ export default function BedHistoryPage() {
       const matchesEvent = eventFilter === "all" || h.eventType === eventFilter;
       return matchesSearch && matchesEvent;
     });
-  }, [history, search, eventFilter]);
+  }, [scopedHistory, search, eventFilter]);
 
   const handleExportCSV = () => {
     const csvContent =
@@ -107,6 +127,24 @@ export default function BedHistoryPage() {
       />
 
       <WardsBedsNav />
+
+      {/* Station Scope Enforced Banner */}
+      {isStationScoped && activeStation && (
+        <div className="flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-lg bg-primary/10 border border-primary/20 text-xs text-primary shadow-xs">
+          <div className="flex items-center gap-2">
+            <Building2 className="h-4 w-4 shrink-0 text-primary" />
+            <div>
+              <span className="font-semibold">Station Scope Active:</span>{" "}
+              <span>
+                {activeStation.name} • {activeStation.department_name} ({activeStation.location_name}) — Showing only station-assigned department units.
+              </span>
+            </div>
+          </div>
+          <Badge variant="outline" className="text-[10px] uppercase tracking-wider bg-primary/20 text-primary border-primary/30">
+            Station Lead Scope
+          </Badge>
+        </div>
+      )}
 
       {/* KPI Ribbon */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

@@ -7,6 +7,7 @@ import { RootState } from "@/store/store";
 import {
   AlertTriangle,
   Bookmark,
+  Building2,
   Calendar,
   CheckCircle2,
   Clock,
@@ -26,12 +27,25 @@ import { WardsBedsNav } from "@/components/wards-beds/wards-beds-nav";
 import { cancelReservation } from "@/store/slices/wardsBedsSlice";
 import { Bed } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
+import { filterWardsAndBedsByRole } from "@/lib/wards-beds/station-wards-scope";
 
 export default function ReservedBedsPage() {
   const [mounted, setMounted] = useState(false);
   const dispatch = useDispatch();
   const { toast } = useToast();
-  const { beds } = useSelector((state: RootState) => state.wardsBeds);
+  const { wards, beds } = useSelector((state: RootState) => state.wardsBeds);
+  const { currentRole, activeStationId, stations } = useSelector(
+    (state: RootState) => state.nursingOperations
+  );
+
+  const activeStation = useMemo(() => {
+    return stations.find((s) => s.station_id === activeStationId) || stations[0];
+  }, [stations, activeStationId]);
+
+  const { isStationScoped, scopedBeds } = useMemo(
+    () => filterWardsAndBedsByRole(wards, beds, currentRole, activeStation),
+    [wards, beds, currentRole, activeStation]
+  );
 
   const [search, setSearch] = useState("");
 
@@ -40,7 +54,7 @@ export default function ReservedBedsPage() {
   }, []);
 
   const reservedBeds = useMemo(() => {
-    return beds.filter((b) => {
+    return scopedBeds.filter((b) => {
       const isRes = b.status === "Reserved";
       const matchesSearch =
         b.bedNumber.toLowerCase().includes(search.toLowerCase()) ||
@@ -48,7 +62,7 @@ export default function ReservedBedsPage() {
         (b.reservedForPatientName && b.reservedForPatientName.toLowerCase().includes(search.toLowerCase()));
       return isRes && matchesSearch;
     });
-  }, [beds, search]);
+  }, [scopedBeds, search]);
 
   const handleCancelReservation = (bedId: string, bedNumber: string) => {
     dispatch(cancelReservation(bedId));
@@ -83,6 +97,24 @@ export default function ReservedBedsPage() {
       />
 
       <WardsBedsNav />
+
+      {/* Station Scope Enforced Banner */}
+      {isStationScoped && activeStation && (
+        <div className="flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-lg bg-primary/10 border border-primary/20 text-xs text-primary shadow-xs">
+          <div className="flex items-center gap-2">
+            <Building2 className="h-4 w-4 shrink-0 text-primary" />
+            <div>
+              <span className="font-semibold">Station Scope Active:</span>{" "}
+              <span>
+                {activeStation.name} • {activeStation.department_name} ({activeStation.location_name}) — Showing only station-assigned department units.
+              </span>
+            </div>
+          </div>
+          <Badge variant="outline" className="text-[10px] uppercase tracking-wider bg-primary/20 text-primary border-primary/30">
+            Station Lead Scope
+          </Badge>
+        </div>
+      )}
 
       {/* KPI Ribbon */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

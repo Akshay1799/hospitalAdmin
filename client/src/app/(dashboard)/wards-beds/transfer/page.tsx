@@ -7,6 +7,7 @@ import { RootState } from "@/store/store";
 import {
   ArrowRight,
   ArrowRightLeft,
+  Building2,
   CheckCircle2,
   Clock,
   Filter,
@@ -37,25 +38,40 @@ import { WardsBedsNav } from "@/components/wards-beds/wards-beds-nav";
 import { executeBedTransfer } from "@/store/slices/wardsBedsSlice";
 import { Bed, BedTransferRequest } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
+import { filterWardsAndBedsByRole } from "@/lib/wards-beds/station-wards-scope";
 
 export default function BedTransferPage() {
   const [mounted, setMounted] = useState(false);
   const dispatch = useDispatch();
   const { toast } = useToast();
-  const { beds, transferRequests } = useSelector((state: RootState) => state.wardsBeds);
+  const { wards, beds, transferRequests } = useSelector((state: RootState) => state.wardsBeds);
+  const { currentRole, activeStationId, stations, currentUserName } = useSelector(
+    (state: RootState) => state.nursingOperations
+  );
+
+  const activeStation = useMemo(() => {
+    return stations.find((s) => s.station_id === activeStationId) || stations[0];
+  }, [stations, activeStationId]);
+
+  const { isStationScoped, scopedBeds } = useMemo(
+    () => filterWardsAndBedsByRole(wards, beds, currentRole, activeStation),
+    [wards, beds, currentRole, activeStation]
+  );
 
   // New Transfer Request Modal State
   const [transferModalOpen, setTransferModalOpen] = useState(false);
   const [selectedFromBedId, setSelectedFromBedId] = useState("");
   const [selectedToBedId, setSelectedToBedId] = useState("");
   const [transferReason, setTransferReason] = useState("ICU Step-down to General Ward following stabilization");
-  const [requestedBy, setRequestedBy] = useState("Dr. Kavita Verma");
+  const [requestedBy, setRequestedBy] = useState(
+    isStationScoped ? `${currentUserName || "Sister Anita Joseph"} (Station Lead)` : "Dr. Kavita Verma"
+  );
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  const occupiedBeds = beds.filter((b) => b.status === "Occupied");
+  const occupiedBeds = (isStationScoped ? scopedBeds : beds).filter((b) => b.status === "Occupied");
   const availableBeds = beds.filter((b) => b.status === "Available");
 
   const handleOpenTransferModal = () => {
@@ -161,6 +177,24 @@ export default function BedTransferPage() {
       />
 
       <WardsBedsNav />
+
+      {/* Station Scope Enforced Banner */}
+      {isStationScoped && activeStation && (
+        <div className="flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-lg bg-primary/10 border border-primary/20 text-xs text-primary shadow-xs">
+          <div className="flex items-center gap-2">
+            <Building2 className="h-4 w-4 shrink-0 text-primary" />
+            <div>
+              <span className="font-semibold">Station Scope Active:</span>{" "}
+              <span>
+                {activeStation.name} • {activeStation.department_name} ({activeStation.location_name}) — Showing only station-assigned department units.
+              </span>
+            </div>
+          </div>
+          <Badge variant="outline" className="text-[10px] uppercase tracking-wider bg-primary/20 text-primary border-primary/30">
+            Station Lead Scope
+          </Badge>
+        </div>
+      )}
 
       {/* KPI Ribbon */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

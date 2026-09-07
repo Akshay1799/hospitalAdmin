@@ -45,12 +45,26 @@ import { WardsBedsNav } from "@/components/wards-beds/wards-beds-nav";
 import { allocateBed, releaseBed } from "@/store/slices/wardsBedsSlice";
 import { Bed, BedStatus } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
+import { filterWardsAndBedsByRole } from "@/lib/wards-beds/station-wards-scope";
+import { Building2 } from "lucide-react";
 
 export default function BedMapPage() {
   const [mounted, setMounted] = useState(false);
   const dispatch = useDispatch();
   const { toast } = useToast();
   const { wards, beds } = useSelector((state: RootState) => state.wardsBeds);
+  const { currentRole, activeStationId, stations, currentUserName } = useSelector(
+    (state: RootState) => state.nursingOperations
+  );
+
+  const activeStation = useMemo(() => {
+    return stations.find((s) => s.station_id === activeStationId) || stations[0];
+  }, [stations, activeStationId]);
+
+  const { isStationScoped, scopedWards, scopedBeds } = useMemo(
+    () => filterWardsAndBedsByRole(wards, beds, currentRole, activeStation),
+    [wards, beds, currentRole, activeStation]
+  );
 
   const [selectedWardId, setSelectedWardId] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -71,8 +85,18 @@ export default function BedMapPage() {
     setMounted(true);
   }, []);
 
+  // Ensure selectedWardId stays valid within scoped wards
+  useEffect(() => {
+    if (isStationScoped && selectedWardId !== "all") {
+      const allowedWardIds = new Set(scopedWards.map((w) => w.id));
+      if (!allowedWardIds.has(selectedWardId)) {
+        setSelectedWardId("all");
+      }
+    }
+  }, [isStationScoped, selectedWardId, scopedWards]);
+
   const filteredBeds = useMemo(() => {
-    return beds.filter((b) => {
+    return scopedBeds.filter((b) => {
       const matchesWard = selectedWardId === "all" || b.wardId === selectedWardId;
       const matchesStatus = statusFilter === "all" || b.status === statusFilter;
       const matchesSearch =
@@ -81,7 +105,7 @@ export default function BedMapPage() {
         (b.currentPatientName && b.currentPatientName.toLowerCase().includes(search.toLowerCase()));
       return matchesWard && matchesStatus && matchesSearch;
     });
-  }, [beds, selectedWardId, statusFilter, search]);
+  }, [scopedBeds, selectedWardId, statusFilter, search]);
 
   const handleBedClick = (bed: Bed) => {
     setSelectedBed(bed);
@@ -130,7 +154,9 @@ export default function BedMapPage() {
     dispatch(
       releaseBed({
         bedId: bed.id,
-        releasedBy: "Hospital Admin",
+        releasedBy: isStationScoped
+          ? `${currentUserName || "Sister Anita Joseph"} (Station Lead)`
+          : "Hospital Admin",
         reason: "Patient discharged following clinical clearance.",
       })
     );
@@ -146,9 +172,21 @@ export default function BedMapPage() {
     return (
       <div className="space-y-4 animate-fade-in pb-12">
         <PageHeader
-          title="Interactive Floor Bed Map &amp; Spatial Grid"
-          description="Real-time live occupancy layout across all hospital floors, critical care bays, and isolation suites."
-          crumbs={[{ label: "Clinical Operations" }, { label: "Wards & Beds", href: "/wards-beds" }, { label: "Bed Map" }]}
+          title={
+            isStationScoped
+              ? `Interactive Bed Map — ${activeStation?.name || "Station Unit"}`
+              : "Interactive Floor Bed Map & Spatial Grid"
+          }
+          description={
+            isStationScoped
+              ? `Real-time spatial bed grid and live occupancy scoped strictly to ${activeStation?.name || "Station"} (${activeStation?.department_name || "Critical Care"} • ${activeStation?.location_name || "Main Campus"}).`
+              : "Real-time live occupancy layout across all hospital floors, critical care bays, and isolation suites."
+          }
+          crumbs={
+            isStationScoped
+              ? [{ label: "Station Operations", href: "/nurse-station" }, { label: "Patients & Bed Map", href: "/wards-beds" }, { label: "Bed Map" }]
+              : [{ label: "Clinical Operations" }, { label: "Wards & Beds", href: "/wards-beds" }, { label: "Bed Map" }]
+          }
         />
         <WardsBedsNav />
         <div className="h-48 flex items-center justify-center text-xs text-muted-foreground">
@@ -161,9 +199,21 @@ export default function BedMapPage() {
   return (
     <div className="space-y-4 animate-fade-in pb-12">
       <PageHeader
-        title="Interactive Floor Bed Map &amp; Spatial Grid"
-        description="Real-time live occupancy layout across all hospital floors, critical care bays, and isolation suites."
-        crumbs={[{ label: "Clinical Operations" }, { label: "Wards & Beds", href: "/wards-beds" }, { label: "Bed Map" }]}
+        title={
+          isStationScoped
+            ? `Interactive Bed Map — ${activeStation?.name || "Station Unit"}`
+            : "Interactive Floor Bed Map & Spatial Grid"
+        }
+        description={
+          isStationScoped
+            ? `Real-time spatial bed grid and live occupancy scoped strictly to ${activeStation?.name || "Station"} (${activeStation?.department_name || "Critical Care"} • ${activeStation?.location_name || "Main Campus"}).`
+            : "Real-time live occupancy layout across all hospital floors, critical care bays, and isolation suites."
+        }
+        crumbs={
+          isStationScoped
+            ? [{ label: "Station Operations", href: "/nurse-station" }, { label: "Patients & Bed Map", href: "/wards-beds" }, { label: "Bed Map" }]
+            : [{ label: "Clinical Operations" }, { label: "Wards & Beds", href: "/wards-beds" }, { label: "Bed Map" }]
+        }
         actions={
           <div className="flex items-center gap-2">
             <Button size="sm" variant="outline" asChild className="gap-1.5 font-semibold text-xs">
@@ -177,6 +227,24 @@ export default function BedMapPage() {
 
       <WardsBedsNav />
 
+      {/* Station Scope Enforced Banner (PRD Section 2 & Section 12) */}
+      {isStationScoped && activeStation && (
+        <div className="flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-lg bg-primary/10 border border-primary/20 text-xs text-primary shadow-xs">
+          <div className="flex items-center gap-2">
+            <Building2 className="h-4 w-4 shrink-0 text-primary" />
+            <div>
+              <span className="font-semibold">Station Scope Active:</span>{" "}
+              <span>
+                {activeStation.name} • {activeStation.department_name} ({activeStation.location_name}) — Showing only station-assigned department units.
+              </span>
+            </div>
+          </div>
+          <Badge variant="outline" className="text-[10px] uppercase tracking-wider bg-primary/20 text-primary border-primary/30">
+            Station Lead Scope
+          </Badge>
+        </div>
+      )}
+
       {/* Legend & Filter Bar */}
       <Card className="border-border shadow-xs">
         <CardContent className="p-3 flex flex-col md:flex-row items-center justify-between gap-3">
@@ -184,35 +252,50 @@ export default function BedMapPage() {
           <div className="flex flex-wrap items-center gap-3 text-xs">
             <div className="flex items-center gap-1.5">
               <div className="h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-emerald-500/20" />
-              <span className="font-medium text-muted-foreground">Available ({beds.filter((b) => b.status === "Available").length})</span>
+              <span className="font-medium text-muted-foreground">Available ({scopedBeds.filter((b) => b.status === "Available").length})</span>
             </div>
             <div className="flex items-center gap-1.5">
               <div className="h-3 w-3 rounded-full bg-rose-500 ring-2 ring-rose-500/20" />
-              <span className="font-medium text-muted-foreground">Occupied ({beds.filter((b) => b.status === "Occupied").length})</span>
+              <span className="font-medium text-muted-foreground">Occupied ({scopedBeds.filter((b) => b.status === "Occupied").length})</span>
             </div>
             <div className="flex items-center gap-1.5">
               <div className="h-3 w-3 rounded-full bg-amber-500 ring-2 ring-amber-500/20" />
-              <span className="font-medium text-muted-foreground">Reserved ({beds.filter((b) => b.status === "Reserved").length})</span>
+              <span className="font-medium text-muted-foreground">Reserved ({scopedBeds.filter((b) => b.status === "Reserved").length})</span>
             </div>
             <div className="flex items-center gap-1.5">
               <div className="h-3 w-3 rounded-full bg-cyan-500 ring-2 ring-cyan-500/20" />
-              <span className="font-medium text-muted-foreground">Cleaning ({beds.filter((b) => b.status === "Cleaning").length})</span>
+              <span className="font-medium text-muted-foreground">Cleaning ({scopedBeds.filter((b) => b.status === "Cleaning").length})</span>
             </div>
           </div>
 
           {/* Filters */}
           <div className="flex items-center gap-2 w-full md:w-auto">
             <Select value={selectedWardId} onValueChange={setSelectedWardId}>
-              <SelectTrigger className="w-[180px] text-xs h-8">
+              <SelectTrigger className="w-[220px] text-xs h-8">
                 <SelectValue placeholder="Ward Unit" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Hospital-Wide View</SelectItem>
-                {wards.map((w) => (
-                  <SelectItem key={w.id} value={w.id}>
-                    {w.name}
-                  </SelectItem>
-                ))}
+                {isStationScoped ? (
+                  <>
+                    <SelectItem value="all">
+                      {activeStation ? `${activeStation.name} (Station View)` : "All Station Units"}
+                    </SelectItem>
+                    {scopedWards.map((w) => (
+                      <SelectItem key={w.id} value={w.id}>
+                        {w.name}
+                      </SelectItem>
+                    ))}
+                  </>
+                ) : (
+                  <>
+                    <SelectItem value="all">Hospital-Wide View</SelectItem>
+                    {wards.map((w) => (
+                      <SelectItem key={w.id} value={w.id}>
+                        {w.name}
+                      </SelectItem>
+                    ))}
+                  </>
+                )}
               </SelectContent>
             </Select>
 
@@ -234,7 +317,7 @@ export default function BedMapPage() {
 
       {/* Main Spatial Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {wards
+        {scopedWards
           .filter((w) => selectedWardId === "all" || w.id === selectedWardId)
           .map((ward) => {
             const wardBeds = filteredBeds.filter((b) => b.wardId === ward.id);

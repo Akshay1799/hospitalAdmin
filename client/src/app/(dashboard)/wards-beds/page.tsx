@@ -40,12 +40,25 @@ import { WardsBedsNav } from "@/components/wards-beds/wards-beds-nav";
 import { addWard, updateWard, deactivateWard } from "@/store/slices/wardsBedsSlice";
 import { Ward, WardType } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
+import { filterWardsAndBedsByRole } from "@/lib/wards-beds/station-wards-scope";
 
 export default function AllWardsPage() {
   const [mounted, setMounted] = useState(false);
   const dispatch = useDispatch();
   const { toast } = useToast();
   const { wards, beds } = useSelector((state: RootState) => state.wardsBeds);
+  const { currentRole, activeStationId, stations } = useSelector(
+    (state: RootState) => state.nursingOperations
+  );
+
+  const activeStation = useMemo(() => {
+    return stations.find((s) => s.station_id === activeStationId) || stations[0];
+  }, [stations, activeStationId]);
+
+  const { isStationScoped, scopedWards, scopedBeds } = useMemo(
+    () => filterWardsAndBedsByRole(wards, beds, currentRole, activeStation),
+    [wards, beds, currentRole, activeStation]
+  );
 
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
@@ -69,7 +82,7 @@ export default function AllWardsPage() {
   }, []);
 
   const filteredWards = useMemo(() => {
-    return wards.filter((w) => {
+    return scopedWards.filter((w) => {
       const matchesSearch =
         w.name.toLowerCase().includes(search.toLowerCase()) ||
         w.department.toLowerCase().includes(search.toLowerCase()) ||
@@ -78,11 +91,11 @@ export default function AllWardsPage() {
       const matchesFloor = floorFilter === "all" || w.floor.includes(floorFilter);
       return matchesSearch && matchesType && matchesFloor;
     });
-  }, [wards, search, typeFilter, floorFilter]);
+  }, [scopedWards, search, typeFilter, floorFilter]);
 
-  const totalCapacity = wards.reduce((sum, w) => sum + w.totalBeds, 0);
-  const totalOccupied = beds.filter((b) => b.status === "Occupied").length;
-  const totalAvailable = beds.filter((b) => b.status === "Available").length;
+  const totalCapacity = scopedWards.reduce((sum, w) => sum + w.totalBeds, 0);
+  const totalOccupied = scopedBeds.filter((b) => b.status === "Occupied").length;
+  const totalAvailable = scopedBeds.filter((b) => b.status === "Available").length;
   const occupancyPercent = totalCapacity > 0 ? Math.round((totalOccupied / totalCapacity) * 100) : 0;
 
   const handleOpenAddWard = () => {
@@ -178,9 +191,21 @@ export default function AllWardsPage() {
     return (
       <div className="space-y-4 animate-fade-in pb-12">
         <PageHeader
-          title="Wards &amp; Beds Management"
-          description="Inpatient accommodation units, real-time spatial floor grids, ICU/HDU bed reservations, and cleaning turnaround."
-          crumbs={[{ label: "Clinical Operations" }, { label: "Wards & Beds" }]}
+          title={
+            isStationScoped
+              ? `Station Wards & Beds — ${activeStation?.name || "Station Unit"}`
+              : "Wards & Beds Management"
+          }
+          description={
+            isStationScoped
+              ? `Inpatient ward units and bed capacity scoped to ${activeStation?.name || "Station"} (${activeStation?.department_name || "Critical Care"} • ${activeStation?.location_name || "Main Campus"}).`
+              : "Inpatient accommodation units, real-time spatial floor grids, ICU/HDU bed reservations, and cleaning turnaround."
+          }
+          crumbs={
+            isStationScoped
+              ? [{ label: "Station Operations", href: "/nurse-station" }, { label: "Station Wards" }]
+              : [{ label: "Clinical Operations" }, { label: "Wards & Beds" }]
+          }
         />
         <WardsBedsNav />
         <div className="h-48 flex items-center justify-center text-xs text-muted-foreground">
@@ -193,9 +218,21 @@ export default function AllWardsPage() {
   return (
     <div className="space-y-4 animate-fade-in pb-12">
       <PageHeader
-        title="Wards &amp; Beds Management"
-        description="Inpatient accommodation units, real-time spatial floor grids, ICU/HDU bed reservations, and cleaning turnaround."
-        crumbs={[{ label: "Clinical Operations" }, { label: "Wards & Beds" }]}
+        title={
+          isStationScoped
+            ? `Station Wards & Beds — ${activeStation?.name || "Station Unit"}`
+            : "Wards & Beds Management"
+        }
+        description={
+          isStationScoped
+            ? `Inpatient ward units and bed capacity scoped to ${activeStation?.name || "Station"} (${activeStation?.department_name || "Critical Care"} • ${activeStation?.location_name || "Main Campus"}).`
+            : "Inpatient accommodation units, real-time spatial floor grids, ICU/HDU bed reservations, and cleaning turnaround."
+        }
+        crumbs={
+          isStationScoped
+            ? [{ label: "Station Operations", href: "/nurse-station" }, { label: "Station Wards" }]
+            : [{ label: "Clinical Operations" }, { label: "Wards & Beds" }]
+        }
         actions={
           <div className="flex items-center gap-2">
             <Button size="sm" variant="outline" asChild className="gap-1.5 font-semibold text-xs">
@@ -203,24 +240,48 @@ export default function AllWardsPage() {
                 <Eye className="h-4 w-4" /> Open Floor Bed Map
               </Link>
             </Button>
-            <Button size="sm" className="gap-1.5 font-semibold text-xs" onClick={handleOpenAddWard}>
-              <Plus className="h-4 w-4" /> Add Ward Unit
-            </Button>
+            {!isStationScoped && (
+              <Button size="sm" className="gap-1.5 font-semibold text-xs" onClick={handleOpenAddWard}>
+                <Plus className="h-4 w-4" /> Add Ward Unit
+              </Button>
+            )}
           </div>
         }
       />
 
       <WardsBedsNav />
 
+      {/* Station Scope Enforced Banner (PRD Section 2 & Section 12) */}
+      {isStationScoped && activeStation && (
+        <div className="flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-lg bg-primary/10 border border-primary/20 text-xs text-primary shadow-xs">
+          <div className="flex items-center gap-2">
+            <Building2 className="h-4 w-4 shrink-0 text-primary" />
+            <div>
+              <span className="font-semibold">Station Scope Active:</span>{" "}
+              <span>
+                {activeStation.name} • {activeStation.department_name} ({activeStation.location_name}) — Showing only station-assigned department units.
+              </span>
+            </div>
+          </div>
+          <Badge variant="outline" className="text-[10px] uppercase tracking-wider bg-primary/20 text-primary border-primary/30">
+            Station Lead Scope
+          </Badge>
+        </div>
+      )}
+
       {/* KPI Ribbon */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <Card className="p-3.5 border-border bg-card shadow-xs">
-          <span className="text-[11px] text-muted-foreground uppercase font-bold">Total Inpatient Capacity</span>
+          <span className="text-[11px] text-muted-foreground uppercase font-bold">
+            {isStationScoped ? "Station Bed Capacity" : "Total Inpatient Capacity"}
+          </span>
           <p className="text-xl font-bold font-mono text-primary mt-0.5">{totalCapacity} Beds</p>
-          <span className="text-[10px] text-muted-foreground">Across {wards.length} Ward Units</span>
+          <span className="text-[10px] text-muted-foreground">Across {scopedWards.length} Ward Unit{scopedWards.length !== 1 ? "s" : ""}</span>
         </Card>
         <Card className="p-3.5 border-border bg-card shadow-xs">
-          <span className="text-[11px] text-muted-foreground uppercase font-bold">Hospital Occupancy</span>
+          <span className="text-[11px] text-muted-foreground uppercase font-bold">
+            {isStationScoped ? "Station Occupancy" : "Hospital Occupancy"}
+          </span>
           <p className="text-xl font-bold font-mono text-emerald-600 mt-0.5">{occupancyPercent}%</p>
           <span className="text-[10px] text-emerald-600 font-medium">{totalOccupied} Admitted Inpatients</span>
         </Card>
@@ -232,7 +293,9 @@ export default function AllWardsPage() {
         <Card className="p-3.5 border-border bg-card shadow-xs">
           <span className="text-[11px] text-muted-foreground uppercase font-bold">Bed Single Source of Truth</span>
           <p className="text-xl font-bold font-mono text-emerald-600 mt-0.5">Live Sync</p>
-          <span className="text-[10px] text-emerald-600 font-medium">Synced with IPD &amp; Emergency</span>
+          <span className="text-[10px] text-emerald-600 font-medium">
+            {isStationScoped ? "Station Department Sync" : "Synced with IPD & Emergency"}
+          </span>
         </Card>
       </div>
 
@@ -366,14 +429,16 @@ export default function AllWardsPage() {
                         >
                           <Edit className="h-3.5 w-3.5 mr-1" /> Edit
                         </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-7 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
-                          onClick={() => handlePromptDeactivate(ward)}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
+                        {!isStationScoped && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => handlePromptDeactivate(ward)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   );

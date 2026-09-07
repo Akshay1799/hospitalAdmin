@@ -6,6 +6,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "@/store/store";
 import {
   AlertTriangle,
+  Building2,
   CheckCircle2,
   Clock,
   Filter,
@@ -39,12 +40,31 @@ import { WardsBedsNav } from "@/components/wards-beds/wards-beds-nav";
 import { assignCleaningStaff, completeCleaningTask } from "@/store/slices/wardsBedsSlice";
 import { BedCleaningTask } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
+import { filterWardsAndBedsByRole } from "@/lib/wards-beds/station-wards-scope";
 
 export default function CleaningTurnaroundPage() {
   const [mounted, setMounted] = useState(false);
   const dispatch = useDispatch();
   const { toast } = useToast();
-  const { cleaningTasks, beds } = useSelector((state: RootState) => state.wardsBeds);
+  const { cleaningTasks, beds, wards } = useSelector((state: RootState) => state.wardsBeds);
+  const { currentRole, activeStationId, stations } = useSelector(
+    (state: RootState) => state.nursingOperations
+  );
+
+  const activeStation = useMemo(() => {
+    return stations.find((s) => s.station_id === activeStationId) || stations[0];
+  }, [stations, activeStationId]);
+
+  const { isStationScoped, scopedBeds } = useMemo(
+    () => filterWardsAndBedsByRole(wards, beds, currentRole, activeStation),
+    [wards, beds, currentRole, activeStation]
+  );
+
+  const scopedBedIds = useMemo(() => new Set(scopedBeds.map((b) => b.id)), [scopedBeds]);
+  const scopedCleaningTasks = useMemo(() => {
+    if (!isStationScoped) return cleaningTasks;
+    return cleaningTasks.filter((t) => scopedBedIds.has(t.bedId));
+  }, [cleaningTasks, isStationScoped, scopedBedIds]);
 
   // Complete Dialog State
   const [completeModalOpen, setCompleteModalOpen] = useState(false);
@@ -55,8 +75,8 @@ export default function CleaningTurnaroundPage() {
     setMounted(true);
   }, []);
 
-  const activeTasks = cleaningTasks.filter((t) => t.status !== "Done");
-  const completedTasks = cleaningTasks.filter((t) => t.status === "Done");
+  const activeTasks = scopedCleaningTasks.filter((t) => t.status !== "Done");
+  const completedTasks = scopedCleaningTasks.filter((t) => t.status === "Done");
 
   const handleOpenComplete = (task: BedCleaningTask) => {
     setSelectedTask(task);
@@ -80,6 +100,7 @@ export default function CleaningTurnaroundPage() {
       description: `${selectedTask.bedNumber} certified cleaned and returned to Available status.`,
     });
     setCompleteModalOpen(false);
+    setSelectedTask(null);
   };
 
   if (!mounted) {
@@ -107,6 +128,24 @@ export default function CleaningTurnaroundPage() {
       />
 
       <WardsBedsNav />
+
+      {/* Station Scope Enforced Banner */}
+      {isStationScoped && activeStation && (
+        <div className="flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-lg bg-primary/10 border border-primary/20 text-xs text-primary shadow-xs">
+          <div className="flex items-center gap-2">
+            <Building2 className="h-4 w-4 shrink-0 text-primary" />
+            <div>
+              <span className="font-semibold">Station Scope Active:</span>{" "}
+              <span>
+                {activeStation.name} • {activeStation.department_name} ({activeStation.location_name}) — Showing only station-assigned department units.
+              </span>
+            </div>
+          </div>
+          <Badge variant="outline" className="text-[10px] uppercase tracking-wider bg-primary/20 text-primary border-primary/30">
+            Station Lead Scope
+          </Badge>
+        </div>
+      )}
 
       {/* KPI Ribbon */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
