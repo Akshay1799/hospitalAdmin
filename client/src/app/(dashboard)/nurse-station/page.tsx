@@ -1,9 +1,11 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "@/store/store";
+import { NURSING_STORAGE_KEY } from "@/store/provider";
 import {
   Activity,
   AlertCircle,
@@ -104,7 +106,7 @@ import {
   markNotificationRead,
 } from "@/store/slices/nursingOperationsSlice";
 
-export default function OperationalNurseStationPage() {
+function OperationalNurseStationPageInner() {
   const dispatch = useDispatch();
   const { toast } = useToast();
 
@@ -126,12 +128,36 @@ export default function OperationalNurseStationPage() {
     auditLogs,
   } = useSelector((state: RootState) => state.nursingOperations);
 
-  const [activeTab, setActiveTab] = useState("dashboard");
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  const [activeTab, setActiveTab] = useState(tabParam || "dashboard");
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    // When URL tab param changes, sync the active tab.
+    // If tab param is cleared (e.g. navigating to /nurse-station without ?tab=), reset to dashboard.
+    setActiveTab(tabParam || "dashboard");
+  }, [tabParam]);
+
+  useEffect(() => {
     setMounted(true);
-  }, []);
+    if (typeof window !== "undefined") {
+      try {
+        const saved = window.localStorage.getItem(NURSING_STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed && parsed.currentRole === "admin") {
+            router.replace("/nurse-stations");
+            return;
+          }
+        }
+      } catch {}
+    }
+    if (currentRole === "admin") {
+      router.replace("/nurse-stations");
+    }
+  }, [currentRole, router]);
 
   const isSeniorNurse = currentRole === "senior_nurse";
 
@@ -230,6 +256,7 @@ export default function OperationalNurseStationPage() {
       if (actionName === "broadcast") setIsBroadcastModalOpen(true);
       if (actionName === "exceptions") setIsExceptionsModalOpen(true);
       if (actionName === "roster") setActiveTab("roster");
+      if (actionName === "settings") setActiveTab("settings");
     };
 
     const onCustomEvent = (e: any) => {
@@ -242,6 +269,8 @@ export default function OperationalNurseStationPage() {
       const params = new URLSearchParams(window.location.search);
       const action = params.get("action");
       if (action) handleAction(action);
+      const tab = params.get("tab");
+      if (tab) setActiveTab(tab);
     }
 
     return () => {
@@ -445,7 +474,7 @@ export default function OperationalNurseStationPage() {
   const criticalPatientsCount = stationPatients.filter((p) => p.vitals_status === "Critical" || p.vitals_status === "Attention").length;
 
   return (
-    <RoleGate allowed={["admin", "nurse_lead", "senior_nurse"]}>
+    <RoleGate allowed={["nurse_lead", "senior_nurse"]}>
       <div className="space-y-5 animate-fade-in pb-12">
       {/* 1. Station Control Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-border pb-4">
@@ -2619,5 +2648,13 @@ export default function OperationalNurseStationPage() {
       </Dialog>
       </div>
     </RoleGate>
+  );
+}
+
+export default function OperationalNurseStationPage() {
+  return (
+    <Suspense fallback={null}>
+      <OperationalNurseStationPageInner />
+    </Suspense>
   );
 }

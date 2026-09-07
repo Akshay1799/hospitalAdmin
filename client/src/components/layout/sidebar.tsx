@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "@/store/store";
 import { ChevronsUpDown, LogOut, PanelLeftClose, PanelLeftOpen, Settings, User, ShieldCheck, HeartPulse, UserCheck, Bed, Sparkles } from "lucide-react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { setCurrentRole } from "@/store/slices/nursingOperationsSlice";
 import { AppUserRole } from "@/lib/types/nursing-module";
 import { NURSING_STORAGE_KEY } from "@/store/provider";
@@ -64,27 +64,11 @@ export function SidebarNav({
 }) {
   const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const router = useRouter();
   const dispatch = useDispatch();
   const reduxRole = useSelector((state: RootState) => state.nursingOperations.currentRole);
-  const [persistedRole, setPersistedRole] = useState<AppUserRole | null>(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const saved = window.localStorage.getItem(NURSING_STORAGE_KEY);
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (
-            parsed &&
-            typeof parsed.currentRole === "string" &&
-            ["admin", "nurse_lead", "senior_nurse", "nurse", "support_staff", "doctor"].includes(parsed.currentRole)
-          ) {
-            return parsed.currentRole as AppUserRole;
-          }
-        }
-      } catch {}
-    }
-    return null;
-  });
+  const [persistedRole, setPersistedRole] = useState<AppUserRole | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -117,16 +101,16 @@ export function SidebarNav({
   }, [dispatch, reduxRole]);
 
   const routeInferredRole: AppUserRole | null =
-    pathname?.startsWith("/nurse-station")
+    pathname === "/nurse-station" || pathname?.startsWith("/nurse-station/")
       ? (reduxRole === "senior_nurse" ? "senior_nurse" : "nurse_lead")
-      : pathname === "/nurse"
+      : pathname === "/nurse" || pathname?.startsWith("/nurse/")
       ? "nurse"
-      : pathname === "/support-staff"
+      : pathname === "/support-staff" || pathname?.startsWith("/support-staff/")
       ? "support_staff"
       : null;
 
   const effectiveRole: AppUserRole =
-    persistedRole ||
+    (mounted && persistedRole) ||
     (routeInferredRole && reduxRole === "admin" ? routeInferredRole : reduxRole) ||
     "admin";
 
@@ -180,13 +164,60 @@ export function SidebarNav({
             )}
             <div className="space-y-1">
               {group.items.map((item) => {
-                const isActive = pathname === item.href;
+                // For items with query params (e.g. ?tab=settings), check path + param separately
+                const [itemPath, itemQuery] = item.href.split("?");
+                const isTabItem = !!itemQuery;
+                const currentSearchStr = searchParams.toString();
+
+                let isActive: boolean;
+                if (isTabItem) {
+                  // Tab item is active only when both path AND query match exactly
+                  isActive = pathname === itemPath && currentSearchStr === itemQuery;
+                } else {
+                  // Plain path item: active only when path matches AND no tab-based item in ANY group
+                  // has its query param currently active (to avoid dual-highlight on /nurse-station vs ?tab=settings)
+                  const anyTabItemActive = navGroups.some((g) =>
+                    g.items.some((i) => {
+                      const [iPath, iQuery] = i.href.split("?");
+                      return !!iQuery && pathname === iPath && currentSearchStr === iQuery;
+                    })
+                  );
+                  isActive = pathname === item.href && !anyTabItemActive;
+                }
                 const Icon = item.icon;
+
+                if (isTabItem) {
+                  // Use a button + router.push for tab-based nav items to avoid timing issues with custom events
+                  return (
+                    <button
+                      key={item.href}
+                      type="button"
+                      onClick={() => {
+                        router.push(item.href);
+                        if (onNavigate) onNavigate();
+                      }}
+                      className={cn(
+                        "w-full flex items-center gap-3 rounded-lg px-3 py-2 text-xs font-medium transition-all duration-200 ease-out text-left",
+                        isActive
+                          ? "bg-sidebar-active/15 text-sidebar-active font-semibold shadow-xs"
+                          : "text-sidebar-foreground/80 hover:bg-sidebar-muted/10 hover:text-sidebar-foreground",
+                        collapsed && "justify-center px-0 py-2.5"
+                      )}
+                      title={collapsed ? item.label : undefined}
+                    >
+                      <Icon className={cn("h-4 w-4 shrink-0 transition-transform duration-200", isActive && "scale-110")} />
+                      {!collapsed && <span>{item.label}</span>}
+                    </button>
+                  );
+                }
+
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
-                    onClick={onNavigate}
+                    onClick={() => {
+                      if (onNavigate) onNavigate();
+                    }}
                     className={cn(
                       "flex items-center gap-3 rounded-lg px-3 py-2 text-xs font-medium transition-all duration-200 ease-out",
                       isActive

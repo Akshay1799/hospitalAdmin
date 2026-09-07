@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useDispatch, useSelector } from "react-redux";
-import { MoreHorizontal } from "lucide-react";
+import { MoreHorizontal, HeartPulse } from "lucide-react";
 import { RootState } from "@/store/store";
+import { NURSING_STORAGE_KEY } from "@/store/provider";
 import { NurseStationEntity } from "@/lib/types/nursing-module";
 import { setStationStatus } from "@/store/slices/nursingOperationsSlice";
 import { RoleGate } from "@/components/nursing/role-gate";
@@ -20,12 +21,30 @@ import { NurseStationForm } from "@/components/nurse-stations/NurseStationForm";
 export default function NurseStationsPage() {
   const router = useRouter();
   const dispatch = useDispatch();
-  const { stations, nurses, supportStaff, currentUserName } = useSelector(
+  const { stations, nurses, supportStaff, currentUserName, currentRole } = useSelector(
     (state: RootState) => state.nursingOperations
   );
   const [query, setQuery] = useState("");
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<NurseStationEntity | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = window.localStorage.getItem(NURSING_STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed && (parsed.currentRole === "nurse_lead" || parsed.currentRole === "senior_nurse")) {
+            router.replace("/nurse-station");
+            return;
+          }
+        }
+      } catch {}
+    }
+    if (currentRole === "nurse_lead" || currentRole === "senior_nurse") {
+      router.replace("/nurse-station");
+    }
+  }, [currentRole, router]);
 
   const rows = useMemo(
     () =>

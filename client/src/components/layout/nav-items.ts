@@ -187,7 +187,7 @@ export const nurseStationLeadNavGroups: NavGroup[] = [
       { label: "Support Staff", href: "/support-staff", icon: Sparkles },
       { label: "Station Reports", href: "/reports", icon: Gauge },
       { label: "Nursing Audit Logs", href: "/nursing-audit-logs", icon: ScrollText },
-      { label: "Station Settings", href: "/nurse-stations", icon: Settings },
+      { label: "Station Settings", href: "/nurse-station?tab=settings", icon: Settings },
     ],
   },
 ];

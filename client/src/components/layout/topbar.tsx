@@ -67,24 +67,7 @@ export function Topbar() {
   const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
   const reduxRole = useSelector((state: RootState) => state.nursingOperations.currentRole);
-  const [persistedRole, setPersistedRole] = useState<AppUserRole | null>(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const saved = window.localStorage.getItem(NURSING_STORAGE_KEY);
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (
-            parsed &&
-            typeof parsed.currentRole === "string" &&
-            ["admin", "nurse_lead", "senior_nurse", "nurse", "support_staff", "doctor"].includes(parsed.currentRole)
-          ) {
-            return parsed.currentRole as AppUserRole;
-          }
-        }
-      } catch {}
-    }
-    return null;
-  });
+  const [persistedRole, setPersistedRole] = useState<AppUserRole | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -108,16 +91,16 @@ export function Topbar() {
   }, []);
 
   const routeInferredRole: AppUserRole | null =
-    pathname?.startsWith("/nurse-station")
+    pathname === "/nurse-station" || pathname?.startsWith("/nurse-station/")
       ? (reduxRole === "senior_nurse" ? "senior_nurse" : "nurse_lead")
-      : pathname === "/nurse"
+      : pathname === "/nurse" || pathname?.startsWith("/nurse/")
       ? "nurse"
-      : pathname === "/support-staff"
+      : pathname === "/support-staff" || pathname?.startsWith("/support-staff/")
       ? "support_staff"
       : null;
 
   const effectiveRole: AppUserRole =
-    persistedRole ||
+    (mounted && persistedRole) ||
     (routeInferredRole && reduxRole === "admin" ? routeInferredRole : reduxRole) ||
     "admin";
 

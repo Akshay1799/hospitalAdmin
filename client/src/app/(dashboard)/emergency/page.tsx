@@ -644,7 +644,7 @@ export default function EmergencyPage() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
               <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Emergency Nursing Station On-Duty Roster</h3>
               <Button asChild size="sm" variant="ghost" className="h-6 text-xs text-primary font-semibold self-start sm:self-auto">
-                <Link href="/nurse-station">Manage Station in Nurse Module &rarr;</Link>
+                <Link href="/nurse-stations">Manage Stations in Nurse Module &rarr;</Link>
               </Button>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">

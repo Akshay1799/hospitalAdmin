@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 
 import { SidebarNav } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
@@ -28,13 +28,15 @@ export default function DashboardLayout({
           className="fixed h-screen transition-[width] duration-300 ease-out print:hidden"
           style={{ width: collapsed ? 78 : 248 }}
         >
-          <SidebarNav
-            collapsed={collapsed}
-            onToggleCollapse={() => {
-              setIsPinned((prev) => !prev);
-              setIsHovered(false);
-            }}
-          />
+          <Suspense fallback={null}>
+            <SidebarNav
+              collapsed={collapsed}
+              onToggleCollapse={() => {
+                setIsPinned((prev) => !prev);
+                setIsHovered(false);
+              }}
+            />
+          </Suspense>
         </div>
       </aside>
 
