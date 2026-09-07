@@ -181,7 +181,7 @@ export function StationReportsView() {
               </div>
             </div>
           )}
-          <ScopeIndicator scope={mounted && currentRole === "admin" ? "Hospital Admin" : "Nurse Station Lead"} />
+          <ScopeIndicator scope={mounted && currentRole === "admin" ? "Hospital Admin" : "Station Lead"} />
         </div>
       </div>
 
@@ -589,7 +589,7 @@ export function StationReportsView() {
                           {t.priority}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-xs font-mono">{t.due_time || "11:30 AM"}</TableCell>
+                      <TableCell className="text-xs font-mono">{t.due_at || "11:30 AM"}</TableCell>
                       <TableCell className="text-right">
                         <Badge className={
                           t.status === "Completed" ? "bg-emerald-500/15 text-emerald-700 text-[10px]" :
@@ -747,13 +747,13 @@ export function StationReportsView() {
                       <TableCell className="text-xs text-muted-foreground">{e.reason}</TableCell>
                       <TableCell>
                         <Badge className={
-                          e.severity === "Critical" ? "bg-rose-500/15 text-rose-700 text-[10px]" :
+                          e.priority === "Urgent" ? "bg-rose-500/15 text-rose-700 text-[10px]" :
                           "bg-amber-500/15 text-amber-700 text-[10px]"
                         }>
-                          {e.severity}
+                          {e.priority}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-xs font-medium text-primary">{e.doctor_name || "Dr. Ananya Patel"}</TableCell>
+                      <TableCell className="text-xs font-medium text-primary">{e.responsible_doctor || "Dr. Ananya Patel"}</TableCell>
                       <TableCell className="text-xs font-mono">3.5 mins</TableCell>
                       <TableCell className="text-right">
                         <Badge className={
