@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import {
   Activity,
@@ -48,6 +48,8 @@ import { cn } from "@/lib/utils";
 
 import { useSelector } from "react-redux";
 import { RootState } from "@/store/store";
+import { AppUserRole } from "@/lib/types/nursing-module";
+import { NURSING_STORAGE_KEY } from "@/store/provider";
 
 const CATEGORIES = [
   "All",
@@ -120,7 +122,46 @@ function getCategoryIcon(cat: SearchEntityCategory) {
 
 export function GlobalSearch() {
   const router = useRouter();
-  const currentRole = useSelector((state: RootState) => state.nursingOperations.currentRole);
+  const pathname = usePathname();
+  const reduxRole = useSelector((state: RootState) => state.nursingOperations.currentRole);
+  const [persistedRole, setPersistedRole] = useState<AppUserRole | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  // Hydrate role from localStorage — same pattern as sidebar/topbar
+  useEffect(() => {
+    setMounted(true);
+    try {
+      if (typeof window !== "undefined") {
+        const saved = window.localStorage.getItem(NURSING_STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (
+            parsed &&
+            typeof parsed.currentRole === "string" &&
+            ["admin", "nurse_lead", "senior_nurse", "nurse", "support_staff", "doctor"].includes(parsed.currentRole)
+          ) {
+            setPersistedRole(parsed.currentRole as AppUserRole);
+          }
+        }
+      }
+    } catch {}
+  }, []);
+
+  // Resolve effectiveRole: localStorage wins, then route inference, then Redux, then fallback admin
+  const routeInferredRole: AppUserRole | null =
+    pathname === "/nurse-station" || pathname?.startsWith("/nurse-station/")
+      ? (reduxRole === "senior_nurse" ? "senior_nurse" : "nurse_lead")
+      : pathname === "/nurse" || pathname?.startsWith("/nurse/")
+      ? "nurse"
+      : pathname === "/support-staff" || pathname?.startsWith("/support-staff/")
+      ? "support_staff"
+      : null;
+
+  const currentRole: AppUserRole =
+    (mounted && persistedRole) ||
+    (routeInferredRole && reduxRole === "admin" ? routeInferredRole : reduxRole) ||
+    "admin";
+
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [filterCategory, setFilterCategory] = useState<string>("All");
@@ -298,47 +339,82 @@ export function GlobalSearch() {
 
           {/* RESULTS / QUICK ACTIONS LIST CONTAINER */}
           <div ref={listRef} className="max-h-[380px] overflow-y-auto p-2 space-y-1 text-xs">
-            {/* 1. WHEN QUERY IS EMPTY: SHOW 10 PERMITTED QUICK ACTIONS */}
-            {!query.trim() && (
-              <div className="p-2 space-y-3">
-                <div>
-                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider px-2">
-                    Quick Actions
-                  </span>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 mt-1.5">
-                    {STANDARD_QUICK_ACTIONS.map((qa) => (
-                      <button
-                        key={qa.id}
-                        onClick={() => handleSelectQuickAction(qa)}
-                        className="flex items-center justify-between p-2.5 rounded-lg border border-border/60 hover:border-primary/50 hover:bg-primary/5 text-left transition-all group"
-                      >
-                        <div className="flex items-center gap-2.5">
-                          <div className="p-1.5 rounded-md bg-muted/40 group-hover:bg-primary/10 text-primary">
-                            <Sparkles className="h-4 w-4" />
+            {/* 1. WHEN QUERY IS EMPTY: SHOW ROLE-GATED QUICK ACTIONS */}
+            {!query.trim() && (() => {
+              // Role-gated quick action sets
+              const supportStaffQuickActions = [
+                { id: "ss-1", title: "My Task Queue", description: "View and manage your assigned operational tasks for this shift", href: "/support-staff", category: "Operations" },
+                { id: "ss-2", title: "Duty Roster", description: "Check your upcoming shift schedule and duty timings", href: "/roster", category: "Operations" },
+              ];
+              const nurseQuickActions = [
+                { id: "n-1", title: "My Patients", description: "View assigned bedside patients and their current care status", href: "/nurse", category: "Clinical" },
+                { id: "n-2", title: "My Shift Schedule", description: "Check your upcoming shifts and handover timings", href: "/roster", category: "Operations" },
+              ];
+              const nurseLeadQuickActions = [
+                { id: "nl-1", title: "Station Dashboard", description: "Go to your station's live operational command dashboard", href: "/nurse-station", category: "Clinical" },
+                { id: "nl-2", title: "Shifts & Roster", description: "Manage nurse shift schedules and roster for your station", href: "/roster", category: "Operations" },
+                { id: "nl-3", title: "Station Settings", description: "Configure station profile, permissions, and escalation rules", href: "/nurse-station?tab=settings", category: "Operations" },
+              ];
+
+              const quickActionsToShow =
+                currentRole === "support_staff"
+                  ? supportStaffQuickActions
+                  : currentRole === "nurse"
+                  ? nurseQuickActions
+                  : currentRole === "nurse_lead" || currentRole === "senior_nurse"
+                  ? nurseLeadQuickActions
+                  : STANDARD_QUICK_ACTIONS; // admin default
+
+              const entityCount =
+                currentRole === "support_staff"
+                  ? "operational tasks and duty rosters"
+                  : currentRole === "nurse"
+                  ? "assigned patients, vitals, and care tasks"
+                  : currentRole === "nurse_lead" || currentRole === "senior_nurse"
+                  ? "nurses, patients, tasks, and station records"
+                  : "11 hospital entities";
+
+              return (
+                <div className="p-2 space-y-3">
+                  <div>
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider px-2">
+                      Quick Actions
+                    </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 mt-1.5">
+                      {quickActionsToShow.map((qa) => (
+                        <button
+                          key={qa.id}
+                          onClick={() => handleSelectQuickAction(qa as any)}
+                          className="flex items-center justify-between p-2.5 rounded-lg border border-border/60 hover:border-primary/50 hover:bg-primary/5 text-left transition-all group"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <div className="p-1.5 rounded-md bg-muted/40 group-hover:bg-primary/10 text-primary">
+                              <Sparkles className="h-4 w-4" />
+                            </div>
+                            <div>
+                              <span className="font-semibold text-foreground text-xs block group-hover:text-primary">
+                                {qa.title}
+                              </span>
+                              <span className="text-[10px] text-muted-foreground line-clamp-1">
+                                {qa.description}
+                              </span>
+                            </div>
                           </div>
-                          <div>
-                            <span className="font-semibold text-foreground text-xs block group-hover:text-primary">
-                              {qa.title}
-                            </span>
-                            <span className="text-[10px] text-muted-foreground line-clamp-1">
-                              {qa.description}
-                            </span>
-                          </div>
-                        </div>
-                        <Badge variant="outline" className="text-[8px] font-mono shrink-0 ml-1">
-                          {qa.category}
-                        </Badge>
-                      </button>
-                    ))}
+                          <Badge variant="outline" className="text-[8px] font-mono shrink-0 ml-1">
+                            {qa.category}
+                          </Badge>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-border flex items-center justify-between text-[11px] text-muted-foreground px-2">
+                    <span>Start typing to search across {entityCount}</span>
+                    <span className="font-mono text-[10px]">RBAC Gated</span>
                   </div>
                 </div>
-
-                <div className="pt-2 border-t border-border flex items-center justify-between text-[11px] text-muted-foreground px-2">
-                  <span>Start typing to search across 11 hospital entities</span>
-                  <span className="font-mono text-[10px]">100% RBAC Gated</span>
-                </div>
-              </div>
-            )}
+              );
+            })()}
 
             {/* 2. WHEN QUERY IS ACTIVE BUT NO MATCHES */}
             {query.trim() && searchResults.length === 0 && (
